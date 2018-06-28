@@ -1,10 +1,71 @@
 # Plotting frass density or mass over time
 library(gsheet)
+library(dplyr)
+library(tidyr)
+
+
+# Function for reading in frass data from GoogleDoc
+# *if aim is to backup GoogleDoc and write to disk only, then open =F and write = T
+# *if aim is to use data without writing to disk, then open = T and write = F
+
+frassData = function(open = F, write = F) {
+  require(gsheet)
+  url = "https://docs.google.com/spreadsheets/d/1RwXzwhHUbP0m5gKSOVhnKZbS1C_NrbdfHLglIVCzyFc/edit#gid=1479231778"
+  data = gsheet2tbl(url)
+  
+  if (write) {
+    # Write a copy
+    write.csv(data, paste('data/frass_', Sys.Date(), '.csv', sep = ''),
+              row.names = F)
+  }
+  if (open) { return (data) }
+}
+
+
+# Function that takes a date field (formatted as %m/%d/%Y) and a time field
+# (hh:mm in 24h time), converts the date to julian day and adds the fractional
+# day represented by the hours and minutes
+
+julianDayTime = function(date, hour_min) {
+  require(lubridate)
+  jday = yday(date)
+  temp = sapply(strsplit(hour_min, ":"), function(x) {
+    x = as.numeric(x)
+    x[1] + x[2]/60
+  })
+  output = jday + temp/24
+  return(output)
+}
+
+
+# Function for plotting frass phenology
+#   minReliability is the minimum reliability score for including in the analysis.
+#    3 - reliable, no obvious problems
+#    2 - frass traps wet, or potential minor issues
+#    1 - major problems, unreliable frass data
+
+
+frassplot = function(frassdata, inputSite, year, color = 'black', new = T, 
+                     var = 'mass', minReliability = 0, xlab = 'Julian day', ylab = '', ...) {
+  
+  temp = filter(frassdata, site == inputSite, Year == year, reliability >= minReliability) %>%
+    data.frame()
+  
+  if (new) {
+    plot(temp$jday, temp[, var], xlab = xlab, ylab = ylab,
+         type = 'l', col = color, ...)
+  } else {
+    points(temp$jday, temp[, var], type = 'l', col = color, ...)
+  }
+}
+
 
 # Get frass data and then get julian days and times
 data = frassData(open = T) %>%
   filter(!is.na(Time.Set) & !is.na(Time.Collected)) %>%
   mutate(Date.Set = as.Date(Date.Set, format = "%m/%d/%Y"),
+         Time.Set = as.character(Time.Set),
+         Time.Collected = as.character(Time.Collected),
          Date.Collected = as.Date(Date.Collected, format = "%m/%d/%Y"),
          Year = format(Date.Collected, "%Y"),
          jday.Set = julianDayTime(Date.Set, Time.Set),
