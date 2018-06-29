@@ -145,7 +145,11 @@ bglep17.mass = meanDensityByDay(beatvis.bg, ordersToInclude = "LEPL", inputYear 
                                  inputSite = 8892356, jdRange = c(138,205), outlierCount = 30,
                                  plot = T, new = T, plotVar = 'meanBiomass', xlim = c(138, 205),
                                  lwd = 4, col = 'blueviolet', yaxt = 'n', ylab = '')
-
+#new plot comparing NCBG 2015 & 2018
+frassplot(meanfrass, inputSite = 8892356, 2015, 'red', new = T, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 5.1), lwd = 2, minReliability = 1, lty = 'solid', main = 'NCBG: 2015 vs 2018')
+frassplot(meanfrass, inputSite = 8892356, 2018, 'blue', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 5.1), lwd = 2, minReliability = 1, lty = 'dotted', main = 'NCBG: 2015 vs 2018')
 
 # Prairie Ridge
 frassplot(meanfrass, inputSite = 117, 2015, 'red', new = T, var = 'mass', xlim = c(138, 205),
