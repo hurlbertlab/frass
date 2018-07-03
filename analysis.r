@@ -14,17 +14,13 @@ frassLoad = function(open = T, write = F) {
 }
 
 
-
 data = frassLoad(open = T)
-
 dataWO = data[data$Weight_Raw < 50,]
 
 
 # Linear model
 raw_sort = lm(Weight_Sorted ~ Weight_Raw, data = data)
-
 raw_sort_outlier_excl = lm(Weight_Sorted ~ Weight_Raw, data = dataWO)
-
 sort_img = lm(Img_Sorted ~ Weight_Sorted, data = dataWO)
 
 
@@ -33,3 +29,4 @@ plot(data$Weight_Raw, data$Weight_Sorted, main = "Frass Weight Comparison (mg.)"
 plot(data$Weight_Raw[data$Weight_Raw<50], data$Weight_Sorted[data$Weight_Raw<50],main = "Frass Weight Comparison (mg.)", xlab = "Weight Raw", ylab = "Weight Sorted", pch = 17, cex = 1, col = 'red')
 abline(raw_sort_outlier_excl)
 
+#Next plot should be comparing img data to wgt. raw then wgt. sorted to see how much sorting changes weight estimates
