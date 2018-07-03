@@ -184,6 +184,20 @@ legend(137, 11.6, title = "Survey Year", c("2015", "2016", "2017", "2018"), cex 
        lty=c("solid", "twodash", "dotted", "dashed"), col=c("red", "green", "orange", "blue"))
 
 
+#plot compiling Prairie Ridge and Bot Garden frass from 2015 & 2018  .Not showing 2016 & 2017 data due to an error - needs trouble shooting.
+frassplot(meanfrass, inputSite = 8892356, 2015, 'violet', new = T, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 11.5), lwd = 2, minReliability = 2, xlab = "Julian Day", ylab = "Frass (mg./day)", lty = 'solid', main = 'Prairie Ridge vs. Botanical Garden Frass')
+frassplot(meanfrass, inputSite = 8892356, 2018, 'blue', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 11.5), lwd = 2, minReliability = 2, lty = 'dashed', main = '')
+frassplot(meanfrass, inputSite = 117, 2015, 'green', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 11.5), lwd = 2, minReliability = 2, xlab = "Julian Day", ylab = "Frass (mg./day)", lty = 'twodash', main = '')
+frassplot(meanfrass, inputSite = 117, 2018, 'orange', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 11.5), lwd = 2, minReliability = 2, lty = 'dotted', main = '')
+#legend to decode graphic
+legend("topleft", cex = .53, title = "Survey Site & Year", c("BG 2015", "BG 2018", "PR 2015", "PR 2018"), lwd = 2, bty = "y",
+       lty=c("solid", "dashed", "twodash", "dotted"), col=c("violet", "blue", "green", "orange"))
+
+
 ## Frass Density
 # Bot Garden
 frassplot(meanfrass, inputSite = 8892356, 2015, 'red', new = T, var = 'density', xlim = c(138, 205),
