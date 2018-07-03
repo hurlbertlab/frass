@@ -170,7 +170,7 @@ prlep15.mass = meanDensityByDay(beatvis.pr, ordersToInclude = "LEPL", inputYear 
                                 inputSite = 117, jdRange = c(138,205), outlierCount = 30,
                                 plot = T, plotVar = 'meanBiomass', xlim = c(138, 205),
                                 lwd = 4, col = 'blueviolet', yaxt = 'n', ylab = '')
-#plot compiling Prairie Ridge frass from 2015 through 2018
+#plot compiling Prairie Ridge frass from 2015 through 2018. Not showing 2016 & 2017 data due to an error - needs trouble shooting.
 frassplot(meanfrass, inputSite = 117, 2015, 'red', new = T, var = 'mass', xlim = c(138,205),
           ylim = c(0, 11.5), lwd = 2, minReliability = 2, xlab = "Julian Day", ylab = "Frass (mg./day)", lty = 'solid', main = 'Prairie Ridge Frass')
 frassplot(meanfrass, inputSite = 117, 2016, 'green', new = F, var = 'mass', xlim = c(138,205),
