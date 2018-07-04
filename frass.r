@@ -155,8 +155,8 @@ frassplot(meanfrass, inputSite = 8892356, 2017, 'orange', new = F, var = 'mass',
 frassplot(meanfrass, inputSite = 8892356, 2018, 'blue', new = F, var = 'mass', xlim = c(138,205),
           ylim = c(0, 10.14), lwd = 2, minReliability = 2, lty = 'dashed', main = 'NCBG Frass')
 #legend to decode graphic
-legend(136, 10.2, title = "Survey Year", c("2015", "2016", "2017", "2018"), cex = .7, bty = "y", y.intersp = .8,
-       lty=c("solid", "twodash", "dotted", "dashed"), col=c("red", "green", "orange", "blue"))
+legend(136, 10.2, title = "Survey Year", c("2015", "2016", "2017", "2018"), cex = .7, bty = "n", y.intersp = .8,
+       lty=c("solid", "twodash", "dotted", "dashed"), col=c("red", "green", "orange", "blue"), lwd = 2)
 
 # Prairie Ridge
 frassplot(meanfrass, inputSite = 117, 2015, 'red', new = T, var = 'mass', xlim = c(138, 205),
@@ -194,7 +194,7 @@ frassplot(meanfrass, inputSite = 117, 2015, 'green', new = F, var = 'mass', xlim
 frassplot(meanfrass, inputSite = 117, 2018, 'orange', new = F, var = 'mass', xlim = c(138,205),
           ylim = c(0, 11.5), lwd = 2, minReliability = 2, lty = 'dotted', main = '')
 #legend to decode graphic
-legend("topleft", cex = .53, title = "Survey Site & Year", c("BG 2015", "BG 2018", "PR 2015", "PR 2018"), lwd = 2, bty = "y",
+legend("topleft", cex = .58, title = "Survey Site & Year", c("BG 2015", "BG 2018", "PR 2015", "PR 2018"), lwd = 2, bty = "n",
        lty=c("solid", "dashed", "twodash", "dotted"), col=c("violet", "blue", "green", "orange"))
 
 
