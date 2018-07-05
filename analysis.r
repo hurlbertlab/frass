@@ -42,3 +42,14 @@ plot(data$Pieces_Sorted, data$Img_Sorted, main = "Sorted Frass Comparison: # of 
 sort_pcs = lm(Img_Sorted ~ Pieces_Sorted, data = data)
 abline(sort_pcs)
 summary(sort_pcs)
+
+# Raw image versus weight sorted
+#excluded the outlier
+plot(dataWO$Img_Raw, dataWO$Weight_Sorted, main = "Raw Image v. Weight of sorted Frass", xlab = "Raw Image Percent Coverage", 
+     ylab = "Weight Sorted (mg)", col = 'orange' , pch = 18)
+raw_img = lm(dataWO$Img_Raw ~ dataWO$Weight_Sorted)
+abline(raw_img)
+summary(raw_img)
+
+
+
