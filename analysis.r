@@ -18,15 +18,20 @@ data = frassLoad(open = T)
 dataWO = data[data$Weight_Raw < 50,]
 
 
-# Linear model
+# Linear model 
 raw_sort = lm(Weight_Sorted ~ Weight_Raw, data = data)
 raw_sort_outlier_excl = lm(Weight_Sorted ~ Weight_Raw, data = dataWO)
 sort_img = lm(Img_Sorted ~ Weight_Sorted, data = dataWO)
-
 
 #Plotting
 plot(data$Weight_Raw, data$Weight_Sorted, main = "Frass Weight Comparison (mg.)", xlab = "Weight Raw", ylab = "Weight Sorted", pch = 17, cex = 1, col = 'red')
 plot(data$Weight_Raw[data$Weight_Raw<50], data$Weight_Sorted[data$Weight_Raw<50],main = "Frass Weight Comparison (mg.)", xlab = "Weight Raw", ylab = "Weight Sorted", pch = 17, cex = 1, col = 'red')
 abline(raw_sort_outlier_excl)
 
-#Next plot should be comparing img data to wgt. raw then wgt. sorted to see how much sorting changes weight estimates
+# Linear model & Plots showing raw/sorted img against raw/sorted pcs to describe how much sorting changes % of area 
+sort_pcs = lm(Img_Sorted ~ Pieces_Sorted, data = data)
+raw_pcs = lm(Img_Raw ~ Pieces_Raw, data = data)
+abline(sort_pcs)
+abline(raw_pcs)
+plot(data$Pieces_Sorted, data$Img_Sorted, main = "Sorted Frass Comparison: # of Pieces vs. % of Area", xlab = "Pieces Sorted", ylab = "% of Area", pch = 20, cex = 1, col = 'blue')
+plot(data$Pieces_Raw, data$Img_Raw, main = "Raw Frass Comparison: # of Pieces vs. % of Area", xlab = "Total Pieces (frass w/ debris)", ylab = "% of Area", pch = 20, cex = 1, col = 'orange')
