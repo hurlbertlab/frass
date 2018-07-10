@@ -40,11 +40,10 @@ abline(raw_pcs_outlier_excl)
 summary(raw_pcs_outlier_excl)
 
 # Sorted
-myData = plot(data$Pieces_Sorted[data$Pieces_Sorted<50], data$Img_Sorted[data$Pieces_Sorted<50], main = "Sorted Frass Comparison: # of Pieces vs. % of Area", 
+plot(data$Pieces_Sorted[data$Pieces_Sorted<50], data$Img_Sorted[data$Pieces_Sorted<50], main = "Sorted Frass Comparison: # of Pieces vs. % of Area", 
      xlab = "Pieces Sorted", ylab = "% of Area", pch = 20, cex = 1, col = 'blue')
 sort_pcs_outlier_excl = lm(Img_Sorted ~ Pieces_Sorted, data = data_srtdpcsWO)
 abline(sort_pcs_outlier_excl)
 summary(sort_pcs_outlier_excl)
 
-#saving data for R Markdown file
-save(myData, file="C:/git/frass/myData.R")
+

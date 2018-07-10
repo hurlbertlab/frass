@@ -20,7 +20,15 @@ https://github.com/hurlbertlab/frass
 
 Here's a plot comparing the weight of the "raw" frass collection (i.e. debris included) vs. the "sorted" frass (in which trained assistants have removed the debris)
 
-```{r dataWO plot}
-load("C:/git/frass/dataWO.R")
-plot(dataWO)
+```{r loading script file, include=FALSE}
+source("C:/git/frass/analysis.r")
+```
+
+```{r echo=FALSE, results='hide',message=FALSE}
+plot(data$Pieces_Raw[data$Pieces_Raw<60], data$Img_Raw[data$Pieces_Raw<60], main = "Raw Frass Comparison: # of Pieces vs. % of Area", 
+     xlab = "Total Pieces (frass w/ debris)", ylab = "% of Area", pch = 20, cex = 1, col = 'orange')
+raw_pcs = lm(Img_Raw ~ Pieces_Raw, data = data)
+raw_pcs_outlier_excl = lm(Img_Raw ~ Pieces_Raw, data = data_rawpcsWO)
+abline(raw_pcs_outlier_excl)
+summary(raw_pcs_outlier_excl)
 ```
