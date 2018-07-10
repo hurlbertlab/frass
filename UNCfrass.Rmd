@@ -8,22 +8,29 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-
-
+```{r loading script file, include=FALSE}
+source("C:/git/frass/analysis.r")
+```
 ========================================================================================================================
 
 These data are being collected as part of the citizen science project *Caterpillars Count!* based in the Hurlbert lab at the University of North Carolina.
 
-This project is testing frass trap prototypes using milk jugs, with a broader goal to create a streamlined and accessible frass collection method for for citizen scientists. Currently, the data are being analysized to evaluate the reliability of this collection method, and of image-based estimates for frass weight. 
+This project is testing frass trap prototypes using repurposed milk jugs, with a broader goal to create a streamlined and accessible frass collection method for for citizen scientists. Currently, the data are being analysized to evaluate the reliability of this collection method, and of image-based estimates for frass weight.
 
-https://github.com/hurlbertlab/frass
+**Repository location**: https://github.com/hurlbertlab/frass
+**Image processing package**: https://fiji.sc/
 
-Here's a plot comparing the weight of the "raw" frass collection (i.e. debris included) vs. the "sorted" frass (in which trained assistants have removed the debris)
+Here's a plot comparing the weight of the "raw" frass collection (i.e. debris included) vs. the "sorted" frass (in which trained assistants have removed all non-frass pieces). All plots have been normalized for outliers in the data.
 
-```{r loading script file, include=FALSE}
-source("C:/git/frass/analysis.r")
+```{r echo=FALSE, results='hide',message=FALSE}
+lm1 = lm(Weight_Sorted[data$Weight_Raw<50] ~ Weight_Raw[data$Weight_Raw<50], data = data)
+
+plot(data$Weight_Raw[data$Weight_Raw<50], data$Weight_Sorted[data$Weight_Raw<50],main = "Frass Weight Comparison (mg.)", xlab = "Weight Raw", ylab = "Weight Sorted", pch = 17, cex = 1, col = 'red')
+legend("topleft", paste("R2 =", round(summary(lm1)$r.squared, 2), sep = ""))
+abline(raw_sort_outlier_excl)
 ```
 
+And here is the relationship between the raw frass pieces collected, and the percent of area the raw frass pieces occupy using a standard backdrop, estimated by the image processer, Fiji.
 ```{r echo=FALSE, results='hide',message=FALSE}
 plot(data$Pieces_Raw[data$Pieces_Raw<60], data$Img_Raw[data$Pieces_Raw<60], main = "Raw Frass Comparison: # of Pieces vs. % of Area", 
      xlab = "Total Pieces (frass w/ debris)", ylab = "% of Area", pch = 20, cex = 1, col = 'orange')
@@ -32,3 +39,4 @@ raw_pcs_outlier_excl = lm(Img_Raw ~ Pieces_Raw, data = data_rawpcsWO)
 abline(raw_pcs_outlier_excl)
 summary(raw_pcs_outlier_excl)
 ```
+
