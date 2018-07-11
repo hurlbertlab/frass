@@ -18,6 +18,7 @@ data = frassLoad(open = T)
 dataWO = data[data$Weight_Raw < 50,]
 data_rawpcsWO = data[data$Pieces_Raw < 60,]
 data_srtdpcsWO = data[data$Pieces_Sorted < 50,]
+data_img_exlc_outlier = data[data$Img_Sorted < 20, ]
 
 
 # Linear model 
@@ -60,6 +61,12 @@ raw_img = lm(dataWO$Weight_Sorted ~ dataWO$Img_Raw, data = dataWO)
 abline(raw_img)
 summary(raw_img)
 
+# Img_raw vs. Img_sort
+plot(data$Img_Raw[data$Img_Sorted<20], data$Img_Sorted[data$Img_Sorted<20], main = "Comparison Img_Raw vs. Img_Sorted (% of area estimate)", xlab = "Raw Img.", ylab ="Sorted Img.", col = 'violet', pch = 20)
+rawsort_img = lm(data_img_exlc_outlier$Img_Sorted ~ data_img_exlc_outlier$Img_Raw, data = data_img_exlc_outlier)
+abline(rawsort_img)
+summary(rawsort_img)
+
 # COMPARISONS TO DO
 
 # Raw Img to Sorted Img
@@ -67,6 +74,7 @@ summary(raw_img)
 # Filter paper to Milk jug (sorted/sorted)
 # Before and after "rain"
 # Sorted weight to Img_raw  
+
 
 
 
