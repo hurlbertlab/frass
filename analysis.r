@@ -56,7 +56,7 @@ summary(sort_pcs_outlier_excl)
 #excluded the outlier
 plot(dataWO$Img_Raw, dataWO$Weight_Sorted, main = "Raw Image v. Weight of sorted Frass", xlab = "Raw Image Percent Coverage", 
      ylab = "Weight Sorted (mg)", col = 'orange' , pch = 18)
-raw_img = lm(dataWO$Img_Raw ~ dataWO$Weight_Sorted, data = dataWO)
+raw_img = lm(dataWO$Weight_Sorted ~ dataWO$Img_Raw, data = dataWO)
 abline(raw_img)
 summary(raw_img)
 
@@ -66,7 +66,7 @@ summary(raw_img)
 # Sorted Pieces to Sorted Weight
 # Filter paper to Milk jug (sorted/sorted)
 # Before and after "rain"
-# Sorted weight to Img_raw
+# Sorted weight to Img_raw  
 
 
 
