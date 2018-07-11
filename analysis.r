@@ -13,21 +13,17 @@ frassLoad = function(open = T, write = F) {
   if (open) { return (data) }
 }
 
-# blah blah blah
-
+#removing outliers 
 data = frassLoad(open = T)
 dataWO = data[data$Weight_Raw < 50,]
 data_rawpcsWO = data[data$Pieces_Raw < 60,]
 data_srtdpcsWO = data[data$Pieces_Sorted < 50,]
 data_img_exlc_outlier = data[data$Img_Sorted < 20, ]
 
-
-# Linear model 
+# Linear model & plot describing weight_sorted vs weight_raw
 raw_sort = lm(Weight_Sorted ~ Weight_Raw, data = data)
 raw_sort_outlier_excl = lm(Weight_Sorted ~ Weight_Raw, data = dataWO)
 sort_img = lm(Img_Sorted ~ Weight_Sorted, data = dataWO)
-
-#Plotting
 plot(data$Weight_Raw, data$Weight_Sorted, main = "Frass Weight Comparison (mg.)", xlab = "Weight Raw", ylab = "Weight Sorted", pch = 17, cex = 1, col = 'red')
 plot(data$Weight_Raw[data$Weight_Raw<50], data$Weight_Sorted[data$Weight_Raw<50],main = "Frass Weight Comparison (mg.)", xlab = "Weight Raw", ylab = "Weight Sorted", pch = 17, cex = 1, col = 'red')
 abline(raw_sort_outlier_excl)
@@ -55,14 +51,14 @@ abline(sort_pcs_outlier_excl)
 summary(sort_pcs_outlier_excl)
 
 # Raw image versus weight sorted
-#excluded the outlier
+# Excluded outlier
 plot(dataWO$Img_Raw, dataWO$Weight_Sorted, main = "Raw Image v. Weight of sorted Frass", xlab = "Raw Image Percent Coverage", 
      ylab = "Weight Sorted (mg)", col = 'orange' , pch = 18)
 raw_img = lm(dataWO$Weight_Sorted ~ dataWO$Img_Raw, data = dataWO)
 abline(raw_img)
 summary(raw_img)
 
-# Img_raw vs. Img_sort
+# Img_raw vs.Img_sort
 plot(data$Img_Raw[data$Img_Sorted<20], data$Img_Sorted[data$Img_Sorted<20], main = "Comparison Img_Raw vs. Img_Sorted (% of area estimate)", xlab = "Raw Img.", ylab ="Sorted Img.", col = 'violet', pch = 20)
 rawsort_img = lm(data_img_exlc_outlier$Img_Sorted ~ data_img_exlc_outlier$Img_Raw, data = data_img_exlc_outlier)
 abline(rawsort_img)
