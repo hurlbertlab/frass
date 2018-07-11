@@ -15,7 +15,7 @@ source("C:/git/frass/analysis.r")
 
 These data are being collected as part of the citizen science project *Caterpillars Count!* based in the Hurlbert lab at the University of North Carolina.
 
-This project is testing frass trap prototypes using repurposed milk jugs, with a broader goal to create a streamlined and accessible frass collection method for for citizen scientists. Currently, the data are being analysized to evaluate the reliability of this collection method, and of image-based estimates for frass weight.
+This project is testing frass trap prototypes using repurposed milk jugs, with a broader goal to create a streamlined and accessible frass collection method for citizen scientists. Currently, the data are being analysized to evaluate the reliability of this collection method, and of image-based estimates for frass weight.
 
 **Repository location**: https://github.com/hurlbertlab/frass
 **Image processing package**: https://fiji.sc/
