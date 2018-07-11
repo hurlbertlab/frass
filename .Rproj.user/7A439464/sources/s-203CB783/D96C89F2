@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1530817644636.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "D96C89F2",
+    "lastKnownWriteTime" : 1530816461,
+    "last_content_update" : 1530816461,
+    "path" : "C:/Users/andrewnz/Desktop/Frass/frass/frass.r",
+    "project_path" : "frass.r",
+    "properties" : {
+        "cursorPosition" : "0,42",
+        "scrollLine" : "0"
+    },
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
