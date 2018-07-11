@@ -111,12 +111,14 @@ text(x = 11.5, y = 16, labels = mylabel)
 #Filter paper collected on the 6th & 10th
 #milk jug collected on 10th
 #must sum filter paper frass per circle to make accurate comparison
-filterpaper = NCBG_PR_frassdata[c(1155:1170,1183:1198),]
-
+filterpaper = NCBG_PR_frassdata[c(1154:1169,1182:1197),]
+#subset weight & pcs by unique circles, then sum (to account for additional days collected in milkjug)
+filtermass = aggregate(Frass.mass..mg. ~ Survey, data = filterpaper, sum)
+filterpcs = aggregate(Frass.number ~ Survey, data = filterpaper, sum)
+#next step is to identify which milk jug trap is near which filter trap, then combine all into one data set  
 #plot comparing sorted pcs
 
 #plot comparing sorted weight
-
 
 # COMPARISONS TO DO
 
