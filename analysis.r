@@ -72,7 +72,7 @@ abline(raw_sort_outlier_excl)
 plot(data$Pieces_Sorted[data$Pieces_Raw<60], data$Img_Raw[data$Pieces_Raw<60], main = "Raw Frass Comparison: # of Pieces vs. % of Area", 
      xlab = "Total Pieces", ylab = "% of Area (unsorted)", pch = 20, cex = 1, col = 'orange')
 raw_pcs = lm(Img_Raw ~ Pieces_Sorted, data = data)
-raw_pcs_outlier_excl = lm(Img_Raw ~ Pieces_Raw, data = data_rawpcsWO)
+raw_pcs_outlier_excl = lm(Img_Raw ~ Pieces_Sorted, data = data_rawpcsWO)
 abline(raw_pcs_outlier_excl)
 summary(raw_pcs_outlier_excl)
 
@@ -117,6 +117,8 @@ filtermass = aggregate(Frass.mass..mg. ~ Survey, data = filterpaper, sum)
 filterpcs = aggregate(Frass.number ~ Survey, data = filterpaper, sum)
 #next step is to identify which milk jug trap is near which filter trap, then combine all into one data set  
 #plot comparing sorted pcs
+t = merge(filterpcs, filtermass, by = "Survey")
+# look at dplyr left_merge
 
 #plot comparing sorted weight
 
