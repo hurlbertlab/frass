@@ -253,8 +253,6 @@ prlep15.den = meanDensityByDay(beatvis.pr, ordersToInclude = "LEPL", inputYear =
 
 
 
-
-
 # Plot comparing frass to overall (BS + Vis) lep occurrence at Prairie Ridge, 2015
 pdf('output/plots/paper_plots/frass_v_caterpillars.pdf', height = 5, width = 10)
 par(mfrow = c(1,2), mar = c(4, 4, 2.5, 4), mgp = c(2.5, .75, 0))
