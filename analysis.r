@@ -60,34 +60,35 @@ data_srtdpcsWO = data[data$Pieces_Sorted < 50,]
 data_img_exlc_outlier = data[data$Img_Sorted < 20, ]
 
 # Linear model & plot describing weight_sorted vs weight_raw
-raw_sort = lm(Weight_Sorted ~ Weight_Raw, data = data)
 raw_sort_outlier_excl = lm(Weight_Sorted ~ Weight_Raw, data = dataWO)
-sort_img = lm(Img_Sorted ~ Weight_Sorted, data = dataWO)
-plot(data$Weight_Raw, data$Weight_Sorted, main = "Frass Weight Comparison (mg.)", xlab = "Weight Raw", ylab = "Weight Sorted", pch = 17, cex = 1, col = 'red')
 plot(data$Weight_Raw[data$Weight_Raw<50], data$Weight_Sorted[data$Weight_Raw<50],main = "Frass Weight Comparison (mg.)", xlab = "Weight Raw", ylab = "Weight Sorted", pch = 17, cex = 1, col = 'red')
 abline(raw_sort_outlier_excl)
+sortraw_sum = summary(raw_sort_outlier_excl)
+sortraw_sum_r2 = sortraw_sum$adj.r.squared
+mylabel = bquote(italic(R)^2 == .(format(sortraw_sum_r2, digits = 3)))
+text(x = 3.3, y = 16.2, labels = mylabel)
 
 ## Linear models & plots showing raw/sorted img against raw/sorted pcs to describe how much sorting changes % of area 
-# Raw 
+# Raw/Sorted img
 plot(data$Pieces_Sorted[data$Pieces_Raw<60], data$Img_Raw[data$Pieces_Raw<60], main = "Raw Frass Comparison: # of Pieces vs. % of Area", 
      xlab = "Total Pieces", ylab = "% of Area (unsorted)", pch = 20, cex = 1, col = 'orange')
 raw_pcs = lm(Img_Raw ~ Pieces_Sorted, data = data)
 raw_pcs_outlier_excl = lm(Img_Raw ~ Pieces_Sorted, data = data_rawpcsWO)
 abline(raw_pcs_outlier_excl)
-summary(raw_pcs_outlier_excl)
+sortrawimg_sum = summary(raw_pcs_outlier_excl)
+sortrawimg_sum_r2 = sortrawimg_sum$adj.r.squared
+mylabel = bquote(italic(R)^2 == .(format(sortrawimg_sum_r2, digits = 3)))
+text(x = 4.9, y = 6.1, labels = mylabel)
 
-# Sorted
+# Raw/Sorted pieces
 plot(data$Pieces_Sorted[data$Pieces_Sorted<50], data$Img_Sorted[data$Pieces_Sorted<50], main = "Sorted Frass Comparison: # of Pieces vs. % of Area", 
      xlab = "Pieces Sorted", ylab = "% of Area", pch = 20, cex = 1, col = 'blue')
 sort_pcs_outlier_excl = lm(Img_Sorted ~ Pieces_Sorted, data = data_srtdpcsWO)
 abline(sort_pcs_outlier_excl)
-summary(sort_pcs_outlier_excl)
-
-plot(data$Pieces_Sorted[data$Pieces_Sorted<50], data$Img_Sorted[data$Pieces_Sorted<50], main = "Sorted Frass Comparison: # of Pieces vs. % of Area", 
-     xlab = "Pieces Sorted", ylab = "% of Area", pch = 20, cex = 1, col = 'blue')
-sort_pcs_outlier_excl = lm(Img_Sorted ~ Pieces_Sorted, data = data_srtdpcsWO)
-abline(sort_pcs_outlier_excl)
-summary(sort_pcs_outlier_excl)
+sortdpcs_sum = summary(sort_pcs_outlier_excl)
+sortdpcs_sum_r2 = sortdpcs_sum$adj.r.squared
+mylabel = bquote(italic(R)^2 == .(format(sortdpcs_sum_r2, digits = 3)))
+text(x = 7, y = 7.3, labels = mylabel)
 
 # Raw image versus weight sorted
 # Excluded outlier
@@ -95,17 +96,19 @@ plot(dataWO$Img_Raw, dataWO$Weight_Sorted, main = "Raw Image v. Weight of sorted
      ylab = "Weight Sorted (mg)", col = 'orange' , pch = 18)
 raw_img = lm(dataWO$Weight_Sorted ~ dataWO$Img_Raw, data = dataWO)
 abline(raw_img)
-summary(raw_img)
+imgwght_sum = summary(raw_img)
+imgwght_sum_r2 = imgwght_sum$adj.r.squared
+mylabel = bquote(italic(R)^2 == .(format(imgwght_sum_r2, digits = 3)))
+text(x = 1.7, y = 16.2, labels = mylabel)
 
 # Img_raw vs.Img_sort
 plot(data$Img_Raw[data$Img_Sorted<20], data$Img_Sorted[data$Img_Sorted<20], main = "Comparison Img_Raw vs. Img_Sorted (% of area estimate)", xlab = "Raw Img.", ylab ="Sorted Img.", col = 'violet', pch = 20)
 rawsort_img = lm(data$Img_Sorted ~ data$Img_Raw, data = data)
 abline(rawsort_img)
 rawsort_img_sum = summary(rawsort_img)
-r2 = rawsort_img_sum$adj.r.squared
-rawsort_img_pval = rawsort_img_sum$coefficients[2,4]
-mylabel = bquote(italic(R)^2 == .(format(r2, digits = 3)))
-text(x = 11.5, y = 16, labels = mylabel)
+img_rawsrt_r2 = rawsort_img_sum$adj.r.squared
+mylabel = bquote(italic(R)^2 == .(format(img_rawsrt_r2, digits = 3)))
+text(x = 2, y = 16, labels = mylabel)
 
 #NCBG Comparison: Filter paper vs. Milk jug collection. Traps set on 3rd.
 #Filter paper collected on the 6th & 10th
