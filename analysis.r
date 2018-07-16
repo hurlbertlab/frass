@@ -156,7 +156,7 @@ compare.frasstraps = merge(milkjugs, filterpaper, by = "Survey")
 # COMPARISONS TO DO 
 
 # Raw Img to Sorted Img - AD complete
-# Sorted Pieces to Sorted Weight - AD in progress
+# Sorted Pieces to Sorted Weight - AD complete
 # Filter paper to Milk jug (sorted/sorted) - AD  in progress
 # Before and after "rain"
 # Sorted weight to Img_raw - AZ

@@ -46,3 +46,15 @@ mylabel = bquote(italic(R)^2 == .(format(sortrawimg_sum_r2, digits = 3)))
 text(x = 4.9, y = 6.1, labels = mylabel)
 ```
 
+The relationship between sorted pieces and sorted weight shows an r-squared very close to 1.
+
+```{r echo=FALSE, results='hide',message=FALSE}
+plot(data$Pieces_Sorted[data$Pieces_Sorted<100], data$Weight_Sorted[data$Pieces_Sorted<100], main = "Comparison: Sorted Pieces vs. Sorted Weight (% of area)", xlab = "Sorted Pieces", ylab ="Sorted Weight", col = 'violet', pch = 20)
+sorted_lm = lm(data$Weight_Sorted[data$Pieces_Sorted<100] ~ data$Pieces_Sorted[data$Pieces_Sorted<100], data = data_srtdpcsWO)
+abline(sorted_lm)
+sorted_lm_sum = summary(sorted_lm)
+sorted_lm_r2 = sorted_lm_sum$adj.r.squared
+mylabel = bquote(italic(R)^2 == .(format(sorted_lm_r2, digits = 3)))
+text(x = 22, y = 10, labels = mylabel)
+
+```
