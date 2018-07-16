@@ -50,10 +50,11 @@ julianDayTime = function(date, hour_min) {
   return(output)
 }
 
+#renaming data sets
+data = frassLoad(open = T)
 NCBG_PR_frassdata = frassData(open = T)
 
 #removing outliers in frassLoad
-data = frassLoad(open = T)
 dataWO = data[data$Weight_Raw < 50,]
 data_rawpcsWO = data[data$Pieces_Raw < 60,]
 data_srtdpcsWO = data[data$Pieces_Sorted < 50,]
@@ -114,16 +115,24 @@ text(x = 2, y = 16, labels = mylabel)
 #Filter paper collected on the 6th & 10th
 #milk jug collected on 10th
 #must sum filter paper frass per circle to make accurate comparison
+#create new data table for filter paper isolating by frass trap site
 filterpaper = NCBG_PR_frassdata[c(1154:1169,1182:1197),]
-#subset weight & pcs by unique circles, then sum (to account for additional days collected in milkjug)
-filtermass = aggregate(Frass.mass..mg. ~ Survey, data = filterpaper, sum)
-filterpcs = aggregate(Frass.number ~ Survey, data = filterpaper, sum)
-#next step is to identify which milk jug trap is near which filter trap, then combine all into one data set  
-#plot comparing sorted pcs
-t = merge(filterpcs, filtermass, by = "Survey")
-# look at dplyr left_merge
+srtd_filterpaper = filterpaper[ ! filterpaper$Survey %in% c("1DBN","2DBS", "3DBV","4DCE","5DCI","6DCM","7DCQ","8DCV"), ]
+#Sum values of same filter paper frass traps (to account for the additional collection days)
+filtermass = aggregate(Frass.mass..mg. ~ Survey, data = srtd_filterpaper, sum)
+filterpcs = aggregate(Frass.number ~ Survey, data = srtd_filterpaper, sum)
+#create data set for filter paper traps with pieces and mass merged
+frass_filter = merge(filterpcs, filtermass, by = "Survey")
 
-#plot comparing sorted weight
+#create new data table for milk jug isolating by frass trap site
+milkjugs = data[c(74:89),]
+#create data set for milk jug traps with pieces and mass merged
+frass_milkjug = merge(milkjugpcs, milkjugmass, by = "Survey")
+#merge both data sets to compare milk jug and filter paper mass and peices
+
+# plot comparing sorted pcs
+# look at dplyr left_merge
+# plot comparing sorted weight
 
 # COMPARISONS TO DO
 
