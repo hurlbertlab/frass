@@ -111,6 +111,17 @@ img_rawsrt_r2 = rawsort_img_sum$adj.r.squared
 mylabel = bquote(italic(R)^2 == .(format(img_rawsrt_r2, digits = 3)))
 text(x = 2, y = 16, labels = mylabel)
 
+# plot comparing sorted pcs to sorted weight
+plot(data$Pieces_Sorted[data$Pieces_Sorted<100], data$Weight_Sorted[data$Pieces_Sorted<100], main = "Comparison: Sorted Pieces vs. Sorted Weight (% of area)", xlab = "Sorted Pieces", ylab ="Sorted Weight", col = 'orange', pch = 20)
+sorted_lm = lm(data$Weight_Sorted[data$Pieces_Sorted<100] ~ data$Pieces_Sorted[data$Pieces_Sorted<100], data = data_srtdpcsWO)
+abline(sorted_lm)
+sorted_lm_sum = summary(sorted_lm)
+sorted_lm_r2 = sorted_lm_sum$adj.r.squared
+mylabel = bquote(italic(R)^2 == .(format(sorted_lm_r2, digits = 3)))
+text(x = 22, y = 10, labels = mylabel)
+
+
+##below plot in progress
 #NCBG Comparison: Filter paper vs. Milk jug collection. Traps set on 3rd.
 #Filter paper collected on the 6th & 10th
 #milk jug collected on 10th
@@ -140,17 +151,15 @@ compare.frasstraps = merge(milkjugs, filterpaper, by = "Survey")
 
 #next step for frass vs. milk jug analysis - find a way to keep date variable for more accurate comparison
 
-# plot comparing sorted pcs
-# look at dplyr left_merge
-# plot comparing sorted weight
 
-# COMPARISONS TO DO
 
-# Raw Img to Sorted Img
-# Sorted Pieces to Sorted Weight
-# Filter paper to Milk jug (sorted/sorted)
+# COMPARISONS TO DO 
+
+# Raw Img to Sorted Img - AD complete
+# Sorted Pieces to Sorted Weight - AD in progress
+# Filter paper to Milk jug (sorted/sorted) - AD  in progress
 # Before and after "rain"
-# Sorted weight to Img_raw  
+# Sorted weight to Img_raw - AZ
 
 
 
