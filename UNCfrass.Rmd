@@ -23,20 +23,38 @@ This project is testing frass trap prototypes using repurposed milk jugs, with a
 Here's a plot comparing the weight of the "raw" frass collection (i.e. debris included) vs. the "sorted" frass (in which trained assistants have removed all non-frass pieces). All plots have been normalized for outliers in the data.
 
 ```{r echo=FALSE, results='hide',message=FALSE}
-lm1 = lm(Weight_Sorted[data$Weight_Raw<50] ~ Weight_Raw[data$Weight_Raw<50], data = data)
-
+raw_sort_outlier_excl = lm(Weight_Sorted ~ Weight_Raw, data = dataWO)
 plot(data$Weight_Raw[data$Weight_Raw<50], data$Weight_Sorted[data$Weight_Raw<50],main = "Frass Weight Comparison (mg.)", xlab = "Weight Raw", ylab = "Weight Sorted", pch = 17, cex = 1, col = 'red')
-legend("topleft", paste("R2 =", round(summary(lm1)$r.squared, 2), sep = ""))
 abline(raw_sort_outlier_excl)
+sortraw_sum = summary(raw_sort_outlier_excl)
+sortraw_sum_r2 = sortraw_sum$adj.r.squared
+mylabel = bquote(italic(R)^2 == .(format(sortraw_sum_r2, digits = 3)))
+text(x = 3.3, y = 16.2, labels = mylabel)
 ```
 
-And here is the relationship between the raw frass pieces collected, and the percent of area the raw frass pieces occupy using a standard backdrop, estimated by the image processer, Fiji.
+And here is the relationship between the raw frass pieces collected and the percent of area the raw frass pieces occupy using a standard backdrop, estimated by the image processer, Fiji.
+
 ```{r echo=FALSE, results='hide',message=FALSE}
-plot(data$Pieces_Raw[data$Pieces_Raw<60], data$Img_Raw[data$Pieces_Raw<60], main = "Raw Frass Comparison: # of Pieces vs. % of Area", 
-     xlab = "Total Pieces (frass w/ debris)", ylab = "% of Area", pch = 20, cex = 1, col = 'orange')
-raw_pcs = lm(Img_Raw ~ Pieces_Raw, data = data)
-raw_pcs_outlier_excl = lm(Img_Raw ~ Pieces_Raw, data = data_rawpcsWO)
+plot(data$Pieces_Sorted[data$Pieces_Raw<60], data$Img_Raw[data$Pieces_Raw<60], main = "Raw Frass Comparison: # of Pieces vs. % of Area", 
+     xlab = "Total Pieces", ylab = "% of Area (unsorted)", pch = 20, cex = 1, col = 'orange')
+raw_pcs = lm(Img_Raw ~ Pieces_Sorted, data = data)
+raw_pcs_outlier_excl = lm(Img_Raw ~ Pieces_Sorted, data = data_rawpcsWO)
 abline(raw_pcs_outlier_excl)
-summary(raw_pcs_outlier_excl)
+sortrawimg_sum = summary(raw_pcs_outlier_excl)
+sortrawimg_sum_r2 = sortrawimg_sum$adj.r.squared
+mylabel = bquote(italic(R)^2 == .(format(sortrawimg_sum_r2, digits = 3)))
+text(x = 4.9, y = 6.1, labels = mylabel)
 ```
 
+The relationship between sorted pieces and sorted weight shows an r-squared very close to 1.
+
+```{r echo=FALSE, results='hide',message=FALSE}
+plot(data$Pieces_Sorted[data$Pieces_Sorted<100], data$Weight_Sorted[data$Pieces_Sorted<100], main = "Comparison: Sorted Pieces vs. Sorted Weight (% of area)", xlab = "Sorted Pieces", ylab ="Sorted Weight", col = 'violet', pch = 20)
+sorted_lm = lm(data$Weight_Sorted[data$Pieces_Sorted<100] ~ data$Pieces_Sorted[data$Pieces_Sorted<100], data = data_srtdpcsWO)
+abline(sorted_lm)
+sorted_lm_sum = summary(sorted_lm)
+sorted_lm_r2 = sorted_lm_sum$adj.r.squared
+mylabel = bquote(italic(R)^2 == .(format(sorted_lm_r2, digits = 3)))
+text(x = 22, y = 10, labels = mylabel)
+
+```
