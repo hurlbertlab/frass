@@ -118,7 +118,7 @@ abline(sorted_lm)
 sorted_lm_sum = summary(sorted_lm)
 sorted_lm_r2 = sorted_lm_sum$adj.r.squared
 mylabel = bquote(italic(R)^2 == .(format(sorted_lm_r2, digits = 3)))
-text(x = 22, y = 10, labels = mylabel)
+text(x = 8, y = 15, labels = mylabel)
 
 
 ##below plot in progress
@@ -129,25 +129,31 @@ text(x = 22, y = 10, labels = mylabel)
 #create new data table for filter paper from 7/6
 filterfrass_all = NCBG_PR_frassdata[c(1154:1169,1182:1197),]
 #isolate by frass trap site
-srtd_filterpaper = filterfrass_all[ ! filterfrass_all$Survey %in% c("1DBD","2DBS", "3DBV","4DCE","5DCI","6DCM","7DCQ","8DCV"), ]
+srtd_filterpaper = filterfrass_all[ ! filterfrass_all$Survey %in% c("1DBN","2DBS", "3DBV","4DCE","5DCI","6DCM","7DCQ","8DCV"), ]
 #Sum values of same filter paper frass traps (to account for the additional collection days)
 filtermass = aggregate(Frass.mass..mg. ~ Survey, data = srtd_filterpaper, sum)
 filterpcs = aggregate(Frass.number ~ Survey, data = srtd_filterpaper, sum)
 #create data set for summed values of filter paper traps, with pieces and mass merged
 filter_sum = merge(filterpcs, filtermass, by = "Survey")
+filter_sum$Date.Collected <- "7/10/2018"
 
 #create data set with normal values and collection dates
-filterdates_nonsum = NCBG_PR_frassdata[c(1210:1225), c("Survey","Frass.mass..mg.","Frass.number")]
+filterdates_nonsum = NCBG_PR_frassdata[c(1210:1225), c("Survey","Frass.mass..mg.","Frass.number", "Date.Collected")]
 #isolate by frass trap site
 filter_normal = filterdates_nonsum[ ! filterdates_nonsum$Survey %in% c("1DBN","2DBS", "3DBV","4DCE","5DCI","6DCM","7DCQ","8DCV"), ]
 #combine adjusted filter paper frass data set with normal data set
 filterpaper = rbind(filter_sum, filter_normal)
   
 #create new data table for milk jug isolating by frass trap site
-milkjugs = data[c(73:88),c("Survey","Weight_Sorted", "Pieces_Sorted")]
+milkjugs = data[c(73:88),c("Survey","Weight_Sorted", "Pieces_Sorted", "Date.Collected")]
 
 #merge both data sets to compare milk jug and filter paper mass and peices
 compare.frasstraps = merge(milkjugs, filterpaper, by = "Survey")
+
+compare.frasstraps <- milkjugs %>% 
+  left_join(filterpaper, by = c("Survey", "Date.Collected"))
+
+
 
 #next step for frass vs. milk jug analysis - find a way to keep date variable for more accurate comparison
 
