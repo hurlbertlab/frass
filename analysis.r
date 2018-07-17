@@ -118,7 +118,7 @@ abline(sorted_lm)
 sorted_lm_sum = summary(sorted_lm)
 sorted_lm_r2 = sorted_lm_sum$adj.r.squared
 mylabel = bquote(italic(R)^2 == .(format(sorted_lm_r2, digits = 3)))
-text(x = 8, y = 15, labels = mylabel)
+text(x = 9, y = 30, labels = mylabel)
 
 
 ##below plot in progress
@@ -148,15 +148,19 @@ filterpaper = rbind(filter_sum, filter_normal)
 milkjugs = data[c(73:88),c("Survey","Weight_Sorted", "Pieces_Sorted", "Date.Collected")]
 
 #merge both data sets to compare milk jug and filter paper mass and peices
-compare.frasstraps = merge(milkjugs, filterpaper, by = "Survey")
+frasstrapscomp <- filterpaper %>% 
+  left_join(milkjugs, by = c("Survey", "Date.Collected"))
+setnames(frasstrapscomp, old=c("Weight_Sorted","Pieces_Sorted", "Frass.number","Frass.mass..mg."), new=c("FrassNumber_milkjug", "FrassMass_milkjug","FrassNumber_filterpaper","FrassMass_filterpaper"))
 
-compare.frasstraps <- milkjugs %>% 
-  left_join(filterpaper, by = c("Survey", "Date.Collected"))
+#plotting filter paper vs. milk jug mass & pieces
 
 
+#code below plots on two different axes. next step is to figure out how to combine 
+#without losing values
 
-#next step for frass vs. milk jug analysis - find a way to keep date variable for more accurate comparison
-
+plot(frasstrapscomp$FrassNumber_filterpaper, frasstrapscomp$FrassMass_filterpaper, main = " ", xlab = " ", ylab =" ",  col = 'orange', pch = 20)
+par(new=TRUE)
+plot(frasstrapscomp$FrassNumber_milkjug, frasstrapscomp$FrassMass_filterpaper, main = " ", xlab = " ", ylab =" ", col = 'blue', pch = 20)
 
 
 # COMPARISONS TO DO 
