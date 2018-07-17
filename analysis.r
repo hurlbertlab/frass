@@ -138,14 +138,14 @@ filter_sum = merge(filterpcs, filtermass, by = "Survey")
 filter_sum$Date.Collected <- "7/10/2018"
 
 #create data set with normal values and collection dates
-filterdates_nonsum = NCBG_PR_frassdata[c(1210:1225), c("Survey","Frass.mass..mg.","Frass.number", "Date.Collected")]
+filterdates_nonsum = NCBG_PR_frassdata[c(1210:1225, 1238:1253), c("Survey","Frass.mass..mg.","Frass.number", "Date.Collected")]
 #isolate by frass trap site
 filter_normal = filterdates_nonsum[ ! filterdates_nonsum$Survey %in% c("1DBN","2DBS", "3DBV","4DCE","5DCI","6DCM","7DCQ","8DCV"), ]
 #combine adjusted filter paper frass data set with normal data set
 filterpaper = rbind(filter_sum, filter_normal)
   
 #create new data table for milk jug isolating by frass trap site
-milkjugs = data[c(73:88),c("Survey","Weight_Sorted", "Pieces_Sorted", "Date.Collected")]
+milkjugs = data[c(73:96),c("Survey","Weight_Sorted", "Pieces_Sorted", "Date.Collected")]
 
 #merge both data sets to compare milk jug and filter paper mass and peices
 frasstrapscomp <- filterpaper %>% 
