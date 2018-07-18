@@ -155,8 +155,9 @@ setnames(frasstrapscomp, old=c("Weight_Sorted","Pieces_Sorted", "Frass.number","
 #plotting filter paper vs. milk jug mass & pieces
 #next step is to normalize the data
 plot(frasstrapscomp$FrassNumber_filterpaper, frasstrapscomp$FrassMass_filterpaper, main = "Frass Collection Method: Filter Paper vs. Milk Jug (un-normalized)", xlab = "Number of Pieces", ylab ="Mass /mg.",  
-     col = 'orange', pch = 20, xlim=c(-5, 92), ylim=c(0, 100))
+     col = 'orange', pch = 20, xlim=c(-5, 230), ylim=c(0, 100))
 points(frasstrapscomp$FrassNumber_milkjug, frasstrapscomp$FrassMass_filterpaper, col = 'blue', pch = 20)
+
 
 # COMPARISONS TO DO 
 
