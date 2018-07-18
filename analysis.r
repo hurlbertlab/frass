@@ -129,7 +129,7 @@ text(x = 9, y = 30, labels = mylabel)
 #create new data table for filter paper from 7/6
 filterfrass_all = NCBG_PR_frassdata[c(1154:1169,1182:1197),]
 #isolate by frass trap site
-srtd_filterpaper = filterfrass_all[ ! filterfrass_all$Survey %in% c("1DBN","2DBS", "3DBV","4DCE","5DCI","6DCM","7DCQ","8DCV"), ]
+srtd_filterpaper = filterfrass_all[ ! filterfrass_all$Survey %in% c("1DBD","2DBS", "3DBV","4DCE","5DCI","6DCM","7DCQ","8DCV"), ]
 #Sum values of same filter paper frass traps (to account for the additional collection days)
 filtermass = aggregate(Frass.mass..mg. ~ Survey, data = srtd_filterpaper, sum)
 filterpcs = aggregate(Frass.number ~ Survey, data = srtd_filterpaper, sum)
@@ -140,25 +140,39 @@ filter_sum$Date.Collected <- "7/10/2018"
 #create data set with normal values and collection dates
 filterdates_nonsum = NCBG_PR_frassdata[c(1210:1225, 1238:1253), c("Survey","Frass.mass..mg.","Frass.number", "Date.Collected")]
 #isolate by frass trap site
-filter_normal = filterdates_nonsum[ ! filterdates_nonsum$Survey %in% c("1DBN","2DBS", "3DBV","4DCE","5DCI","6DCM","7DCQ","8DCV"), ]
+filter_normal = filterdates_nonsum[ ! filterdates_nonsum$Survey %in% c("1DBD","2DBS", "3DBV","4DCE","5DCI","6DCM","7DCQ","8DCV"), ]
 #combine adjusted filter paper frass data set with normal data set
 filterpaper = rbind(filter_sum, filter_normal)
   
 #create new data table for milk jug isolating by frass trap site
 milkjugs = data[c(73:96),c("Survey","Weight_Sorted", "Pieces_Sorted", "Date.Collected")]
+na.omit(milkjugs)
 
 #merge both data sets to compare milk jug and filter paper mass and peices
 frasstrapscomp <- filterpaper %>% 
   left_join(milkjugs, by = c("Survey", "Date.Collected"))
 setnames(frasstrapscomp, old=c("Weight_Sorted","Pieces_Sorted", "Frass.number","Frass.mass..mg."), new=c("FrassNumber_milkjug", "FrassMass_milkjug","FrassNumber_filterpaper","FrassMass_filterpaper"))
-
-#plotting filter paper vs. milk jug mass & pieces
-plot(frasstrapscomp$FrassNumber_filterpaper, frasstrapscomp$FrassMass_filterpaper, main = "Frass Collection Method: Filter Paper vs. Milk Jug (un-normalized)", xlab = "Number of Pieces", ylab ="Mass /mg.",  
-     col = 'orange', pch = 20, xlim=c(-5, 230), ylim=c(0, 100))
-points(frasstrapscomp$FrassNumber_milkjug, frasstrapscomp$FrassMass_filterpaper, col = 'blue', pch = 20)
+frasstrapscomp = frasstrapscomp[-c(4),]
 
 #next step is to normalize the data
 #Area of milk jug = 171.9; Area of filter paper = 433.6 cm^2, LCD = 74564.6 
+frasstrapscomp = transform(frasstrapscomp, FrassNumber.adj_filterpaper = (FrassNumber_filterpaper*171.9)/74564.9)
+frasstrapscomp = transform(frasstrapscomp, FrassMass.adj_filterpaper = (FrassMass_filterpaper*171.9)/74564.9)
+frasstrapscomp = transform(frasstrapscomp, FrassNumber.adj_milkjug = (FrassNumber_milkjug*433.6)/74564.9)
+frasstrapscomp = transform(frasstrapscomp, FrassMass.adj_milkjug = (FrassMass_milkjug*433.6)/74564.9)
+
+
+#plotting filter paper vs. milk jug mass & pieces (non-normalized)
+plot(frasstrapscomp$FrassNumber_filterpaper, frasstrapscomp$FrassMass_filterpaper, main = "Frass Collection Method: Filter Paper vs. Milk Jug (non-normalized)", xlab = "Number of Pieces", ylab ="Mass /mg.",  
+     col = 'orange', pch = 20, xlim=c(-25, 230), ylim=c(5.5, 95))
+points(frasstrapscomp$FrassNumber_milkjug, frasstrapscomp$FrassMass_filterpaper, col = 'blue', pch = 20)
+
+
+#plot new normalized data
+plot(frasstrapscomp$FrassNumber.adj_filterpaper, frasstrapscomp$FrassMass.adj_filterpaper, main = "Frass Collection Method: Filter Paper vs. Milk Jug (normalized)", xlab = "Number of Pieces per cm^2", ylab ="Mass per cm^2 /mg.",  
+     col = 'orange', pch = 20, xlim=c(-.05, .6), ylim=c(.015, .21))
+points(frasstrapscomp$FrassNumber.adj_milkjug, frasstrapscomp$FrassMass.adj_filterpaper, col = 'blue', pch = 20)
+
 
 # COMPARISONS TO DO 
 
