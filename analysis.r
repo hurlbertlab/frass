@@ -153,11 +153,12 @@ frasstrapscomp <- filterpaper %>%
 setnames(frasstrapscomp, old=c("Weight_Sorted","Pieces_Sorted", "Frass.number","Frass.mass..mg."), new=c("FrassNumber_milkjug", "FrassMass_milkjug","FrassNumber_filterpaper","FrassMass_filterpaper"))
 
 #plotting filter paper vs. milk jug mass & pieces
-#next step is to normalize the data
 plot(frasstrapscomp$FrassNumber_filterpaper, frasstrapscomp$FrassMass_filterpaper, main = "Frass Collection Method: Filter Paper vs. Milk Jug (un-normalized)", xlab = "Number of Pieces", ylab ="Mass /mg.",  
      col = 'orange', pch = 20, xlim=c(-5, 230), ylim=c(0, 100))
 points(frasstrapscomp$FrassNumber_milkjug, frasstrapscomp$FrassMass_filterpaper, col = 'blue', pch = 20)
 
+#next step is to normalize the data
+#Area of milk jug = 171.9; Area of filter paper = 433.6 cm^2, LCD = 74564.6 
 
 # COMPARISONS TO DO 
 
@@ -166,9 +167,3 @@ points(frasstrapscomp$FrassNumber_milkjug, frasstrapscomp$FrassMass_filterpaper,
 # Filter paper to Milk jug (sorted/sorted) - AD  in progress
 # Before and after "rain"
 # Sorted weight to Img_raw - AZ
-
-
-
-
-
-
