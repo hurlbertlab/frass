@@ -153,15 +153,10 @@ frasstrapscomp <- filterpaper %>%
 setnames(frasstrapscomp, old=c("Weight_Sorted","Pieces_Sorted", "Frass.number","Frass.mass..mg."), new=c("FrassNumber_milkjug", "FrassMass_milkjug","FrassNumber_filterpaper","FrassMass_filterpaper"))
 
 #plotting filter paper vs. milk jug mass & pieces
-
-
-#code below plots on two different axes. next step is to figure out how to combine 
-#without losing values
-
-plot(frasstrapscomp$FrassNumber_filterpaper, frasstrapscomp$FrassMass_filterpaper, main = " ", xlab = " ", ylab =" ",  col = 'orange', pch = 20)
-par(new=TRUE)
-plot(frasstrapscomp$FrassNumber_milkjug, frasstrapscomp$FrassMass_filterpaper, main = " ", xlab = " ", ylab =" ", col = 'blue', pch = 20)
-
+#next step is to normalize the data
+plot(frasstrapscomp$FrassNumber_filterpaper, frasstrapscomp$FrassMass_filterpaper, main = "Frass Collection Method: Filter Paper vs. Milk Jug (un-normalized)", xlab = "Number of Pieces", ylab ="Mass /mg.",  
+     col = 'orange', pch = 20, xlim=c(-5, 92), ylim=c(0, 100))
+points(frasstrapscomp$FrassNumber_milkjug, frasstrapscomp$FrassMass_filterpaper, col = 'blue', pch = 20)
 
 # COMPARISONS TO DO 
 
