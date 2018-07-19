@@ -169,7 +169,11 @@ points(frasstrapscomp$FrassNumber_milkjug, frasstrapscomp$FrassMass_filterpaper,
 
 
 #plot new normalized data
-plot(frasstrapscomp$FrassNumber.adj_filterpaper, frasstrapscomp$FrassMass.adj_filterpaper, main = "Frass Collection Method: Filter Paper vs. Milk Jug (normalized)", xlab = "Number of Pieces per cm^2", ylab ="Mass per cm^2 /mg.",  
+par(mar=c(4, 5, 5, 3)) # Bottom, Left, Top, Right
+plot(frasstrapscomp$FrassNumber.adj_filterpaper, frasstrapscomp$FrassMass.adj_filterpaper, 
+     main = "Frass Collection Method:\nFilter Paper vs. Milk Jug (normalized)", 
+     xlab = expression(paste("Pieces per ", cm^2)), 
+     ylab = expression(paste("Mg. per ", cm^2)),  
      col = 'orange', pch = 20, xlim=c(-.05, .6), ylim=c(.015, .21))
 points(frasstrapscomp$FrassNumber.adj_milkjug, frasstrapscomp$FrassMass.adj_filterpaper, col = 'blue', pch = 20)
 
