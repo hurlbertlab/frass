@@ -53,7 +53,20 @@ julianDayTime = function(date, hour_min) {
 
 #renaming data sets
 data = frassLoad(open = T)
-NCBG_PR_frassdata = frassData(open = T)
+
+NCBG_PR_frassdata = frassData(open = T) %>%
+  filter(!is.na(Time.Set) & !is.na(Time.Collected)) %>%
+  mutate(Date.Set = as.Date(Date.Set, format = "%m/%d/%Y"),
+         Time.Set = as.character(Time.Set),
+         Time.Collected = as.character(Time.Collected),
+         Date.Collected = as.Date(Date.Collected, format = "%m/%d/%Y"),
+         Year = format(Date.Collected, "%Y"),
+         jday.Set = julianDayTime(Date.Set, Time.Set),
+         jday.Collected = julianDayTime(Date.Collected, Time.Collected),
+         frass.mg.d = Frass.mass..mg./(jday.Collected - jday.Set),
+         frass.no.d = Frass.number/(jday.Collected - jday.Set),
+         jday = (floor(jday.Collected) + floor(jday.Set))/2) 
+
 
 #removing outliers in frassLoad
 dataWO = data[data$Weight_Raw < 50,]
@@ -121,13 +134,10 @@ sorted_lm_r2 = sorted_lm_sum$adj.r.squared
 mylabel = bquote(italic(R)^2 == .(format(sorted_lm_r2, digits = 3)))
 text(x = 9, y = 30, labels = mylabel)
 
-
-##below plot in progress
-#NCBG Comparison: Filter paper vs. Milk jug collection. Traps set on 3rd.
-#Filter paper collected on the 6th & 10th
-#milk jug collected on 10th
-#must sum filter paper frass by circle to make accurate comparison
-#create new data table for filter paper from 7/6
+#NCBG Comparison: Filter paper vs. Milk jug collection. 
+# Traps set on 3rd, Filter paper collected on the 6th & 10th; milk jug collected on 10th
+# must sum filter paper frass by circle to make accurate comparison
+# create new data table for filter paper from 7/6
 filterfrass_all = NCBG_PR_frassdata[c(1154:1169,1182:1197),]
 #isolate by frass trap site
 srtd_filterpaper = filterfrass_all[ ! filterfrass_all$Survey %in% c("1DBD","2DBS", "3DBV","4DCE","5DCI","6DCM","7DCQ","8DCV"), ]
@@ -155,18 +165,16 @@ frasstrapscomp <- filterpaper %>%
 setnames(frasstrapscomp, old=c("Weight_Sorted","Pieces_Sorted", "Frass.number","Frass.mass..mg."), new=c("FrassNumber_milkjug", "FrassMass_milkjug","FrassNumber_filterpaper","FrassMass_filterpaper"))
 frasstrapscomp = frasstrapscomp[-c(4),]
 
-#next step is to normalize the data
-#Area of milk jug = 171.9; Area of filter paper = 433.6 cm^2, LCD = 74564.6 
+#Area of milk jug = 171.9; Area of filter paper = 433.6 cm^2 
 frasstrapscomp = transform(frasstrapscomp, FrassNumber.adj_filterpaper = FrassNumber_filterpaper / 433.6)
 frasstrapscomp = transform(frasstrapscomp, FrassMass.adj_filterpaper = FrassMass_filterpaper / 433.6)
 frasstrapscomp = transform(frasstrapscomp, FrassNumber.adj_milkjug = FrassNumber_milkjug / 171.9)
 frasstrapscomp = transform(frasstrapscomp, FrassMass.adj_milkjug = FrassMass_milkjug / 171.9)
 
 #plotting filter paper vs. milk jug mass & pieces (non-normalized)
-plot(frasstrapscomp$FrassNumber_filterpaper, frasstrapscomp$FrassMass_filterpaper, main = "Frass Collection Method: Filter Paper vs. Milk Jug (non-normalized)", xlab = "Number of Pieces", ylab ="Mass /mg.",  
-     col = 'orange', pch = 20, xlim=c(-25, 230), ylim=c(5.5, 95))
+plot(frasstrapscomp$FrassNumber_filterpaper, frasstrapscomp$FrassMass_filterpaper, main = "Frass Collection Method:\nFilter Paper vs. Milk Jug (non-normalized)", xlab = "Pieces", ylab ="Mass (mg.)",  
+     col = 'orange', pch = 20, xlim=c(-5, 90), ylim=c(5.5, 95))
 points(frasstrapscomp$FrassNumber_milkjug, frasstrapscomp$FrassMass_filterpaper, col = 'blue', pch = 20)
-
 
 #plot new normalized data
 par(mar=c(4, 5, 5, 3)) # Bottom, Left, Top, Right
@@ -174,14 +182,24 @@ plot(frasstrapscomp$FrassNumber.adj_filterpaper, frasstrapscomp$FrassMass.adj_fi
      main = "Frass Collection Method:\nFilter Paper vs. Milk Jug (normalized)", 
      xlab = expression(paste("Pieces per ", cm^2)), 
      ylab = expression(paste("Mg. per ", cm^2)),  
-     col = 'orange', pch = 20, xlim=c(-.05, .6), ylim=c(.015, .21))
-points(frasstrapscomp$FrassNumber.adj_milkjug, frasstrapscomp$FrassMass.adj_filterpaper, col = 'blue', pch = 20)
+     col = 'orange', pch = 19, cex = 1, xlim=c(-.01, .2), ylim=c(.015, .21))
+points(frasstrapscomp$FrassNumber.adj_milkjug, frasstrapscomp$FrassMass.adj_filterpaper, 
+     col = 'deepskyblue', pch = 19, cex = 1)
 
-
+# Filter paper vs. Milk jug: mg/trap/day
+par(mar=c(4, 5, 5, 3)) # Bottom, Left, Top, Right
+plot(frasstrapscomp$Date.Collected, frasstrapscomp$FrassMass.adj_filterpaper, 
+     main = "Collected Frass:\nFilter Paper vs. Milk Jug (mg/trap/day)", 
+     xlab = expression(paste("Date")), 
+     ylab = expression(paste("Mass per ", cm^2)),  
+     col = 'orange', pch = 19, cex = 1, xlim=c(0, 1000), ylim=c(.015, .21))
+points(frasstrapscomp$Date.Collected, frasstrapscomp$FrassMass.adj_milkjug, 
+       col = 'deepskyblue', pch = 19, cex = 1)
 # COMPARISONS TO DO 
-# hello world
+
 # Raw Img to Sorted Img - AD complete
 # Sorted Pieces to Sorted Weight - AD complete
 # Filter paper to Milk jug (sorted/sorted) - AD  in progress
 # Before and after "rain"
 # Sorted weight to Img_raw - AZ
+# Filter paper vs. Milk Jug:  mass, pieces 
