@@ -156,11 +156,10 @@ frasstrapscomp = frasstrapscomp[-c(4),]
 
 #next step is to normalize the data
 #Area of milk jug = 171.9; Area of filter paper = 433.6 cm^2, LCD = 74564.6 
-frasstrapscomp = transform(frasstrapscomp, FrassNumber.adj_filterpaper = (FrassNumber_filterpaper*171.9)/74564.9)
-frasstrapscomp = transform(frasstrapscomp, FrassMass.adj_filterpaper = (FrassMass_filterpaper*171.9)/74564.9)
-frasstrapscomp = transform(frasstrapscomp, FrassNumber.adj_milkjug = (FrassNumber_milkjug*433.6)/74564.9)
-frasstrapscomp = transform(frasstrapscomp, FrassMass.adj_milkjug = (FrassMass_milkjug*433.6)/74564.9)
-
+frasstrapscomp = transform(frasstrapscomp, FrassNumber.adj_filterpaper = FrassNumber_filterpaper / 433.6)
+frasstrapscomp = transform(frasstrapscomp, FrassMass.adj_filterpaper = FrassMass_filterpaper / 433.6)
+frasstrapscomp = transform(frasstrapscomp, FrassNumber.adj_milkjug = FrassNumber_milkjug / 171.9)
+frasstrapscomp = transform(frasstrapscomp, FrassMass.adj_milkjug = FrassMass_milkjug / 171.9)
 
 #plotting filter paper vs. milk jug mass & pieces (non-normalized)
 plot(frasstrapscomp$FrassNumber_filterpaper, frasstrapscomp$FrassMass_filterpaper, main = "Frass Collection Method: Filter Paper vs. Milk Jug (non-normalized)", xlab = "Number of Pieces", ylab ="Mass /mg.",  
