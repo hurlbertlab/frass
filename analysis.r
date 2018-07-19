@@ -16,6 +16,7 @@ frassLoad = function(open = T, write = F) {
 library(gsheet)
 library(dplyr)
 library(tidyr)
+library(data.table)
 
 # Function for reading in frass data from GoogleDoc
 # *if aim is to backup GoogleDoc and write to disk only, then open =F and write = T
