@@ -201,6 +201,20 @@ lines(mg.meanbydate$Date.Collected, mg.meanbydate$FrassMass.adj_filterpaper, typ
 lines(mg.meanbydate$Date.Collected, mg.meanbydate$FrassMass.adj_milkjug, 
       type="b", lwd=1, lty=2, col = 'deepskyblue', pch = 20)
 
+# Plot comparing method/method 
+par(mar=c(4, 5, 5, 3)) # Bottom, Left, Top, Right
+plot(frasstrapscomp$FrassMass.adj_filterpaper, frasstrapscomp$FrassMass.adj_milkjug, 
+     main = "Frass Collection Method Comparison", 
+     xlab = expression(paste("Filter Paper ")), 
+     ylab = expression(paste("Milk Jug ")),  
+     col = 'deepskyblue', pch = 19, cex = 1, ylim=c(-.01, .52))
+methodcompare.lm = lm(frasstrapscomp$FrassMass.adj_milkjug ~ frasstrapscomp$FrassMass.adj_filterpaper, data = frasstrapscomp )
+abline(methodcompare.lm)
+methodcompare_sum = summary(methodcompare.lm)
+methodcompare_sum_r2 = methodcompare_sum$adj.r.squared
+mylabel = bquote(italic(R)^2 == .(format(methodcompare_sum_r2, digits = 3)))
+text(x = .05, y = .52, labels = mylabel)
+
 # COMPARISONS TO DO 
 
 # Raw Img to Sorted Img - AD complete
