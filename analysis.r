@@ -53,20 +53,7 @@ julianDayTime = function(date, hour_min) {
 
 #renaming data sets
 data = frassLoad(open = T)
-
-NCBG_PR_frassdata = frassData(open = T) %>%
-  filter(!is.na(Time.Set) & !is.na(Time.Collected)) %>%
-  mutate(Date.Set = as.Date(Date.Set, format = "%m/%d/%Y"),
-         Time.Set = as.character(Time.Set),
-         Time.Collected = as.character(Time.Collected),
-         Date.Collected = as.Date(Date.Collected, format = "%m/%d/%Y"),
-         Year = format(Date.Collected, "%Y"),
-         jday.Set = julianDayTime(Date.Set, Time.Set),
-         jday.Collected = julianDayTime(Date.Collected, Time.Collected),
-         frass.mg.d = Frass.mass..mg./(jday.Collected - jday.Set),
-         frass.no.d = Frass.number/(jday.Collected - jday.Set),
-         jday = (floor(jday.Collected) + floor(jday.Set))/2) 
-
+NCBG_PR_frassdata = frassData(open = T) 
 
 #removing outliers in frassLoad
 dataWO = data[data$Weight_Raw < 50,]
@@ -186,15 +173,20 @@ plot(frasstrapscomp$FrassNumber.adj_filterpaper, frasstrapscomp$FrassMass.adj_fi
 points(frasstrapscomp$FrassNumber.adj_milkjug, frasstrapscomp$FrassMass.adj_filterpaper, 
      col = 'deepskyblue', pch = 19, cex = 1)
 
+# change class of date column 
+frasstrapscomp$Date.Collected = as.Date(frasstrapscomp$Date.Collected, format = "%m/%d/%Y")
+
 # Filter paper vs. Milk jug: mg/trap/day
 par(mar=c(4, 5, 5, 3)) # Bottom, Left, Top, Right
 plot(frasstrapscomp$Date.Collected, frasstrapscomp$FrassMass.adj_filterpaper, 
      main = "Collected Frass:\nFilter Paper vs. Milk Jug (mg/trap/day)", 
      xlab = expression(paste("Date")), 
      ylab = expression(paste("Mass per ", cm^2)),  
-     col = 'orange', pch = 19, cex = 1, xlim=c(0, 1000), ylim=c(.015, .21))
+     col = 'red', pch = 19, cex = 1, ylim=c(.015, .21))
 points(frasstrapscomp$Date.Collected, frasstrapscomp$FrassMass.adj_milkjug, 
        col = 'deepskyblue', pch = 19, cex = 1)
+
+
 # COMPARISONS TO DO 
 
 # Raw Img to Sorted Img - AD complete
