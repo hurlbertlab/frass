@@ -82,7 +82,6 @@ events = gsheet2tbl(url)
 events$date = as.Date(events$date, format = "%m/%d/%Y")
 
 
-
 meanfrass = data %>%
   filter(!is.na(Frass.mass..mg.)) %>%
   mutate(site = ifelse(Site=="Botanical Garden", 8892356, 117)) %>%
