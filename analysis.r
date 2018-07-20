@@ -187,18 +187,18 @@ points(frasstrapscomp$Date.Collected, frasstrapscomp$FrassMass.adj_milkjug,
        col = 'deepskyblue', pch = 19, cex = 1)
 
 # Filter paper vs. Milk jug: mean mg/trap/day
-filterpaperdate.mean = aggregate(FrassMass.adj_filterpaper ~ Date.Collected, frasstrapscomp, mean)
-milkjugdate.mean = aggregate(FrassMass.adj_milkjug ~ Date.Collected, frasstrapscomp, mean)
-mg.meanbydate = merge(filterpaperdate.mean, milkjugdate.mean, by = "Date.Collected")
-
+filterpaperdate.mean = aggregate(FrassMass.adj_filterpaper ~ Survey, frasstrapscomp, mean)
+milkjugdate.mean = aggregate(FrassMass.adj_milkjug ~ Survey, frasstrapscomp, mean)
+mg.meanbydate = merge(filterpaperdate.mean, milkjugdate.mean, by = "Survey")
+replace.value(mg.meanbydate, Survey, from=NA, to=as.integer(0), verbose = FALSE)
 par(mar=c(4, 5, 5, 3)) # Bottom, Left, Top, Right
-plot(mg.meanbydate$Date.Collected, mg.meanbydate$FrassMass.adj_filterpaper, 
+plot(mg.meanbydate$Survey, mg.meanbydate$FrassMass.adj_filterpaper, 
      main = "Collected Frass:\nFilter Paper vs. Milk Jug (mean mg/trap/day)", 
      xlab = expression(paste("Date")), 
      ylab = expression(paste("Mean Mass per ", cm^2)),  
      col = 'orange', pch = 20, ylim=c(.015, .21))
-lines(mg.meanbydate$Date.Collected, mg.meanbydate$FrassMass.adj_filterpaper, type="b", lwd=1, lty=2, col= "orange")
-lines(mg.meanbydate$Date.Collected, mg.meanbydate$FrassMass.adj_milkjug, 
+lines(mg.meanbydate$Survey, mg.meanbydate$FrassMass.adj_filterpaper, type="b", lwd=1, lty=2, col= "orange")
+lines(mg.meanbydate$Survey, mg.meanbydate$FrassMass.adj_milkjug, 
       type="b", lwd=1, lty=2, col = 'deepskyblue', pch = 20)
 
 # Plot comparing method/method 
@@ -207,7 +207,7 @@ plot(frasstrapscomp$FrassMass.adj_filterpaper, frasstrapscomp$FrassMass.adj_milk
      main = "Frass Collection Method Comparison", 
      xlab = expression(paste("Filter Paper ")), 
      ylab = expression(paste("Milk Jug ")),  
-     col = 'deepskyblue', pch = 19, cex = 1, ylim=c(-.01, .52))
+     col = 'deepskyblue', pch = 19, cex = .8, ylim=c(-.01, .52))
 methodcompare.lm = lm(frasstrapscomp$FrassMass.adj_milkjug ~ frasstrapscomp$FrassMass.adj_filterpaper, data = frasstrapscomp )
 abline(methodcompare.lm)
 methodcompare_sum = summary(methodcompare.lm)
