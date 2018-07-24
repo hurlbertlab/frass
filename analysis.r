@@ -234,22 +234,13 @@ text(x = .09, y = .2, labels = mylabel)
 plot(data$Volume_raw, data$Weight_Sorted, 
      main = "Estimated Volume As A Proxy For Frass Weight", 
      xlab = "Volume (mm^3)", 
-     ylab = "Weight (mg)")
-# Plot comparing Volume vs. Weight 
-#par(mar=c(4, 5, 5, 3)) # Bottom, Left, Top, Right
-#plot(frasstrapscomp$FrassMass.adj_filterpaper, frasstrapscomp$FrassMass.adj_milkjug,   #  main = "Frass Collection Method Comparison", 
-#   xlab = expression(paste("Filter Paper ")), 
-#    ylab = expression(paste("Milk Jug ")),  
-#     col = 'deepskyblue', pch = 19, cex = .8, ylim=c(-.01, .52))
- 
-#methodcompare.lm = lm(frasstrapscomp$FrassMass.adj_milkjug ~ frasstrapscomp$FrassMass.adj_filterpaper, data = frasstrapscomp )
-# abline(methodcompare.lm)
-# methodcompare_sum = summary(methodcompare.lm)
-# methodcompare_sum_r2 = methodcompare_sum$adj.r.squared
-# mylabel = bquote(italic(R)^2 == .(format(methodcompare_sum_r2, digits = 3)))
-# text(x = .05, y = .52, labels = mylabel)
-
-
+     ylab = "Weight (mg)", ylim = c(.5, 35), pch = 16, col = "goldenrod2")
+volwght.lm = lm(data$Weight_Sorted ~ data$Volume_raw, data = data)
+abline(volwght.lm)
+volwght.lm_sum = summary(volwght.lm)
+volwght.lm_sum_r2 = volwght.lm_sum $adj.r.squared
+mylabel = bquote(italic(R)^2 == .(format(volwght.lm_sum_r2, digits = 3)))
+text(x = 45, y = 35, labels = mylabel)
 
 # COMPARISONS TO DO 
 
