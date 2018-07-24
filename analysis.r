@@ -1,4 +1,11 @@
-# Script for analyzing milk jug frass data
+#########################################################
+
+# Setup
+# Milk jug frass data
+# Function for reading in frass data from GoogleDoc
+# *if aim is to backup GoogleDoc and write to disk only, then open = F and write = T
+# *if aim is to use data without writing to disk, then open = T and write = F
+
 frassLoad = function(open = T, write = F) {
   require(gsheet)
   url = "https://docs.google.com/spreadsheets/d/1RwXzwhHUbP0m5gKSOVhnKZbS1C_NrbdfHLglIVCzyFc/edit#gid=806965256"
@@ -12,14 +19,9 @@ frassLoad = function(open = T, write = F) {
   if (open) { return (data) }
 }
 
-# Script for analyzing filter paper data
-library(gsheet)
-library(dplyr)
-library(tidyr)
-library(data.table)
-
+# Filter paper frass data
 # Function for reading in frass data from GoogleDoc
-# *if aim is to backup GoogleDoc and write to disk only, then open =F and write = T
+# *if aim is to backup GoogleDoc and write to disk only, then open = F and write = T
 # *if aim is to use data without writing to disk, then open = T and write = F
 
 frassData = function(open = F, write = F) {
@@ -35,40 +37,35 @@ frassData = function(open = F, write = F) {
   if (open) { return (data) }
 }
 
-
-# Function that takes a date field (formatted as %m/%d/%Y) and a time field
-# (hh:mm in 24h time), converts the date to julian day and adds the fractional
-# day represented by the hours and minutes
-
-julianDayTime = function(date, hour_min) {
-  require(lubridate)
-  jday = yday(date)
-  temp = sapply(strsplit(hour_min, ":"), function(x) {
-    x = as.numeric(x)
-    x[1] + x[2]/60
-  })
-  output = jday + temp/24
-  return(output)
-}
-
-#renaming data sets
+# renaming data sets
 data = frassLoad(open = T)
 NCBG_PR_frassdata = frassData(open = T) 
 
-#removing outliers in frassLoad
+# removing outliers in frassLoad
 dataWO = data[data$Weight_Raw < 50,]
 data_rawpcsWO = data[data$Pieces_Raw < 60,]
 data_srtdpcsWO = data[data$Pieces_Sorted < 50,]
 data_img_exlc_outlier = data[data$Img_Sorted < 20, ]
 
-# Linear model & plot describing weight_sorted vs weight_raw
+library(gsheet)
+library(dplyr)
+library(tidyr)
+library(data.table)
+
+##########################################################
+
+# Plotting and Analysis
+# Linear model & plot comparing weight of sorted vs raw frass 
 raw_sort_outlier_excl = lm(Weight_Sorted ~ Weight_Raw, data = dataWO)
-plot(data$Weight_Raw[data$Weight_Raw<50], data$Weight_Sorted[data$Weight_Raw<50],main = "Frass Weight Comparison (mg.)", xlab = "Weight Raw", ylab = "Weight Sorted", pch = 17, cex = 1, col = 'red')
+plot(data$Weight_Raw[data$Weight_Raw<50], data$Weight_Sorted[data$Weight_Raw<50],
+     main = "Frass Weight Comparison (mg.)", 
+     xlab = "Weight Raw", ylab = "Weight Sorted", 
+     pch = 17, cex = 1, col = 'goldenrod2')
 abline(raw_sort_outlier_excl)
 sortraw_sum = summary(raw_sort_outlier_excl)
 sortraw_sum_r2 = sortraw_sum$adj.r.squared
 mylabel = bquote(italic(R)^2 == .(format(sortraw_sum_r2, digits = 3)))
-text(x = 3.3, y = 16.2, labels = mylabel)
+text(x = 3.3, y = 30, labels = mylabel)
 
 ## Linear models & plots showing raw/sorted img against raw/sorted pcs to describe how much sorting changes % of area 
 # Raw/Sorted img
@@ -119,7 +116,7 @@ abline(sorted_lm)
 sorted_lm_sum = summary(sorted_lm)
 sorted_lm_r2 = sorted_lm_sum$adj.r.squared
 mylabel = bquote(italic(R)^2 == .(format(sorted_lm_r2, digits = 3)))
-text(x = 9, y = 30, labels = mylabel)
+text(x = 11, y = 30, labels = mylabel)
 
 #NCBG Comparison: Filter paper vs. Milk jug collection. 
 # Traps set on 3rd, Filter paper collected on the 6th & 10th; milk jug collected on 10th
@@ -202,6 +199,7 @@ methodcompare_numsum_r2 = methodcompare_numsum$adj.r.squared
 mylabel = bquote(italic(R)^2 == .(format(methodcompare_numsum_r2, digits = 3)))
 text(x = .09, y = .2, labels = mylabel)
 
+
 # plot volume vs mass
 plot(data$Volume_raw, data$Weight_Sorted, 
      main = "Estimated Volume As A Proxy For Frass Weight", 
@@ -214,40 +212,9 @@ volwght.lm_sum_r2 = volwght.lm_sum $adj.r.squared
 mylabel = bquote(italic(R)^2 == .(format(volwght.lm_sum_r2, digits = 3)))
 text(x = 45, y = 35, labels = mylabel)
 
-# COMPARISONS TO DO 
-
-# Raw Img to Sorted Img - AD complete
-# Sorted Pieces to Sorted Weight - AD complete
-# Filter paper to Milk jug (sorted/sorted) - AD complete
-# Before and after "rain" - TBD
-# Sorted weight to Img_raw - AZ
+## COMPARISONS TO DO:
+# Sorted Pieces to Sorted Weight (UNC only)- AD complete
 # Filter paper vs. Milk Jug:  mass, pieces - AD mass complete, pcs complete
+# Raw Img to Sorted Img - AD complete
+# Sorted weight to Img_raw - AZ
 # Volume vs. Weight Sorted - AZ
-
-# # code to plot data/time -- change class of date column 
-# frasstrapscomp$Date.Collected = as.Date(frasstrapscomp$Date.Collected, format = "%m/%d/%Y")
-# 
-# # Filter paper vs. Milk jug: mg/trap/day
-# par(mar=c(4, 5, 5, 3)) # Bottom, Left, Top, Right
-# plot(frasstrapscomp$Date.Collected, frasstrapscomp$FrassMass.adj_filterpaper, 
-#      main = "Collected Frass:\nFilter Paper vs. Milk Jug (mg/trap/day)", 
-#      xlab = expression(paste("Date")), 
-#      ylab = expression(paste("Mass per ", cm^2)),  
-#      col = 'red', pch = 19, cex = 1, ylim=c(.015, .21))
-# points(frasstrapscomp$Date.Collected, frasstrapscomp$FrassMass.adj_milkjug, 
-#        col = 'deepskyblue', pch = 19, cex = 1)
-# 
-# # Filter paper vs. Milk jug: mean mg/trap/day
-# filterpaperdate.mean = aggregate(FrassMass.adj_filterpaper ~ Survey, frasstrapscomp, mean)
-# milkjugdate.mean = aggregate(FrassMass.adj_milkjug ~ Survey, frasstrapscomp, mean)
-# mg.meanbydate = merge(filterpaperdate.mean, milkjugdate.mean, by = "Survey")
-# replace.value(mg.meanbydate, Survey, from=NA, to=as.integer(0), verbose = FALSE)
-# par(mar=c(4, 5, 5, 3)) # Bottom, Left, Top, Right
-# plot(mg.meanbydate$Survey, mg.meanbydate$FrassMass.adj_filterpaper, 
-#      main = "Collected Frass:\nFilter Paper vs. Milk Jug (mean mg/trap/day)", 
-#      xlab = expression(paste("Date")), 
-#      ylab = expression(paste("Mean Mass per ", cm^2)),  
-#      col = 'orange', pch = 20, ylim=c(.015, .21))
-# lines(mg.meanbydate$Survey, mg.meanbydate$FrassMass.adj_filterpaper, type="b", lwd=1, lty=2, col= "orange")
-# lines(mg.meanbydate$Survey, mg.meanbydate$FrassMass.adj_milkjug, 
-#       type="b", lwd=1, lty=2, col = 'deepskyblue', pch = 20)
