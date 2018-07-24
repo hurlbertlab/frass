@@ -173,34 +173,6 @@ plot(frasstrapscomp$FrassNumber.adj_filterpaper, frasstrapscomp$FrassMass.adj_fi
 points(frasstrapscomp$FrassNumber.adj_milkjug, frasstrapscomp$FrassMass.adj_filterpaper, 
      col = 'deepskyblue', pch = 19, cex = 1)
 
-# change class of date column 
-frasstrapscomp$Date.Collected = as.Date(frasstrapscomp$Date.Collected, format = "%m/%d/%Y")
-
-# Filter paper vs. Milk jug: mg/trap/day
-par(mar=c(4, 5, 5, 3)) # Bottom, Left, Top, Right
-plot(frasstrapscomp$Date.Collected, frasstrapscomp$FrassMass.adj_filterpaper, 
-     main = "Collected Frass:\nFilter Paper vs. Milk Jug (mg/trap/day)", 
-     xlab = expression(paste("Date")), 
-     ylab = expression(paste("Mass per ", cm^2)),  
-     col = 'red', pch = 19, cex = 1, ylim=c(.015, .21))
-points(frasstrapscomp$Date.Collected, frasstrapscomp$FrassMass.adj_milkjug, 
-       col = 'deepskyblue', pch = 19, cex = 1)
-
-# Filter paper vs. Milk jug: mean mg/trap/day
-filterpaperdate.mean = aggregate(FrassMass.adj_filterpaper ~ Survey, frasstrapscomp, mean)
-milkjugdate.mean = aggregate(FrassMass.adj_milkjug ~ Survey, frasstrapscomp, mean)
-mg.meanbydate = merge(filterpaperdate.mean, milkjugdate.mean, by = "Survey")
-replace.value(mg.meanbydate, Survey, from=NA, to=as.integer(0), verbose = FALSE)
-par(mar=c(4, 5, 5, 3)) # Bottom, Left, Top, Right
-plot(mg.meanbydate$Survey, mg.meanbydate$FrassMass.adj_filterpaper, 
-     main = "Collected Frass:\nFilter Paper vs. Milk Jug (mean mg/trap/day)", 
-     xlab = expression(paste("Date")), 
-     ylab = expression(paste("Mean Mass per ", cm^2)),  
-     col = 'orange', pch = 20, ylim=c(.015, .21))
-lines(mg.meanbydate$Survey, mg.meanbydate$FrassMass.adj_filterpaper, type="b", lwd=1, lty=2, col= "orange")
-lines(mg.meanbydate$Survey, mg.meanbydate$FrassMass.adj_milkjug, 
-      type="b", lwd=1, lty=2, col = 'deepskyblue', pch = 20)
-
 # Plot comparing method/method in mass
 par(mar=c(4, 5, 5, 3)) # Bottom, Left, Top, Right
 plot(frasstrapscomp$FrassMass.adj_filterpaper, frasstrapscomp$FrassMass.adj_milkjug, 
@@ -249,5 +221,33 @@ text(x = 45, y = 35, labels = mylabel)
 # Filter paper to Milk jug (sorted/sorted) - AD complete
 # Before and after "rain" - TBD
 # Sorted weight to Img_raw - AZ
-# Filter paper vs. Milk Jug:  mass, pieces - AD mass complete, pcs TBD
-# Volume vs. Weight Sorted - TBD
+# Filter paper vs. Milk Jug:  mass, pieces - AD mass complete, pcs complete
+# Volume vs. Weight Sorted - AZ
+
+# # code to plot data/time -- change class of date column 
+# frasstrapscomp$Date.Collected = as.Date(frasstrapscomp$Date.Collected, format = "%m/%d/%Y")
+# 
+# # Filter paper vs. Milk jug: mg/trap/day
+# par(mar=c(4, 5, 5, 3)) # Bottom, Left, Top, Right
+# plot(frasstrapscomp$Date.Collected, frasstrapscomp$FrassMass.adj_filterpaper, 
+#      main = "Collected Frass:\nFilter Paper vs. Milk Jug (mg/trap/day)", 
+#      xlab = expression(paste("Date")), 
+#      ylab = expression(paste("Mass per ", cm^2)),  
+#      col = 'red', pch = 19, cex = 1, ylim=c(.015, .21))
+# points(frasstrapscomp$Date.Collected, frasstrapscomp$FrassMass.adj_milkjug, 
+#        col = 'deepskyblue', pch = 19, cex = 1)
+# 
+# # Filter paper vs. Milk jug: mean mg/trap/day
+# filterpaperdate.mean = aggregate(FrassMass.adj_filterpaper ~ Survey, frasstrapscomp, mean)
+# milkjugdate.mean = aggregate(FrassMass.adj_milkjug ~ Survey, frasstrapscomp, mean)
+# mg.meanbydate = merge(filterpaperdate.mean, milkjugdate.mean, by = "Survey")
+# replace.value(mg.meanbydate, Survey, from=NA, to=as.integer(0), verbose = FALSE)
+# par(mar=c(4, 5, 5, 3)) # Bottom, Left, Top, Right
+# plot(mg.meanbydate$Survey, mg.meanbydate$FrassMass.adj_filterpaper, 
+#      main = "Collected Frass:\nFilter Paper vs. Milk Jug (mean mg/trap/day)", 
+#      xlab = expression(paste("Date")), 
+#      ylab = expression(paste("Mean Mass per ", cm^2)),  
+#      col = 'orange', pch = 20, ylim=c(.015, .21))
+# lines(mg.meanbydate$Survey, mg.meanbydate$FrassMass.adj_filterpaper, type="b", lwd=1, lty=2, col= "orange")
+# lines(mg.meanbydate$Survey, mg.meanbydate$FrassMass.adj_milkjug, 
+#       type="b", lwd=1, lty=2, col = 'deepskyblue', pch = 20)
