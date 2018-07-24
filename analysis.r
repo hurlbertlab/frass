@@ -201,10 +201,10 @@ lines(mg.meanbydate$Survey, mg.meanbydate$FrassMass.adj_filterpaper, type="b", l
 lines(mg.meanbydate$Survey, mg.meanbydate$FrassMass.adj_milkjug, 
       type="b", lwd=1, lty=2, col = 'deepskyblue', pch = 20)
 
-# Plot comparing method/method 
+# Plot comparing method/method in mass
 par(mar=c(4, 5, 5, 3)) # Bottom, Left, Top, Right
 plot(frasstrapscomp$FrassMass.adj_filterpaper, frasstrapscomp$FrassMass.adj_milkjug, 
-     main = "Frass Collection Method Comparison", 
+     main = expression(paste("Frass Collection Method Comparison:" ~ "Mg. per" ~ cm^{2})),
      xlab = expression(paste("Filter Paper ")), 
      ylab = expression(paste("Milk Jug ")),  
      col = 'deepskyblue', pch = 19, cex = .8, ylim=c(-.01, .52))
@@ -213,8 +213,24 @@ abline(methodcompare.lm)
 methodcompare_sum = summary(methodcompare.lm)
 methodcompare_sum_r2 = methodcompare_sum$adj.r.squared
 mylabel = bquote(italic(R)^2 == .(format(methodcompare_sum_r2, digits = 3)))
-text(x = .05, y = .52, labels = mylabel)
+text(x = .04, y = .52, labels = mylabel)
 
+
+# plot comparing method/method in pcs
+par(mar=c(4, 5, 5, 3)) # Bottom, Left, Top, Right
+plot(frasstrapscomp$FrassNumber.adj_filterpaper, frasstrapscomp$FrassNumber.adj_milkjug, 
+     main = expression(paste("Frass Collection Method Comparison:" ~ "Pieces per" ~ cm^{2})), 
+     xlab = expression(paste("Filter Paper ")), 
+     ylab = expression(paste("Milk Jug ")),  
+     col = 'green2', pch = 19, cex = .8, xlim = c(.03, .505), ylim=c(-.01, .2))
+methodcompare_num.lm = lm(frasstrapscomp$FrassNumber.adj_milkjug ~ frasstrapscomp$FrassNumber.adj_filterpaper, data = frasstrapscomp )
+abline(methodcompare_num.lm)
+methodcompare_numsum = summary(methodcompare_num.lm)
+methodcompare_numsum_r2 = methodcompare_numsum$adj.r.squared
+mylabel = bquote(italic(R)^2 == .(format(methodcompare_numsum_r2, digits = 3)))
+text(x = .09, y = .2, labels = mylabel)
+
+# plot volume vs mass
 plot(data$Volume_raw, data$Weight_Sorted, 
      main = "Estimated Volume As A Proxy For Frass Weight", 
      xlab = "Volume (mm^3)", 
