@@ -220,6 +220,7 @@ methodcompare_sum = summary(methodcompare.lm)
 methodcompare_sum_r2 = methodcompare_sum$adj.r.squared
 mylabel = bquote(italic(R)^2 == .(format(methodcompare_sum_r2, digits = 3)))
 text(x = .035, y = .52, labels = mylabel)
+abline(a = 0, b = 1, col = "orange")
 
 # Filter Paper vs. Milk Jug by pieces collected
 par(mar=c(4, 5, 5, 3)) # Bottom, Left, Top, Right
