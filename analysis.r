@@ -59,15 +59,17 @@ library(data.table)
 # Weight of Raw Frass / Weight of Sorted Frass
 raw_sort_outlier_excl = lm(Weight_Sorted ~ Weight_Raw, data = dataWO)
 plot(data$Weight_Raw[data$Weight_Raw<50], data$Weight_Sorted[data$Weight_Raw<50],
-     main = "Frass Weight Comparison (mg.)", 
-     xlab = "Weight Raw", ylab = "Weight Sorted", 
-     pch = 17, cex = 1, col = 'goldenrod2')
-abline(raw_sort_outlier_excl, col = "goldenrod2")
+     main = "Milk Jug Method:\nFrass Mass Comparison (mg.)", 
+     xlab = "Raw", ylab = "Sorted", 
+     pch = 17, cex = 1, col = 'orange')
+abline(raw_sort_outlier_excl, col = "orange")
 sortraw_sum = summary(raw_sort_outlier_excl)
 sortraw_sum_r2 = sortraw_sum$adj.r.squared
 mylabel = bquote(italic(R)^2 == .(format(sortraw_sum_r2, digits = 3)))
-text(x = 3.3, y = 30, labels = mylabel)
+text(x = 4, y = 30.5, labels = mylabel)
 abline(a = 0, b = 1, col = "lightgrey")
+legend("topleft", cex = .7, title = " ", c("Regression", "1:1"), lwd = 2, bty = "n",
+       lty=c("dashed", "solid"), col=c("orange", "lightgrey"))
 
 # Sorted Frass Comparison: Pieces vs. Weight (mg.)
 plot(data$Pieces_Sorted[data$Pieces_Sorted<100], data$Weight_Sorted[data$Pieces_Sorted<100], 
@@ -201,7 +203,7 @@ points(frasstrapscomp$FrassNumber_milkjug, frasstrapscomp$FrassMass_milkjug,
 # Filter Paper vs. Milk Jug  - both mass & pieces (normalized)
 par(mar=c(4, 5, 5, 3)) # Bottom, Left, Top, Right
 plot(frasstrapscomp$FrassNumber.adj_filterpaper, frasstrapscomp$FrassMass.adj_filterpaper, 
-     main = "Frass Collection Method:\nFilter Paper vs. Milk Jug", 
+     main = "Frass Collection Method Comparison", 
      xlab = expression(paste("Pieces per ", cm^2)), 
      ylab = expression(paste("Mg. per ", cm^2)),  
      col = 'orange', pch = 20, cex = 1, xlim=c(0, .5), ylim=c(0, .5))
@@ -212,10 +214,11 @@ filterpaper.lm = lm(FrassMass.adj_filterpaper ~ FrassNumber.adj_filterpaper, dat
 milkjug.lm = lm(FrassMass.adj_milkjug ~ FrassNumber.adj_milkjug, data = frasstrapscomp)
 abline(filterpaper.lm, col = "orange", lty = "dashed")
 abline(milkjug.lm, col = "deepskyblue2", lty = "dashed")
+legend("topright", cex = .7, title = " ", c("Filter Paper", "Milk Jug"), lwd = 2, bty = "n",
+       lty=c("dashed", "dashed"), col=c("orange", "deepskyblue2"))
 
-# add legends
 
-# Filter Paper vs. Milk Jug by mass collected ***
+# Filter Paper vs. Milk Jug by mass collected 
 par(mar=c(4, 5, 5, 3)) # Bottom, Left, Top, Right
 plot(frasstrapscomp$FrassMass.adj_filterpaper, frasstrapscomp$FrassMass.adj_milkjug, 
      main = expression(paste("Frass Collection Method Comparison:" ~ "Mass (mg.) per" ~ cm^{2})),
@@ -230,6 +233,9 @@ methodcompare_sum_r2 = methodcompare_sum$adj.r.squared
 mylabel = bquote(italic(R)^2 == .(format(methodcompare_sum_r2, digits = 3)))
 text(x = .035, y = .5, labels = mylabel)
 abline(a = 0, b = 1, col = "lightgrey")
+legend("bottomright", cex = .7, title = " ", c("Regression", "1:1"), lwd = 2, bty = "n",
+       lty=c("dashed", "solid"), col=c("deepskyblue2", "lightgrey"))
+
 
 # Filter Paper vs. Milk Jug by pieces collected
 par(mar=c(4, 5, 5, 3)) # Bottom, Left, Top, Right
@@ -237,11 +243,14 @@ plot(frasstrapscomp$FrassNumber.adj_filterpaper, frasstrapscomp$FrassNumber.adj_
      main = expression(paste("Frass Collection Method Comparison:" ~ "Pieces per" ~ cm^{2})), 
      xlab = expression(paste("Filter Paper ")), 
      ylab = expression(paste("Milk Jug ")),  
-     col = 'deepskyblue2', pch = 19, cex = .8, 
-     xlim = c(.03, .505), ylim=c(-.01, .2))
+     col = 'green3', pch = 19, cex = .8, 
+     xlim = c(0, .6), ylim=c(0, .21))
 methodcompare_num.lm = lm(frasstrapscomp$FrassNumber.adj_milkjug ~ frasstrapscomp$FrassNumber.adj_filterpaper, data = frasstrapscomp )
-abline(methodcompare_num.lm)
+abline(methodcompare_num.lm, lty = "dashed", col = "green3")
 methodcompare_numsum = summary(methodcompare_num.lm)
 methodcompare_numsum_r2 = methodcompare_numsum$adj.r.squared
 mylabel = bquote(italic(R)^2 == .(format(methodcompare_numsum_r2, digits = 3)))
-text(x = .085, y = .2, labels = mylabel)
+text(x = .5, y = .04, labels = mylabel)
+abline(a = 0, b = 1, col = "lightgrey")
+legend("bottomright", cex = .7, title = " ", c("Regression", "1:1"), lwd = 2, bty = "n",
+       lty=c("dashed", "solid"), col=c("green3", "lightgrey"))
