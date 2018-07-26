@@ -61,15 +61,15 @@ raw_sort_outlier_excl = lm(Weight_Sorted ~ Weight_Raw, data = dataWO)
 plot(data$Weight_Raw[data$Weight_Raw<50], data$Weight_Sorted[data$Weight_Raw<50],
      main = "Milk Jug Method:\nFrass Mass Comparison (mg.)", 
      xlab = "Raw", ylab = "Sorted", 
-     pch = 17, cex = 1, col = 'orange')
-abline(raw_sort_outlier_excl, col = "orange")
+     pch = 20, cex = 1, col = 'deepskyblue2')
+abline(raw_sort_outlier_excl, col = "deepskyblue2")
 sortraw_sum = summary(raw_sort_outlier_excl)
 sortraw_sum_r2 = sortraw_sum$adj.r.squared
 mylabel = bquote(italic(R)^2 == .(format(sortraw_sum_r2, digits = 3)))
-text(x = 4, y = 30.5, labels = mylabel)
+text(x = 2.5, y = 30.9, labels = mylabel)
 abline(a = 0, b = 1, col = "lightgrey")
 legend("topleft", cex = .7, title = " ", c("Regression", "1:1"), lwd = 2, bty = "n",
-       lty=c("dashed", "solid"), col=c("orange", "lightgrey"))
+       lty=c("dashed", "solid"), col=c("deepskyblue2", "lightgrey"))
 
 # Sorted Frass Comparison: Pieces vs. Weight (mg.)
 plot(data$Pieces_Sorted[data$Pieces_Sorted<100], data$Weight_Sorted[data$Pieces_Sorted<100], 
@@ -225,13 +225,13 @@ plot(frasstrapscomp$FrassMass.adj_filterpaper, frasstrapscomp$FrassMass.adj_milk
      xlab = expression(paste("Filter Paper ")), 
      ylab = expression(paste("Milk Jug ")),  
      col = 'deepskyblue2', pch = 19, cex = .8, 
-     xlim = c(0, .5), ylim=c(0, .5))
+     xlim = c(0, .4), ylim=c(0, .5))
 methodcompare.lm = lm(FrassMass.adj_milkjug ~ FrassMass.adj_filterpaper, data = frasstrapscomp )
 abline(methodcompare.lm, lty = "dashed", col = "deepskyblue2")
 methodcompare_sum = summary(methodcompare.lm)
 methodcompare_sum_r2 = methodcompare_sum$adj.r.squared
 mylabel = bquote(italic(R)^2 == .(format(methodcompare_sum_r2, digits = 3)))
-text(x = .035, y = .5, labels = mylabel)
+text(x = .36, y = .06, labels = mylabel)
 abline(a = 0, b = 1, col = "lightgrey")
 legend("bottomright", cex = .7, title = " ", c("Regression", "1:1"), lwd = 2, bty = "n",
        lty=c("dashed", "solid"), col=c("deepskyblue2", "lightgrey"))
@@ -250,7 +250,7 @@ abline(methodcompare_num.lm, lty = "dashed", col = "green3")
 methodcompare_numsum = summary(methodcompare_num.lm)
 methodcompare_numsum_r2 = methodcompare_numsum$adj.r.squared
 mylabel = bquote(italic(R)^2 == .(format(methodcompare_numsum_r2, digits = 3)))
-text(x = .5, y = .04, labels = mylabel)
+text(x = .57, y = .02, labels = mylabel)
 abline(a = 0, b = 1, col = "lightgrey")
 legend("bottomright", cex = .7, title = " ", c("Regression", "1:1"), lwd = 2, bty = "n",
        lty=c("dashed", "solid"), col=c("green3", "lightgrey"))
