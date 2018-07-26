@@ -62,11 +62,12 @@ plot(data$Weight_Raw[data$Weight_Raw<50], data$Weight_Sorted[data$Weight_Raw<50]
      main = "Frass Weight Comparison (mg.)", 
      xlab = "Weight Raw", ylab = "Weight Sorted", 
      pch = 17, cex = 1, col = 'goldenrod2')
-abline(raw_sort_outlier_excl)
+abline(raw_sort_outlier_excl, col = "goldenrod2")
 sortraw_sum = summary(raw_sort_outlier_excl)
 sortraw_sum_r2 = sortraw_sum$adj.r.squared
 mylabel = bquote(italic(R)^2 == .(format(sortraw_sum_r2, digits = 3)))
 text(x = 3.3, y = 30, labels = mylabel)
+abline(a = 0, b = 1, col = "lightgrey")
 
 # Sorted Frass Comparison: Pieces vs. Weight (mg.)
 plot(data$Pieces_Sorted[data$Pieces_Sorted<100], data$Weight_Sorted[data$Pieces_Sorted<100], 
@@ -200,27 +201,35 @@ points(frasstrapscomp$FrassNumber_milkjug, frasstrapscomp$FrassMass_milkjug,
 # Filter Paper vs. Milk Jug  - both mass & pieces (normalized)
 par(mar=c(4, 5, 5, 3)) # Bottom, Left, Top, Right
 plot(frasstrapscomp$FrassNumber.adj_filterpaper, frasstrapscomp$FrassMass.adj_filterpaper, 
-     main = "Frass Collection Method:\nFilter Paper vs. Milk Jug (normalized)", 
+     main = "Frass Collection Method:\nFilter Paper vs. Milk Jug", 
      xlab = expression(paste("Pieces per ", cm^2)), 
      ylab = expression(paste("Mg. per ", cm^2)),  
-     col = 'orange', pch = 20, cex = 1, xlim=c(-.01, .2), ylim=c(.015, .21))
+     col = 'orange', pch = 20, cex = 1, xlim=c(0, .5), ylim=c(0, .5))
 points(frasstrapscomp$FrassNumber.adj_milkjug, frasstrapscomp$FrassMass.adj_milkjug, 
      col = 'deepskyblue2', pch = 20)
+# Add regression through both, add 1:1 ref line
+filterpaper.lm = lm(FrassMass.adj_filterpaper ~ FrassNumber.adj_filterpaper, data = frasstrapscomp)
+milkjug.lm = lm(FrassMass.adj_milkjug ~ FrassNumber.adj_milkjug, data = frasstrapscomp)
+abline(filterpaper.lm, col = "orange", lty = "dashed")
+abline(milkjug.lm, col = "deepskyblue2", lty = "dashed")
 
-# Filter Paper vs. Milk Jug by mass collected
+# add legends
+
+# Filter Paper vs. Milk Jug by mass collected ***
 par(mar=c(4, 5, 5, 3)) # Bottom, Left, Top, Right
 plot(frasstrapscomp$FrassMass.adj_filterpaper, frasstrapscomp$FrassMass.adj_milkjug, 
      main = expression(paste("Frass Collection Method Comparison:" ~ "Mass (mg.) per" ~ cm^{2})),
      xlab = expression(paste("Filter Paper ")), 
      ylab = expression(paste("Milk Jug ")),  
-     col = 'deepskyblue2', pch = 19, cex = .8, ylim=c(-.01, .52))
-methodcompare.lm = lm(frasstrapscomp$FrassMass.adj_milkjug ~ frasstrapscomp$FrassMass.adj_filterpaper, data = frasstrapscomp )
-abline(methodcompare.lm)
+     col = 'deepskyblue2', pch = 19, cex = .8, 
+     xlim = c(0, .5), ylim=c(0, .5))
+methodcompare.lm = lm(FrassMass.adj_milkjug ~ FrassMass.adj_filterpaper, data = frasstrapscomp )
+abline(methodcompare.lm, lty = "dashed", col = "deepskyblue2")
 methodcompare_sum = summary(methodcompare.lm)
 methodcompare_sum_r2 = methodcompare_sum$adj.r.squared
 mylabel = bquote(italic(R)^2 == .(format(methodcompare_sum_r2, digits = 3)))
-text(x = .035, y = .52, labels = mylabel)
-abline(a = 0, b = 1, col = "orange")
+text(x = .035, y = .5, labels = mylabel)
+abline(a = 0, b = 1, col = "lightgrey")
 
 # Filter Paper vs. Milk Jug by pieces collected
 par(mar=c(4, 5, 5, 3)) # Bottom, Left, Top, Right
