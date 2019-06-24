@@ -92,7 +92,7 @@ meanfrass = data %>%
                                                               'site' = 'site')) %>%
   rename(date = Date.Collected)
 
-write.csv(meanfrass, "data/arthropods/frass_by_day_2015-2017.csv", row.names = F)
+write.csv(meanfrass, "data/frass_by_day_2015-2019.csv", row.names = F)
 
 
 
