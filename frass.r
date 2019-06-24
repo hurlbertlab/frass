@@ -53,9 +53,13 @@ frassplot = function(frassdata, inputSite, year, color = 'black', new = T,
   
   if (new) {
     plot(temp$jday, temp[, var], xlab = xlab, ylab = ylab,
-         type = 'l', col = color, ...)
+         type = 'l', col = color, xaxt = 'n',...)
+    points(temp$jday, temp[, var], pch = 16, col = color,...)
+    mtext(dates, 1, at = jds, line = 1)
+    axis(1, at = c(jds, jds+14), tck = -.02, labels = FALSE)
   } else {
     points(temp$jday, temp[, var], type = 'l', col = color, ...)
+    points(temp$jday, temp[, var], pch = 16, col = color, ...)
   }
 }
 
@@ -102,15 +106,15 @@ beatvis.bg = rbind(beatsheet.bg, amsurvey.bg)
 
 # Frass plotting
 
-par(mfcol = c(4,2), mar = c(4,4,1,1), mgp = c(2.25, .75, 0))
+par(mfcol = c(2,1), mar = c(4,4,1,1), mgp = c(2.25, .75, 0))
 
 ## Frass Mass
 # Bot Garden
-frassplot(meanfrass, inputSite = 8892356, 2015, 'red', new = T, var = 'mass', xlim = c(138,205),
-          ylim = c(0, 4), lwd = 2, minReliability = 1, lty = 'dotted', main = 'NCBG, 2015')
-frassplot(meanfrass, inputSite = 8892356, 2015, 'red', new = F, var = 'mass', 
+frassplot(meanfrass, inputSite = 8892356, 2019, 'red', new = T, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 4), lwd = 2, minReliability = 1, lty = 'dotted', main = 'NCBG, 2019')
+frassplot(meanfrass, inputSite = 8892356, 2019, 'red', new = F, var = 'mass', 
           lwd = 3, minReliability = 2, lty = 'dashed')
-frassplot(meanfrass, inputSite = 8892356, 2015, 'red', new = F, var = 'mass', 
+frassplot(meanfrass, inputSite = 8892356, 2019, 'red', new = F, var = 'mass', 
           lwd = 4, minReliability = 3, lty = 'solid')
 par(new = T)
 bglep15.mass = meanDensityByDay(beatvis.bg, ordersToInclude = "LEPL", inputYear = 2015,
@@ -120,11 +124,11 @@ bglep15.mass = meanDensityByDay(beatvis.bg, ordersToInclude = "LEPL", inputYear 
 legend("topleft", c('frass', 'LEPL mass'), lwd = 4, col = c('red', 'blueviolet'))
 
 
-frassplot(meanfrass, inputSite = 8892356, 2016, 'red', new = T, var = 'mass', xlim = c(138,205), 
-          ylim = c(0, 4), lwd = 2, minReliability = 1, lty = 'dotted', main = 'NCBG, 2016')
-frassplot(meanfrass, inputSite = 8892356, 2016, 'red', new = F, var = 'mass', 
+frassplot(meanfrass, inputSite = 8892356, 2019, 'red', new = T, var = 'mass', xlim = c(138,205), 
+          ylim = c(0, 4), lwd = 2, minReliability = 1, lty = 'dotted', main = 'NCBG, 2019')
+frassplot(meanfrass, inputSite = 8892356, 2019, 'red', new = F, var = 'mass', 
           lwd = 3, minReliability = 2, lty = 'dashed')
-frassplot(meanfrass, inputSite = 8892356, 2016, 'red', new = F, var = 'mass', 
+frassplot(meanfrass, inputSite = 8892356, 2019, 'red', new = F, var = 'mass', 
           lwd = 4, minReliability = 3, lty = 'solid')
 par(new = T)
 bglep16.mass = meanDensityByDay(beatvis.bg, ordersToInclude = "LEPL", inputYear = 2016,
@@ -158,11 +162,11 @@ legend(136, 10.2, title = "Survey Year", c("2015", "2016", "2017", "2018"), cex 
        lty=c("solid", "twodash", "dotted", "dashed"), col=c("red", "green", "orange", "blue"), lwd = 2)
 
 # Prairie Ridge
-frassplot(meanfrass, inputSite = 117, 2015, 'red', new = T, var = 'mass', xlim = c(138, 205),
-          ylim = c(0, 6), lwd = 2, minReliability = 1, lty = 'dotted', main = 'PR, 2015')
-frassplot(meanfrass, inputSite = 117, 2015, 'red', new = F, var = 'mass', 
+frassplot(meanfrass, inputSite = 117, 2019, 'red', new = T, var = 'mass', xlim = c(138, 205),
+          ylim = c(0, 6), lwd = 2, minReliability = 1, lty = 'dotted', main = 'PR, 2019')
+frassplot(meanfrass, inputSite = 117, 2019, 'red', new = F, var = 'mass', 
           lwd = 3, minReliability = 2, lty = 'dashed')
-frassplot(meanfrass, inputSite = 117, 2015, 'red', new = F, var = 'mass', 
+frassplot(meanfrass, inputSite = 117, 2019, 'red', new = F, var = 'mass', 
           lwd = 4, minReliability = 3, lty = 'solid')
 par(new=T)
 prlep15.mass = meanDensityByDay(beatvis.pr, ordersToInclude = "LEPL", inputYear = 2015,
