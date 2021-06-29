@@ -22,6 +22,25 @@ frassData = function(open = F, write = F) {
 }
 
 
+#Function for fixing time format and downloading corrected csv
+TimeCleaning = function() {
+  read_in_data <- gsheet2tbl('https://docs.google.com/spreadsheets/d/1RwXzwhHUbP0m5gKSOVhnKZbS1C_NrbdfHLglIVCzyFc/edit#gid=1479231778')
+  
+  remove_NAs <- read_in_data %>%
+    filter(!is.na(Time.Set) & !is.na(Time.Collected))
+  
+  write.csv(remove_NAs %>% 
+    mutate(Time.Set = ifelse(test = grepl(":", remove_NAs$Time.Set), 
+            yes = remove_NAs$Time.Set, 
+            no = paste(substr(remove_NAs$Time.Set, 1, nchar(remove_NAs$Time.Set)-2), ":", substr(remove_NAs$Time.Set, 3, 4), sep = "")), 
+          Time.Collected = ifelse(test = grepl(":", remove_NAs$Time.Collected), 
+            yes = remove_NAs$Time.Collected, 
+            no = paste(substr(remove_NAs$Time.Collected, 1, nchar(remove_NAs$Time.Collected)-2), ":", substr(remove_NAs$Time.Collected, 3, 4), sep = ""))), 
+    paste('data/frass_', Sys.Date(), '.csv', sep = ''), row.names = F)
+  }
+
+
+
 # Function that takes a date field (formatted as %m/%d/%Y) and a time field
 # (hh:mm in 24h time), converts the date to julian day and adds the fractional
 # day represented by the hours and minutes
