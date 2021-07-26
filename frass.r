@@ -62,6 +62,7 @@ julianDayTime = function(date, hour_min) {
 #    3 - reliable, no obvious problems
 #    2 - frass traps wet, or potential minor issues
 #    1 - major problems, unreliable frass data
+# 'jds' causes error (object not found) - what is this supposed to be?
 
 
 frassplot = function(frassdata, inputSite, year, color = 'black', new = T, 
@@ -74,7 +75,7 @@ frassplot = function(frassdata, inputSite, year, color = 'black', new = T,
     plot(temp$jday, temp[, var], xlab = xlab, ylab = ylab,
          type = 'l', col = color, xaxt = 'n',...)
     points(temp$jday, temp[, var], pch = 16, col = color,...)
-    mtext(dates, 1, at = jds, line = 1)
+    mtext(jds, 1, at = jds, line = 1)
     axis(1, at = c(jds, jds+14), tck = -.02, labels = FALSE)
   } else {
     points(temp$jday, temp[, var], type = 'l', col = color, ...)
@@ -95,7 +96,7 @@ data = frassData(open = T) %>%
          jday.Collected = julianDayTime(Date.Collected, Time.Collected),
          frass.mg.d = Frass.mass..mg./(jday.Collected - jday.Set),
          frass.no.d = Frass.number/(jday.Collected - jday.Set),
-         jday = (floor(jday.Collected) + floor(jday.Set))/2) 
+         jday = (floor(jday.Collected) + floor(jday.Set))/2)
 
 # Sampling event data that specify reliability of data on any given date
 # (due to storms, etc that may affect frass recovery)
@@ -115,7 +116,7 @@ meanfrass = data %>%
                                                               'site' = 'site')) %>%
   rename(date = Date.Collected)
 
-write.csv(meanfrass, "data/frass_by_day_2015-2019.csv", row.names = F)
+write.csv(meanfrass, "data/frass_by_day_2015-2021.csv", row.names = F)
 
 
 
@@ -344,3 +345,25 @@ frGfit.m = fitG(prlep15.frden$jday, prlep15.frden$density,
 lines(138:200, frGfit$par[3]*dnorm(138:200, frGfit$par[1], frGfit$par[2]), col = 'green', lwd = 2)
 
 
+#convert frass image analysis results file name to a date
+titleToDate = function(results) { #results is a file address for results of image analysis
+  paste(substr(basename(results), 1, 4), substr(basename(results), 5, 6), substr(basename(results), 7, 8), sep = "-")
+}
+
+#convert frass image analysis results file name to a site name
+titleToSite = function(results) { #results is a file address for results of image analysis
+  paste(ifelse(test = grepl('ncbg', basename(results)), yes = 'Botanical Garden', no = 'Prairie Ridge'), sep = "")
+}
+
+#convert frass image analysis results file name to a trap number
+titleToTrap = function(results) { #results is a file address for results of image analysis
+  paste(ifelse(test = grepl('ncbg', basename(results)), yes = substr(basename(results), 15, 16), no = 
+          ifelse(test = grepl(11, basename(results)) | grepl(12, basename(results)), yes = substr(basename(results), 13, 14), no = substr(basename(results), 13, 13))))
+}
+
+#compile masses of frass by day and trap to single file
+frassMassMaster = function(address) { #address is a file address for the folder containing results files
+  tibble(
+  sapply(list.files(address), titleToDate),
+  )
+}
