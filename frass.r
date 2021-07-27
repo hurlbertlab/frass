@@ -361,9 +361,18 @@ titleToTrap = function(results) { #results is a file address for results of imag
           ifelse(test = grepl(11, basename(results)) | grepl(12, basename(results)), yes = substr(basename(results), 13, 14), no = substr(basename(results), 13, 13))))
 }
 
-#compile masses of frass by day and trap to single file
-frassMassMaster = function(address) { #address is a file address for the folder containing results files
-  tibble(
-  sapply(list.files(address), titleToDate),
-  )
+#extract total volume from an image analysis results file
+extractVolTotal = function(frassFile) {
+  temp <- read.csv(frassFile)
+  sum(temp$Area)
+}
+
+#compile total frass volumes to single file with date, site, and trap info
+frassVolumes = function(address) { #address is a file address for the folder containing results files
+  frassVol <<- tibble(
+    sapply(list.files(address), titleToSite),
+    sapply(list.files(address), titleToDate),
+    sapply(list.files(address), titleToTrap),
+    sapply(list.files(address, full.names = TRUE), extractVolTotal))
+  names(frassVol) <<- c('Site', 'Date.Collected', 'Trap', 'Frass.Volume.sqmm')
 }
