@@ -325,7 +325,7 @@ occGfit = fitG(prlep15.occ2$julianday, prlep15.occ2$fracSurveys,
 
 #lines(138:200, occGfit$par[3]*dnorm(138:200, occGfit$par[1], occGfit$par[2]), col = 'blueviolet', lwd = 2, lty = 'dotted')
 
-
+# test line
 
 par(new=T)
 frassplot(meanfrass, "Prairie Ridge", 2015, 'green', new = T, var = 'density', lwd = 7, 
