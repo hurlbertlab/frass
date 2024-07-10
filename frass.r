@@ -181,7 +181,7 @@ frassplot(meanfrass, inputSite = 8892356, 2018, 'blueviolet', new = F, var = 'ma
           ylim = c(0, 10.14), lwd = 2, minReliability = 2, lty = 'longdash', main = 'NCBG Frass')
 frassplot(meanfrass, inputSite = 8892356, 2019, 'darkgreen', new = F, var = 'mass', xlim = c(138,205),
           ylim = c(0, 10.14), lwd = 2, minReliability = 2, lty = 'dotdash', main = 'NCBG Frass')
-frassplot(meanfrass, inputSite = 8892356, 2020, 'violet', new = F, var = 'mass', xlim = c(138,205),
+frassplot(meanfrass, inputSite = 8892356, 2021, 'violet', new = F, var = 'mass', xlim = c(138,205),
           ylim = c(0, 10.14), lwd = 2, minReliability = 2, lty = 'solid', main = 'NCBG Frass')
 frassplot(meanfrass, inputSite = 8892356, 2022, 'yellow', new = F, var = 'mass', xlim = c(138,205),
           ylim = c(0, 10.14), lwd = 2, minReliability = 2, lty = 'twodash', main = 'NCBG Frass')
@@ -191,7 +191,7 @@ frassplot(meanfrass, inputSite = 8892356, 2024, 'navy', new = F, var = 'mass', x
           ylim = c(0, 10.14), lwd = 2, minReliability = 2, lty = 'dashed', main = 'NCBG Frass')
 
 #legend to decode graphic
-legend(136, 10.2, title = "Survey Year", c("2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024"), cex = .7, bty = "n", y.intersp = .8,
+legend(136, 10.2, title = "Survey Year", c("2015", "2016", "2017", "2018", "2019", "2021", "2022", "2023", "2024"), cex = .7, bty = "n", y.intersp = .8,
        lty=c("solid", "twodash", "dotted", "dashed", "longdash", "dotdash", "solid", "twodash", "dotted", "dashed"), col=c("red", "green", "orange", "blue", "blueviolet", "darkgreen", "violet", "yellow", "grey", "navy"), lwd = 2)
 
 # Prairie Ridge
