@@ -109,7 +109,7 @@ events$date = as.Date(events$date, format = "%m/%d/%Y")
 
 meanfrass = data %>%
   filter(!is.na(Frass.mass..mg.)) %>%
-  mutate(site = ifelse(Site=="Botanical Garden", 8892356, 117)) %>%
+  mutate(site = as.character(ifelse(Site=="Botanical Garden", 8892356, 117))) %>%
   group_by(site, Date.Collected, Year, jday) %>%
   summarize(mass = mean(frass.mg.d, na.rm=T),
             density = mean(frass.no.d, na.rm=T)) %>%
@@ -120,9 +120,6 @@ meanfrass = data %>%
 write.csv(meanfrass, "data/frass_by_day_2015-2021.csv", row.names = F)
 
 
-
-beatvis.pr = rbind(beatsheet.pr, amsurvey.pr)
-beatvis.bg = rbind(beatsheet.bg, amsurvey.bg)
 
 
 # Frass plotting
