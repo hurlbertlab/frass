@@ -67,7 +67,9 @@ julianDayTime = function(date, hour_min) {
 
 
 frassplot = function(frassdata, inputSite, year, color = 'black', new = T, 
-                     var = 'mass', minReliability = 0, xlab = 'Julian day', ylab = '', ...) {
+                     var = 'mass', minReliability = 0, xlab = 'Julian day', ylab = '', 
+                     jds = c(136, 167, 197), # May 15, Jun 15, Jul 15
+                     ...) {
   
   temp = filter(frassdata, site == inputSite, Year == year, reliability >= minReliability) %>%
     data.frame()
@@ -175,9 +177,22 @@ frassplot(meanfrass, inputSite = 8892356, 2017, 'orange', new = F, var = 'mass',
           ylim = c(0, 10.14), lwd = 2, minReliability = 2, lty = 'dotted', main = 'NCBG Frass')
 frassplot(meanfrass, inputSite = 8892356, 2018, 'blue', new = F, var = 'mass', xlim = c(138,205),
           ylim = c(0, 10.14), lwd = 2, minReliability = 2, lty = 'dashed', main = 'NCBG Frass')
+frassplot(meanfrass, inputSite = 8892356, 2018, 'blueviolet', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 10.14), lwd = 2, minReliability = 2, lty = 'longdash', main = 'NCBG Frass')
+frassplot(meanfrass, inputSite = 8892356, 2019, 'darkgreen', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 10.14), lwd = 2, minReliability = 2, lty = 'dotdash', main = 'NCBG Frass')
+frassplot(meanfrass, inputSite = 8892356, 2020, 'violet', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 10.14), lwd = 2, minReliability = 2, lty = 'solid', main = 'NCBG Frass')
+frassplot(meanfrass, inputSite = 8892356, 2022, 'yellow', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 10.14), lwd = 2, minReliability = 2, lty = 'twodash', main = 'NCBG Frass')
+frassplot(meanfrass, inputSite = 8892356, 2023, 'grey', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 10.14), lwd = 2, minReliability = 2, lty = 'dotted', main = 'NCBG Frass')
+frassplot(meanfrass, inputSite = 8892356, 2024, 'navy', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 10.14), lwd = 2, minReliability = 2, lty = 'dashed', main = 'NCBG Frass')
+
 #legend to decode graphic
-legend(136, 10.2, title = "Survey Year", c("2015", "2016", "2017", "2018"), cex = .7, bty = "n", y.intersp = .8,
-       lty=c("solid", "twodash", "dotted", "dashed"), col=c("red", "green", "orange", "blue"), lwd = 2)
+legend(136, 10.2, title = "Survey Year", c("2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024"), cex = .7, bty = "n", y.intersp = .8,
+       lty=c("solid", "twodash", "dotted", "dashed", "longdash", "dotdash", "solid", "twodash", "dotted", "dashed"), col=c("red", "green", "orange", "blue", "blueviolet", "darkgreen", "violet", "yellow", "grey", "navy"), lwd = 2)
 
 # Prairie Ridge
 frassplot(meanfrass, inputSite = 117, 2019, 'red', new = T, var = 'mass', xlim = c(138, 205),
