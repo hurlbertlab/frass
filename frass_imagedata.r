@@ -47,4 +47,4 @@ for (f in list.files(frassfolder)) {
 # remove columns we don't care about (Mean, Min, Max)
 # create new columns for Date, Site, Trap and fill values using strsplit
 
-
+# final dataframe has columns for Site, Trap, Date, Particle, Area
