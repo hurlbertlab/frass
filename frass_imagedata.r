@@ -10,33 +10,21 @@
 library(stringr)
 library(dplyr)
 
-# example for loop (1-dimensional output)
+# Nested For loop to read in files and add them to a data frame
+#initate a blank output dataframe for use in forloop
+output = data.frame(x = NULL)
 
-output2 = c()
+frassyearsfolder= "z:/Databases/CaterpillarsCount/Frass"
+formattedfrassyears = c("2022", "2023", "2024")
 
-blah = c(3, 5, 2, 0, 12)
-
-for (i in 1:10) {
-  
-  tmp = 3*i
-  
-  output2 = c(output2, tmp)
-
-}
-
-
-# Nested for loop to read in files and add them to a data frame
-output = data.frame(Filename = NULL,
-                    Particle = NULL,
-                    Area = NULL)
-
-frassfolder = "z:/Databases/CaterpillarsCount/Frass/2024/Results"
+for (i in 1:length(formattedfrassyears)) {
+  frassfolder = paste(frassyearsfolder, "/", formattedfrassyears[i], "/", "Results", sep="")
 for (f in list.files(frassfolder)) {
   tmp = read.table(paste(frassfolder, "/", f, sep  = ""), sep = "\t", header = T)
   tmp$Filename = f
   output = rbind(output, tmp)
   }
-
+}
 # remove columns we don't care about (Mean, Min, Max)
 
 cleaned_output = output %>% 
@@ -54,7 +42,7 @@ finaldf = cbind(tmp2,cleaned_output) %>%
   select(-'Filename')
  colnames(finaldf) <- c('Date','Site','Trap', 'Particle', 'Area')
  
- 
+
  
  
  
