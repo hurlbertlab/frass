@@ -25,22 +25,18 @@ for (i in 1:10) {
 }
 
 
-# For loop to read in files and add them to a data frame
+# Nested for loop to read in files and add them to a data frame
 output = data.frame(Filename = NULL,
                     Particle = NULL,
                     Area = NULL)
 
 frassfolder = "z:/Databases/CaterpillarsCount/Frass/2024/Results"
-
 for (f in list.files(frassfolder)) {
-  
   tmp = read.table(paste(frassfolder, "/", f, sep  = ""), sep = "\t", header = T)
-  
   tmp$Filename = f
-  
   output = rbind(output, tmp)
-  
-}
+  }
+
 # remove columns we don't care about (Mean, Min, Max)
 
 cleaned_output = output %>% 
@@ -51,10 +47,16 @@ cleaned_output = output %>%
 tmp2 = do.call(rbind, strsplit(as.character(cleaned_output$Filename), "_")) %>%
   as.data.frame()
 colnames(tmp2) <- c("Date", "Site", "Trap")
-tmp2$Trapnotxt = str_sub(tmp2$Trap, end=-5)
-
-x <- "data.txt"
-str_extract(x, "^*.txt") #to do this way google how to extract *before* a certain string
-str_sub(x, end = -5) #take off last couple from end
+tmp2$Trap = str_extract(tmp2$Trap, "[^.]+")
 
 # final dataframe has columns for Site, Trap, Date, Particle, Area
+finaldf = cbind(tmp2,cleaned_output) %>%
+  select(-'Filename')
+ colnames(finaldf) <- c('Date','Site','Trap', 'Particle', 'Area')
+ 
+ 
+ 
+ 
+ 
+ 
+  
