@@ -7,7 +7,7 @@ library(tidyr)
 # Function for reading in frass data from GoogleDoc
 # *if aim is to backup GoogleDoc and write to disk only, then open =F and write = T
 # *if aim is to use data without writing to disk, then open = T and write = F
-# a;sdlfkajsdf;lkjdfs
+
 
 frassData = function(open = F, write = F) {
   require(gsheet)
