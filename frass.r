@@ -86,6 +86,15 @@ frassplot = function(frassdata, inputSite, year, color = 'black', new = T,
   }
 }
 
+#################################################################
+
+# CC dataset
+fullDataset = read.csv('data/fullDataset_2025-06-17.csv')
+
+NCBG = fullDataset %>%
+  filter(Name == "NC Botanical Garden", Year == 2025)
+
+beatvis.bg = meanDensityByWeek(NCBG, ordersToInclude = 'caterpillars')
 
 # Get frass data and then get julian days and times
 data = frassData(open = T) %>%
@@ -130,17 +139,17 @@ par(mfcol = c(2,1), mar = c(4,4,1,1), mgp = c(2.25, .75, 0))
 
 ## Frass Mass
 # Bot Garden
-frassplot(meanfrass, inputSite = 8892356, 2019, 'red', new = T, var = 'mass', xlim = c(138,205),
+frassplot(meanfrass, inputSite = 8892356, 2025, 'red', new = T, var = 'mass', xlim = c(138,205),
           ylim = c(0, 4), lwd = 2, minReliability = 1, lty = 'dotted', main = 'NCBG, 2019')
-frassplot(meanfrass, inputSite = 8892356, 2019, 'red', new = F, var = 'mass', 
+frassplot(meanfrass, inputSite = 8892356, 2025, 'red', new = F, var = 'mass', 
           lwd = 3, minReliability = 2, lty = 'dashed')
-frassplot(meanfrass, inputSite = 8892356, 2019, 'red', new = F, var = 'mass', 
+frassplot(meanfrass, inputSite = 8892356, 2025, 'red', new = F, var = 'mass', 
           lwd = 4, minReliability = 3, lty = 'solid')
 par(new = T)
-bglep15.mass = meanDensityByDay(beatvis.bg, ordersToInclude = "LEPL", inputYear = 2015,
-                                 inputSite = 8892356, jdRange = c(138,205), outlierCount = 30,
-                                 plot = T, new = T, plotVar = 'meanBiomass',  xlim = c(138,205),
-                                 lwd = 4, col = 'blueviolet', yaxt = 'n', ylab = '')
+#bglep15.mass = meanDensityByDay(beatvis.bg, ordersToInclude = "LEPL", inputYear = 2015,
+#                                 inputSite = 8892356, jdRange = c(138,205), outlierCount = 30,
+#                                 plot = T, new = T, plotVar = 'meanBiomass',  xlim = c(138,205),
+#                                 lwd = 4, col = 'blueviolet', yaxt = 'n', ylab = '')
 legend("topleft", c('frass', 'LEPL mass'), lwd = 4, col = c('red', 'blueviolet'))
 
 
