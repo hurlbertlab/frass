@@ -94,6 +94,7 @@ fullDataset = read.csv('data/fullDataset_2025-06-17.csv')
 NCBG = fullDataset %>%
   filter(Name == "NC Botanical Garden", Year == 2025)
 
+# needs editing to work (function 'meanDensitybyDay" is not found)
 beatvis.bg = meanDensityByWeek(NCBG, ordersToInclude = 'caterpillars')
 
 # Get frass data and then get julian days and times
@@ -140,7 +141,7 @@ par(mfcol = c(2,1), mar = c(4,4,1,1), mgp = c(2.25, .75, 0))
 ## Frass Mass
 # Bot Garden
 frassplot(meanfrass, inputSite = 8892356, 2025, 'red', new = T, var = 'mass', xlim = c(138,205),
-          ylim = c(0, 4), lwd = 2, minReliability = 1, lty = 'dotted', main = 'NCBG, 2019')
+          ylim = c(0, 4), lwd = 2, minReliability = 1, lty = 'dotted', main = 'NCBG, 2025')
 frassplot(meanfrass, inputSite = 8892356, 2025, 'red', new = F, var = 'mass', 
           lwd = 3, minReliability = 2, lty = 'dashed')
 frassplot(meanfrass, inputSite = 8892356, 2025, 'red', new = F, var = 'mass', 
@@ -160,6 +161,7 @@ frassplot(meanfrass, inputSite = 8892356, 2019, 'red', new = F, var = 'mass',
 frassplot(meanfrass, inputSite = 8892356, 2019, 'red', new = F, var = 'mass', 
           lwd = 4, minReliability = 3, lty = 'solid')
 par(new = T)
+
 bglep16.mass = meanDensityByDay(beatvis.bg, ordersToInclude = "LEPL", inputYear = 2016,
                                  inputSite = 8892356, jdRange = c(138,205), outlierCount = 30,
                                  plot = T, new = T, plotVar = 'meanBiomass', xlim = c(138, 205),
@@ -177,7 +179,7 @@ bglep17.mass = meanDensityByDay(beatvis.bg, ordersToInclude = "LEPL", inputYear 
                                  inputSite = 8892356, jdRange = c(138,205), outlierCount = 30,
                                  plot = T, new = T, plotVar = 'meanBiomass', xlim = c(138, 205),
                                  lwd = 4, col = 'blueviolet', yaxt = 'n', ylab = '')
-#plot compiling Bot Garden frass from 2015 through 2018
+#plot compiling Bot Garden frass from 2015 through 2025
 frassplot(meanfrass, inputSite = 8892356, 2015, 'red', new = T, var = 'mass', xlim = c(138,205),
           ylim = c(0, 10.14), lwd = 2, minReliability = 2, xlab = "Julian Day", ylab = "Frass (mg./day)", lty = 'solid', main = 'NCBG Frass')
 frassplot(meanfrass, inputSite = 8892356, 2016, 'green', new = F, var = 'mass', xlim = c(138,205),
@@ -198,10 +200,12 @@ frassplot(meanfrass, inputSite = 8892356, 2023, 'grey', new = F, var = 'mass', x
           ylim = c(0, 10.14), lwd = 2, minReliability = 2, lty = 'dotted', main = 'NCBG Frass')
 frassplot(meanfrass, inputSite = 8892356, 2024, 'navy', new = F, var = 'mass', xlim = c(138,205),
           ylim = c(0, 10.14), lwd = 2, minReliability = 2, lty = 'dashed', main = 'NCBG Frass')
+frassplot(meanfrass, inputSite = 8892356, 2025, 'black', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 10.14), lwd = 2, minReliability = 2, lty = 'longdash', main = 'NCBG Frass')
 
 #legend to decode graphic
-legend(136, 10.2, title = "Survey Year", c("2015", "2016", "2017", "2018", "2019", "2021", "2022", "2023", "2024"), cex = .7, bty = "n", y.intersp = .8,
-       lty=c("solid", "twodash", "dotted", "dashed", "longdash", "dotdash", "solid", "twodash", "dotted", "dashed"), col=c("red", "green", "orange", "blue", "blueviolet", "darkgreen", "violet", "yellow", "grey", "navy"), lwd = 2)
+legend(136, 10.2, title = "Survey Year", c("2015", "2016", "2017", "2018", "2019", "2021", "2022", "2023", "2024", "2025"), cex = .7, bty = "n", y.intersp = .8,
+       lty=c("solid", "twodash", "dotted", "dashed", "longdash", "dotdash", "solid", "twodash", "dotted", "dashed", "longdash"), col=c("red", "green", "orange", "blue", "blueviolet", "darkgreen", "violet", "yellow", "grey", "navy", "black"), lwd = 2)
 
 # Prairie Ridge
 frassplot(meanfrass, inputSite = 117, 2019, 'red', new = T, var = 'mass', xlim = c(138, 205),
@@ -215,7 +219,7 @@ prlep15.mass = meanDensityByDay(beatvis.pr, ordersToInclude = "LEPL", inputYear 
                                 inputSite = 117, jdRange = c(138,205), outlierCount = 30,
                                 plot = T, plotVar = 'meanBiomass', xlim = c(138, 205),
                                 lwd = 4, col = 'blueviolet', yaxt = 'n', ylab = '')
-#plot compiling Prairie Ridge frass from 2015 through 2018. Not showing 2016 & 2017 data due to an error - needs trouble shooting.
+#plot compiling Prairie Ridge frass from 2015 through 2018. Not showing 2016 & 2017 data due to an error - needs trouble shooting. make sure to add in that it needs to make a new figure when running functions
 frassplot(meanfrass, inputSite = 117, 2015, 'red', new = T, var = 'mass', xlim = c(138,205),
           ylim = c(0, 11.5), lwd = 2, minReliability = 2, xlab = "Julian Day", ylab = "Frass (mg./day)", lty = 'solid', main = 'Prairie Ridge Frass')
 frassplot(meanfrass, inputSite = 117, 2016, 'green', new = F, var = 'mass', xlim = c(138,205),
@@ -298,7 +302,7 @@ prlep15.den = meanDensityByDay(beatvis.pr, ordersToInclude = "LEPL", inputYear =
 
 
 
-# Plot comparing frass to overall (BS + Vis) lep occurrence at Prairie Ridge, 2015
+# Plot comparing frass to overall (BS + Vis) lep occurrence at Prairie Ridge, 2015, ERROR(2025) cant open pdf file
 pdf('output/plots/paper_plots/frass_v_caterpillars.pdf', height = 5, width = 10)
 par(mfrow = c(1,2), mar = c(4, 4, 2.5, 4), mgp = c(2.5, .75, 0))
 
@@ -338,7 +342,7 @@ mtext("B", 3, adj = -.2, line = .75, cex = 2)
 dev.off()
 
 
-# eliminate last 2 survey dates which are part of a late summer peak
+# eliminate last 2 survey dates which are part of a late summer peak, ERROR(2025) prlep15.occ nout found
 prlep15.occ2 = filter(prlep15.occ, julianday <= 197)
 
 occGfit = fitG(prlep15.occ2$julianday, prlep15.occ2$fracSurveys, 
