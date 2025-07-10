@@ -94,8 +94,89 @@ fullDataset = read.csv('data/fullDataset_2025-06-17.csv')
 NCBG = fullDataset %>%
   filter(Name == "NC Botanical Garden", Year == 2025)
 
-# needs editing to work (function 'meanDensitybyDay" is not found)
-beatvis.bg = meanDensityByWeek(NCBG, ordersToInclude = 'caterpillars')
+#################################################################
+# Function for substituting values based on a condition using dplyr::mutate
+# Modification of dplyr's mutate function that only acts on the rows meeting a condition
+mutate_cond <- function(.data, condition, ..., envir = parent.frame()) {
+  condition <- eval(substitute(condition), .data, envir)
+  .data[condition, ] <- .data[condition, ] %>% mutate(...)
+  .data
+}
+
+# Function for calculating and displaying arthropod phenology by day,
+# or if surveys were split up over multiple days, then lumped by survey set
+meanDensityByDay = function(surveyData, # merged dataframe of Survey and arthropodSighting tables for a single site
+                            ordersToInclude = 'All',       # which arthropod orders to calculate density for (codes)
+                            
+                            minLength = 0,         # minimum arthropod size to include 
+                            jdRange = c(1,365),
+                            outlierCount = 10000,
+                            plot = FALSE,
+                            plotVar = 'fracSurveys', # 'meanDensity' or 'fracSurveys' or 'meanBiomass'
+                            minSurveyCoverage = 0.8, # minimum proportion of unique survey branches examined per week in order to include the week as a data point
+                            allDates = TRUE,         # plot data for all dates for which any survey data exist; if FALSE, only dates where # surveys==# unique branches +/- 20%
+                            new = TRUE,
+                            color = 'black',
+                            allCats = TRUE,
+                            ...)                  
+
+{
+  
+  if(length(ordersToInclude)==1 & ordersToInclude[1]=='All') {
+    ordersToInclude = unique(surveyData$Group)
+  }
+  
+  numUniqueBranches = length(unique(surveyData$PlantFK))
+  
+  firstFilter = surveyData %>%
+    filter(julianday >= jdRange[1], julianday <= jdRange[2])
+  
+  effortByDay = firstFilter %>%
+    group_by(julianday) %>%
+    summarize(nSurveyBranches = n_distinct(PlantFK),
+              nSurveys = n_distinct(ID)) %>%
+    mutate(modalBranchesSurveyed = Mode(5*ceiling(nSurveyBranches/5)),
+           nSurveySets = nSurveys/modalBranchesSurveyed,
+           modalSurveySets = Mode(round(nSurveySets)),
+           okDay = ifelse(nSurveySets/modalSurveySets >= minSurveyCoverage, 1, 0))
+  
+  if (allDates) {
+    effortByDay$okDay = 1
+  }
+  
+  if (!allCats) {
+    secondFilter = firstFilter %>%
+      filter(Hairy != 1, Tented != 1, Rolled != 1)
+  } else {
+    secondFilter = firstFilter
+  }
+  
+  arthCount = secondFilter %>%
+    filter(Length >= minLength, 
+           Group %in% ordersToInclude) %>%
+    mutate(Quantity2 = ifelse(Quantity > outlierCount, 1, Quantity)) %>% #outlier counts replaced with 1
+    group_by(julianday) %>%
+    summarize(totalCount = sum(Quantity2, na.rm = T),
+              numSurveysGTzero = length(unique(ID[Quantity > 0]))) %>% 
+    right_join(effortByDay, by = 'julianday') %>%
+    #next line replaces 3 fields with 0 if the totalCount is NA
+    filter(okDay == 1) %>%
+    mutate_cond(is.na(totalCount), totalCount = 0, numSurveysGTzero = 0) %>%
+    mutate(meanDensity = totalCount/nSurveys,
+           fracSurveys = 100*numSurveysGTzero/nSurveys) %>%
+    data.frame()
+  
+  if (plot & new) {
+    plot(arthCount$julianday, arthCount[, plotVar], type = 'l', 
+         col = color, las = 1, ...)
+    points(arthCount$julianday, arthCount[, plotVar], pch = 16, col = color, ...)
+  } else if (plot & new==F) {
+    points(arthCount$julianday, arthCount[, plotVar], type = 'l', col = color, ...)
+    points(arthCount$julianday, arthCount[, plotVar], pch = 16, col = color, ...)
+  }
+  return(arthCount)
+}
+
 
 # Get frass data and then get julian days and times
 data = frassData(open = T) %>%
@@ -132,14 +213,14 @@ meanfrass = data %>%
 write.csv(meanfrass, "data/frass_by_day_2015-2021.csv", row.names = F)
 
 
-
+#########################################################################
 
 # Frass plotting
 
 par(mfcol = c(2,1), mar = c(4,4,1,1), mgp = c(2.25, .75, 0))
 
-## Frass Mass
-# Bot Garden
+## Using Frass Mass
+# Botanical Garden 
 frassplot(meanfrass, inputSite = 8892356, 2025, 'red', new = T, var = 'mass', xlim = c(138,205),
           ylim = c(0, 4), lwd = 2, minReliability = 1, lty = 'dotted', main = 'NCBG, 2025')
 frassplot(meanfrass, inputSite = 8892356, 2025, 'red', new = F, var = 'mass', 
@@ -147,10 +228,11 @@ frassplot(meanfrass, inputSite = 8892356, 2025, 'red', new = F, var = 'mass',
 frassplot(meanfrass, inputSite = 8892356, 2025, 'red', new = F, var = 'mass', 
           lwd = 4, minReliability = 3, lty = 'solid')
 par(new = T)
-#bglep15.mass = meanDensityByDay(beatvis.bg, ordersToInclude = "LEPL", inputYear = 2015,
-#                                 inputSite = 8892356, jdRange = c(138,205), outlierCount = 30,
-#                                 plot = T, new = T, plotVar = 'meanBiomass',  xlim = c(138,205),
-#                                 lwd = 4, col = 'blueviolet', yaxt = 'n', ylab = '')
+
+bglep16.mass = meanDensityByDay(beatvis.bg, ordersToInclude = "LEPL", inputYear = 2015,
+                                inputSite = 8892356, jdRange = c(138,205), outlierCount = 30,
+                                plot = T, new = T, plotVar = 'meanBiomass', xlim = c(138, 205),
+                                lwd = 4, col = 'blueviolet', yaxt = 'n', ylab = '')                                lwd = 4, col = 'blueviolet', yaxt = 'n', ylab = '')
 legend("topleft", c('frass', 'LEPL mass'), lwd = 4, col = c('red', 'blueviolet'))
 
 
@@ -219,33 +301,56 @@ prlep15.mass = meanDensityByDay(beatvis.pr, ordersToInclude = "LEPL", inputYear 
                                 inputSite = 117, jdRange = c(138,205), outlierCount = 30,
                                 plot = T, plotVar = 'meanBiomass', xlim = c(138, 205),
                                 lwd = 4, col = 'blueviolet', yaxt = 'n', ylab = '')
-#plot compiling Prairie Ridge frass from 2015 through 2018. Not showing 2016 & 2017 data due to an error - needs trouble shooting. make sure to add in that it needs to make a new figure when running functions
+
+#plot compiling Prairie Ridge frass from 2015 through 2022. 2016 and 2017 weren't sampled so not included in figure
 frassplot(meanfrass, inputSite = 117, 2015, 'red', new = T, var = 'mass', xlim = c(138,205),
           ylim = c(0, 11.5), lwd = 2, minReliability = 2, xlab = "Julian Day", ylab = "Frass (mg./day)", lty = 'solid', main = 'Prairie Ridge Frass')
-frassplot(meanfrass, inputSite = 117, 2016, 'green', new = F, var = 'mass', xlim = c(138,205),
-          ylim = c(0, 11.5), lwd = 2, minReliability = 2, lty = 'twodash', main = 'Prairie Ridge Frass')
-frassplot(meanfrass, inputSite = 117, 2017, 'orange', new = F, var = 'mass', xlim = c(138,205),
-          ylim = c(0, 11.5), lwd = 2, minReliability = 2, lty = 'dotted', main = 'Prairie Ridge Frass')
 frassplot(meanfrass, inputSite = 117, 2018, 'blue', new = F, var = 'mass', xlim = c(138,205),
           ylim = c(0, 11.5), lwd = 2, minReliability = 2, lty = 'dashed', main = 'Prairie Ridge Frass')
+frassplot(meanfrass, inputSite = 117, 2019, 'purple', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 11.5), lwd = 2, minReliability = 2, lty = 'longdash', main = 'Prairie Ridge Frass')
+frassplot(meanfrass, inputSite = 117, 2021, 'yellow', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 11.5), lwd = 2, minReliability = 2, lty = 'solid', main = 'Prairie Ridge Frass')
+frassplot(meanfrass, inputSite = 117, 2022, 'pink', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 11.5), lwd = 2, minReliability = 2, lty = 'twodash', main = 'Prairie Ridge Frass')
+
 #legend to decode graphic
-legend(137, 11.6, title = "Survey Year", c("2015", "2016", "2017", "2018"), cex = .7, bty = "y", y.intersp = .8,
-       lty=c("solid", "twodash", "dotted", "dashed"), col=c("red", "green", "orange", "blue"))
+legend(137, 11.6, title = "Survey Year", c("2015", "2016", "2017", "2018", "2019", "2021", "2022"), cex = .7, bty = "y", y.intersp = .8,
+       lty=c("solid", "twodash", "dotted", "dashed", "longdash", "solid", "twodash"), col=c("red", "green", "orange", "blue", "purple", "yellow", "pink"))
 
 
-#plot compiling Prairie Ridge and Bot Garden frass from 2015 & 2018  .Not showing 2016 & 2017 data due to an error - needs trouble shooting.
+#plot compiling Prairie Ridge and Bot Garden frass from 2015 through 2022 .Not showing 2016 & 2017 prairie ridge only data due to an error - needs trouble shooting.
 frassplot(meanfrass, inputSite = 8892356, 2015, 'violet', new = T, var = 'mass', xlim = c(138,205),
           ylim = c(0, 11.5), lwd = 2, minReliability = 2, xlab = "Julian Day", ylab = "Frass (mg./day)", lty = 'solid', main = 'Prairie Ridge vs. Botanical Garden Frass')
-frassplot(meanfrass, inputSite = 8892356, 2018, 'blue', new = F, var = 'mass', xlim = c(138,205),
-          ylim = c(0, 11.5), lwd = 2, minReliability = 2, lty = 'dashed', main = '')
-frassplot(meanfrass, inputSite = 117, 2015, 'green', new = F, var = 'mass', xlim = c(138,205),
-          ylim = c(0, 11.5), lwd = 2, minReliability = 2, xlab = "Julian Day", ylab = "Frass (mg./day)", lty = 'twodash', main = '')
-frassplot(meanfrass, inputSite = 117, 2018, 'orange', new = F, var = 'mass', xlim = c(138,205),
+frassplot(meanfrass, inputSite = 8892356, 2016, 'green', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 11.5), lwd = 2, minReliability = 2, lty = 'twodash', main = '')
+frassplot(meanfrass, inputSite = 8892356, 2017, 'yellow', new = F, var = 'mass', xlim = c(138,205),
           ylim = c(0, 11.5), lwd = 2, minReliability = 2, lty = 'dotted', main = '')
+frassplot(meanfrass, inputSite = 8892356, 2018, 'cyan', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 11.5), lwd = 2, minReliability = 2, lty = 'dashed', main = '')
+frassplot(meanfrass, inputSite = 8892356, 2019, 'bisque4', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 11.5), lwd = 2, minReliability = 2, lty = 'longdash', main = '')
+frassplot(meanfrass, inputSite = 8892356, 2021, 'orange', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 11.5), lwd = 2, minReliability = 2, lty = 'dotdash', main = '')
+frassplot(meanfrass, inputSite = 8892356, 2022, 'red', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 11.5), lwd = 2, minReliability = 2, lty = 'solid', main = '')
+frassplot(meanfrass, inputSite = 117, 2015, 'blueviolet', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 11.5), lwd = 2, minReliability = 2, xlab = "Julian Day", ylab = "Frass (mg./day)", lty = 'solid', main = '')
+frassplot(meanfrass, inputSite = 117, 2016, 'darkgreen', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 11.5), lwd = 2, minReliability = 2, lty = 'twodash', main = '')
+frassplot(meanfrass, inputSite = 117, 2017, 'darkgoldenrod', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 11.5), lwd = 2, minReliability = 2, lty = 'dotted', main = '')
+frassplot(meanfrass, inputSite = 117, 2018, 'deepskyblue4', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 11.5), lwd = 2, minReliability = 2, lty = 'dashed', main = '')
+frassplot(meanfrass, inputSite = 117, 2019, 'black', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 11.5), lwd = 2, minReliability = 2, lty = 'longdash', main = '')
+frassplot(meanfrass, inputSite = 117, 2021, 'darkorange3', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 11.5), lwd = 2, minReliability = 2, lty = 'dotdash', main = '')
+frassplot(meanfrass, inputSite = 117, 2022, 'darkred', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 11.5), lwd = 2, minReliability = 2, lty = 'solid', main = '')
 #legend to decode graphic
-legend("topleft", cex = .58, title = "Survey Site & Year", c("BG 2015", "BG 2018", "PR 2015", "PR 2018"), lwd = 2, bty = "n",
-       lty=c("solid", "dashed", "twodash", "dotted"), col=c("violet", "blue", "green", "orange"))
-
+legend("topleft", cex = .58 , title = "Survey Site & Year", c("BG 2015", "BG 2016", "BG 2017", "BG 2018", "BG 2019", "BG 2021", "BG 2022", "PR 2015", "PR 2016", "PR 2017", "PR 2018", "PR 2019", "PR 2021", "PR 2022"), lwd = 2, bty = "n",
+       lty=c("solid", "twodash", "dotted", "dashed", "longdash", "dotdash", "solid", "solid", "twodash", "dotted", "dashed", "longdash", "dotdash", "solid"), col=c("violet", "green", "yellow", "cyan", "bisque4", "orange", "red", "blueviolet", "darkgreen", "darkgoldenrod", "deepskyblue4", "black", "darkorange3", "darkred"))
 
 ## Frass Density
 # Bot Garden
