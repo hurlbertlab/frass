@@ -94,6 +94,9 @@ fullDataset = read.csv('data/fullDataset_2025-06-17.csv')
 NCBG = fullDataset %>%
   filter(Name == "NC Botanical Garden", Year == 2025)
 
+PR = fullDataset %>%
+  filter(Name =="Prairie Ridge Ecostation", Year == 2025)
+
 #################################################################
 # Function for substituting values based on a condition using dplyr::mutate
 # Modification of dplyr's mutate function that only acts on the rows meeting a condition
@@ -103,22 +106,33 @@ mutate_cond <- function(.data, condition, ..., envir = parent.frame()) {
   .data
 }
 
-# Function for calculating and displaying arthropod phenology by day,
-# or if surveys were split up over multiple days, then lumped by survey set
-meanDensityByDay = function(surveyData, # merged dataframe of Survey and arthropodSighting tables for a single site
-                            ordersToInclude = 'All',       # which arthropod orders to calculate density for (codes)
-                            
-                            minLength = 0,         # minimum arthropod size to include 
-                            jdRange = c(1,365),
-                            outlierCount = 10000,
-                            plot = FALSE,
-                            plotVar = 'fracSurveys', # 'meanDensity' or 'fracSurveys' or 'meanBiomass'
-                            minSurveyCoverage = 0.8, # minimum proportion of unique survey branches examined per week in order to include the week as a data point
-                            allDates = TRUE,         # plot data for all dates for which any survey data exist; if FALSE, only dates where # surveys==# unique branches +/- 20%
-                            new = TRUE,
-                            color = 'black',
-                            allCats = TRUE,
-                            ...)                  
+# Function for calculating the mode of a series of values
+# --in this particular use case, if there multiple modes, we want the largest value
+Mode = function(x){ 
+  if (!is.numeric(x)) {
+    stop("values must be numeric for mode calculation")
+  }
+  ta = table(x)
+  tam = max(ta)
+  mod = as.numeric(names(ta)[ta == tam])
+  return(max(mod))
+}
+
+# Function for calculating and displaying arthropod phenology by week
+meanDensityByWeek = function(surveyData, # merged dataframe of Survey and arthropodSighting tables for a single site
+                             ordersToInclude = 'All',       # which arthropod orders to calculate density for (codes)
+                             
+                             minLength = 0,         # minimum arthropod size to include 
+                             jdRange = c(1,365),
+                             outlierCount = 10000,
+                             plot = FALSE,
+                             plotVar = 'fracSurveys', # 'meanDensity' or 'fracSurveys' or 'meanBiomass'
+                             minSurveyCoverage = 0.8, # minimum proportion of unique survey branches examined per week in order to include the week as a data point
+                             allDates = TRUE,
+                             new = TRUE,
+                             color = 'black',
+                             allCats = TRUE,
+                             ...)                  
 
 {
   
@@ -129,19 +143,20 @@ meanDensityByDay = function(surveyData, # merged dataframe of Survey and arthrop
   numUniqueBranches = length(unique(surveyData$PlantFK))
   
   firstFilter = surveyData %>%
-    filter(julianday >= jdRange[1], julianday <= jdRange[2])
+    filter(julianday >= jdRange[1], julianday <= jdRange[2]) %>%
+    mutate(julianweek = 7*floor(julianday/7) + 4)
   
-  effortByDay = firstFilter %>%
-    group_by(julianday) %>%
+  effortByWeek = firstFilter %>%
+    group_by(julianweek) %>%
     summarize(nSurveyBranches = n_distinct(PlantFK),
               nSurveys = n_distinct(ID)) %>%
     mutate(modalBranchesSurveyed = Mode(5*ceiling(nSurveyBranches/5)),
            nSurveySets = nSurveys/modalBranchesSurveyed,
            modalSurveySets = Mode(round(nSurveySets)),
-           okDay = ifelse(nSurveySets/modalSurveySets >= minSurveyCoverage, 1, 0))
+           okWeek = ifelse(nSurveySets/modalSurveySets >= minSurveyCoverage, 1, 0))
   
   if (allDates) {
-    effortByDay$okDay = 1
+    effortByWeek$okWeek = 1
   }
   
   if (!allCats) {
@@ -155,27 +170,36 @@ meanDensityByDay = function(surveyData, # merged dataframe of Survey and arthrop
     filter(Length >= minLength, 
            Group %in% ordersToInclude) %>%
     mutate(Quantity2 = ifelse(Quantity > outlierCount, 1, Quantity)) %>% #outlier counts replaced with 1
-    group_by(julianday) %>%
-    summarize(totalCount = sum(Quantity2, na.rm = T),
-              numSurveysGTzero = length(unique(ID[Quantity > 0]))) %>% 
-    right_join(effortByDay, by = 'julianday') %>%
+    group_by(julianweek) %>%
+    summarize(totalCount = sum(Quantity2, na.rm = TRUE),
+              numSurveysGTzero = length(unique(ID[Quantity > 0])),
+              totalBiomass = sum(Biomass_mg, na.rm = TRUE)) %>% 
+    right_join(effortByWeek, by = 'julianweek') %>%
+    filter(okWeek == 1) %>%
     #next line replaces 3 fields with 0 if the totalCount is NA
-    filter(okDay == 1) %>%
-    mutate_cond(is.na(totalCount), totalCount = 0, numSurveysGTzero = 0) %>%
+    mutate_cond(is.na(totalCount), totalCount = 0, numSurveysGTzero = 0, totalBiomass = 0) %>%
     mutate(meanDensity = totalCount/nSurveys,
-           fracSurveys = 100*numSurveysGTzero/nSurveys) %>%
+           fracSurveys = 100*numSurveysGTzero/nSurveys,
+           meanBiomass = totalBiomass/nSurveys) %>%
+    arrange(julianweek) %>%
     data.frame()
   
   if (plot & new) {
-    plot(arthCount$julianday, arthCount[, plotVar], type = 'l', 
+    plot(arthCount$julianweek, arthCount[, plotVar], type = 'l', 
          col = color, las = 1, ...)
-    points(arthCount$julianday, arthCount[, plotVar], pch = 16, col = color, ...)
+    points(arthCount$julianweek, arthCount[, plotVar], pch = 16, col = color, ...)
   } else if (plot & new==F) {
-    points(arthCount$julianday, arthCount[, plotVar], type = 'l', col = color, ...)
-    points(arthCount$julianday, arthCount[, plotVar], pch = 16, col = color, ...)
+    points(arthCount$julianweek, arthCount[, plotVar], type = 'l', col = color, ...)
+    points(arthCount$julianweek, arthCount[, plotVar], pch = 16, col = color, ...)
   }
   return(arthCount)
 }
+
+
+# Make sure to establish beatvis.bg to use meanDensityByDay function
+beatvis.bg = meanDensityByWeek(NCBG, ordersToInclude = 'caterpillar', plot = TRUE)
+beatvis.pr = meanDensityByWeek(PR, ordersToInclude = 'caterpillar', plot = TRUE, new = TRUE)
+
 
 
 # Get frass data and then get julian days and times
@@ -215,9 +239,10 @@ write.csv(meanfrass, "data/frass_by_day_2015-2021.csv", row.names = F)
 
 #########################################################################
 
-# Frass plotting
+# Frass plotting, two figures on screen
 
 par(mfcol = c(2,1), mar = c(4,4,1,1), mgp = c(2.25, .75, 0))
+par(mfrow = c(1,1))
 
 ## Using Frass Mass
 # Botanical Garden 
@@ -229,18 +254,19 @@ frassplot(meanfrass, inputSite = 8892356, 2025, 'red', new = F, var = 'mass',
           lwd = 4, minReliability = 3, lty = 'solid')
 par(new = T)
 
-bglep16.mass = meanDensityByDay(beatvis.bg, ordersToInclude = "LEPL", inputYear = 2015,
+bglep16.mass = meanDensityByWeek(beatvis.bg, ordersToInclude = "LEPL", inputYear = 2016,
                                 inputSite = 8892356, jdRange = c(138,205), outlierCount = 30,
                                 plot = T, new = T, plotVar = 'meanBiomass', xlim = c(138, 205),
-                                lwd = 4, col = 'blueviolet', yaxt = 'n', ylab = '')                                lwd = 4, col = 'blueviolet', yaxt = 'n', ylab = '')
+                                lwd = 4, col = 'blueviolet', yaxt = 'n', ylab = '')
+
 legend("topleft", c('frass', 'LEPL mass'), lwd = 4, col = c('red', 'blueviolet'))
 
 
-frassplot(meanfrass, inputSite = 8892356, 2019, 'red', new = T, var = 'mass', xlim = c(138,205), 
-          ylim = c(0, 4), lwd = 2, minReliability = 1, lty = 'dotted', main = 'NCBG, 2019')
-frassplot(meanfrass, inputSite = 8892356, 2019, 'red', new = F, var = 'mass', 
+frassplot(meanfrass, inputSite = 8892356, 2015, 'red', new = T, var = 'mass', xlim = c(138,205), 
+          ylim = c(0, 4), lwd = 2, minReliability = 1, lty = 'dotted', main = 'NCBG, 2015')
+frassplot(meanfrass, inputSite = 8892356, 2015, 'red', new = F, var = 'mass', 
           lwd = 3, minReliability = 2, lty = 'dashed')
-frassplot(meanfrass, inputSite = 8892356, 2019, 'red', new = F, var = 'mass', 
+frassplot(meanfrass, inputSite = 8892356, 2015, 'red', new = F, var = 'mass', 
           lwd = 4, minReliability = 3, lty = 'solid')
 par(new = T)
 
@@ -400,10 +426,11 @@ frassplot(meanfrass, inputSite = 117, 2015, 'red', new = F, var = 'mass',
 frassplot(meanfrass, inputSite = 117, 2015, 'red', new = F, var = 'mass', 
           lwd = 4, minReliability = 3, lty = 'solid')
 par(new = T)
-prlep15.den = meanDensityByDay(beatvis.pr, ordersToInclude = "LEPL", inputYear = 2015,
-                               inputSite = 117, jdRange = c(138,205), outlierCount = 30,
-                               plot = T, new = T, plotVar = 'meanDensity', xlim = c(138, 205),
-                               lwd = 4, col = 'blueviolet', yaxt = 'n', ylab = '')
+# beatvis.pr not exist
+#prlep15.den = meanDensityByDay(beatvis.pr, ordersToInclude = "LEPL", inputYear = 2015,
+ #                              inputSite = 117, jdRange = c(138,205), outlierCount = 30,
+  #                             plot = T, new = T, plotVar = 'meanDensity', xlim = c(138, 205),
+   #                            lwd = 4, col = 'blueviolet', yaxt = 'n', ylab = '')
 
 
 
