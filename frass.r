@@ -534,3 +534,35 @@ frassVolumes = function(address) { #address is a file address for the folder con
     sapply(list.files(address, full.names = TRUE), extractVolTotal))
   names(frassVol) <<- c('Site', 'Date.Collected', 'Trap', 'Frass.Volume.sqmm')
 }
+
+## savannah's attempt at connecting data to output from frass_imagedataRemastered so that they can be compared
+
+DataFiltered = filter(data, Year %in% c(2021:2025))
+# combining data on frass pieces mass and particle number from 2021-2025 and the area data 
+combined <- left_join(DataFiltered, output, by = c("Trap", "Date.Collected", "Year"))
+areafrass = combined
+# adding reliability score from events df
+events <- events %>%
+  rename(Date.Collected = date.Collected)  
+areafrass <- left_join(
+  areafrass,
+  events %>% select(Date.Collected, reliability),
+  by = c("Date.Collected")
+)
+# change back events column to be just date
+events <- events %>%
+  rename(date = Date.Collected)  
+# taking inspo from meanfrass and doing the same thing with the area
+meanarea = areafrass %>%
+  filter(!is.na(Area)) %>%
+  mutate(site = as.character(ifelse(Site=="Botanical Garden", 8892356, 117))) %>%
+  group_by(site, Date.Collected, Year, jday) %>%
+  summarize(Area = mean(area=T),
+            density = mean(frass.no.d, na.rm=T)) %>%
+  left_join(events[, c('date', 'site', 'reliability')], by = c('Date.Collected' = 'date', 
+                                                               'site' = 'site')) %>%
+  rename(date = Date.Collected)
+
+write.csv(meanfrass, "data/frass_by_day_2015-2021.csv", row.names = F)
+
+  

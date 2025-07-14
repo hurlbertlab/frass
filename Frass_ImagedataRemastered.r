@@ -93,7 +93,7 @@ for (year in yearsWithData) {
 output = output[, c("Year", "Site", "Trap", "Date", "X", "Area")]
 output$Date = as.Date(output$Date, format = "%Y-%m-%d")
 names(output)[4] = "Particle"
-
+names(output)[names(output) == "Date"] <- "Date.Collected"
 
 
 ## untouched code if need to fall back on ##
