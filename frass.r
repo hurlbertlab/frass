@@ -86,6 +86,26 @@ frassplot = function(frassdata, inputSite, year, color = 'black', new = T,
   }
 }
 
+frassplot2 = function(frassdata, inputSite, year, color = 'black', new = T, 
+                     var = 'mass', minReliability = 0, xlab = 'Julian day', ylab = '', 
+                     jds = c(136, 167, 197), Axes, # May 15, Jun 15, Jul 15
+                     ...) {
+  
+  temp = filter(frassdata, site == inputSite, Year == year, reliability >= minReliability) %>%
+    data.frame()
+  
+  if (new) {
+    plot(temp$jday, temp[, var], xlab = xlab, ylab = ylab,
+         type = 'l', col = color, axes = Axes, xaxt = 'n',...)
+    points(temp$jday, temp[, var], pch = 16, col = color,...)
+    mtext(jds, 1, at = jds, line = 1)
+    axis(1, at = c(jds, jds+14), tck = -.02, labels = FALSE)
+  } else {
+    points(temp$jday, temp[, var], type = 'l', col = color, ...)
+    points(temp$jday, temp[, var], pch = 16, col = color, ...)
+  }
+}
+
 #################################################################
 
 # CC dataset
@@ -535,15 +555,14 @@ frassVolumes = function(address) { #address is a file address for the folder con
   names(frassVol) <<- c('Site', 'Date.Collected', 'Trap', 'Frass.Volume.sqmm')
 }
 
-## savannah's attempt at connecting data to output from frass_imagedataRemastered so that they can be compared
-
+##### savannah's attempt at connecting data to output from frass_imagedataRemastered so that they can be compared
 DataFiltered = filter(data, Year %in% c(2021:2025))
 # combining data on frass pieces mass and particle number from 2021-2025 and the area data 
 combined <- left_join(DataFiltered, output, by = c("Trap", "Date.Collected", "Year"))
 areafrass = combined
 # adding reliability score from events df
 events <- events %>%
-  rename(Date.Collected = date.Collected)  
+  rename(Date.Collected = date)  
 areafrass <- left_join(
   areafrass,
   events %>% select(Date.Collected, reliability),
@@ -553,16 +572,44 @@ areafrass <- left_join(
 events <- events %>%
   rename(date = Date.Collected)  
 # taking inspo from meanfrass and doing the same thing with the area
-meanarea = areafrass %>%
+meanarea <- areafrass %>%
   filter(!is.na(Area)) %>%
-  mutate(site = as.character(ifelse(Site=="Botanical Garden", 8892356, 117))) %>%
-  group_by(site, Date.Collected, Year, jday) %>%
-  summarize(Area = mean(area=T),
-            density = mean(frass.no.d, na.rm=T)) %>%
-  left_join(events[, c('date', 'site', 'reliability')], by = c('Date.Collected' = 'date', 
-                                                               'site' = 'site')) %>%
+  mutate(Site.x = as.character(ifelse(Site.x == "Botanical Garden", 8892356, 117))) %>%
+  group_by(Site.x, Date.Collected, Year.x, jday) %>%
+  summarize(
+    Area = mean(Area, na.rm = TRUE),
+    density = mean(frass.no.d, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  left_join(events[, c("date", "site", "reliability")], by = c("Date.Collected" = "date", "Site.x" = "site")) %>%
   rename(date = Date.Collected)
 
-write.csv(meanfrass, "data/frass_by_day_2015-2021.csv", row.names = F)
+write.csv(meanarea, "data/frass_by_day_2015-2021.csv", row.names = F)
+# using meanarea to make plots 
+frassplot2 = function(frassdata, inputSite, year, color = 'black', new = T, 
+                     var = 'area', minReliability = 0, xlab = 'Julian day', ylab = '', 
+                     jds = c(136, 167, 197), # May 15, Jun 15, Jul 15
+                     ...) 
+  
+###looks like:
+frassplot2(meanarea, inputSite = 8892356, 2025, 'red', new = T, var = 'area', xlim = c(138,205),
+          ylim = c(0, 4), lwd = 2, minReliability = 1, lty = 'dotted', main = 'NCBG, 2025')
+frassplot2(meanarea, inputSite = 8892356, 2025, 'red', new = F, var = 'area', 
+          lwd = 3, minReliability = 2, lty = 'dashed')
+frassplot2(meanarea, inputSite = 8892356, 2025, 'red', new = F, var = 'area', 
+          lwd = 4, minReliability = 3, lty = 'solid')
+par(new = T)
 
   
+
+####### plotting both frass and arthrocount, make this a actual function so that can just plug in year/site
+z <- runif(12, min=0, max=12)
+
+pr21 = filter(fullDataset, Name== "Prairie Ridge Ecostation", Year== 2021)
+prCats21 = meanDensityByWeek(pr21, ordersToInclude = "caterpillar", ylim = c(0,12), main = "Prairie Ridge 2021 Frass vs caterpillar")
+par(new = TRUE)
+frassplot2(meanfrass, inputSite = 117, 2021, 'darkorange3', new = F, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 11.5), lwd = 2, minReliability = 2, Axes = FALSE, lty = 'dotdash', main = '')
+axis(side = 4, at = pretty(range(z)))
+mtext("z", side = 4, line = 3)
+
