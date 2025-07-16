@@ -613,3 +613,25 @@ frassplot2(meanfrass, inputSite = 117, 2021, 'darkorange3', new = F, var = 'mass
 axis(side = 4, at = pretty(range(z)))
 mtext("z", side = 4, line = 3)
 
+catcount = filter(fullDataset, Name== "", Year== "")
+
+arthrofrass <- function(x1, y1, x2, y2,
+                        y1lab = "Y1", y2lab = "Y2",
+                        xlab = "X", main = "Dual Y-Axis Plot",
+                        col1 = "blue", col2 = "red") {
+  plot(x1, y1, type = "l", col = col1,
+   xlab = xlab, ylab = y1lab, main = main,
+   ylim = range(y1, na.rm = TRUE))
+  par(new = TRUE)
+  plot(x2, y2, type = "l", col = col2,
+       axes = FALSE, xlab = "", ylab = "",
+       ylim = range(y2, na.rm = TRUE))
+  axis(side = 4)
+  mtext(y2lab, side = 4, line = 3, col = col2)
+}
+  
+
+  
+  
+  
+  
