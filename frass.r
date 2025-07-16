@@ -85,11 +85,6 @@ frassplot = function(frassdata, inputSite, year, color = 'black', new = T,
     points(temp$jday, temp[, var], pch = 16, col = color, ...)
   }
 }
-
-frassplot2 = function(frassdata, inputSite, year, color = 'black', new = T, 
-                     var = 'mass', minReliability = 0, xlab = 'Julian day', ylab = '', 
-                     jds = c(136, 167, 197), Axes, # May 15, Jun 15, Jul 15
-                     ...) {
   
   temp = filter(frassdata, site == inputSite, Year == year, reliability >= minReliability) %>%
     data.frame()
@@ -585,23 +580,15 @@ meanarea <- areafrass %>%
   rename(date = Date.Collected)
 
 write.csv(meanarea, "data/frass_by_day_2015-2021.csv", row.names = F)
+
 # using meanarea to make plots 
-frassplot2 = function(frassdata, inputSite, year, color = 'black', new = T, 
+frassplottest = function(frassdata, inputSite, year, color = 'black', new = T, 
                      var = 'area', minReliability = 0, xlab = 'Julian day', ylab = '', 
                      jds = c(136, 167, 197), # May 15, Jun 15, Jul 15
                      ...) 
-  
-###looks like:
-frassplot2(meanarea, inputSite = 8892356, 2025, 'red', new = T, var = 'area', xlim = c(138,205),
-          ylim = c(0, 4), lwd = 2, minReliability = 1, lty = 'dotted', main = 'NCBG, 2025')
-frassplot2(meanarea, inputSite = 8892356, 2025, 'red', new = F, var = 'area', 
-          lwd = 3, minReliability = 2, lty = 'dashed')
-frassplot2(meanarea, inputSite = 8892356, 2025, 'red', new = F, var = 'area', 
-          lwd = 4, minReliability = 3, lty = 'solid')
-par(new = T)
 
   
-
+  
 ####### plotting both frass and arthrocount, make this a actual function so that can just plug in year/site
 z <- runif(12, min=0, max=12)
 
@@ -609,29 +596,80 @@ pr21 = filter(fullDataset, Name== "Prairie Ridge Ecostation", Year== 2021)
 prCats21 = meanDensityByWeek(pr21, ordersToInclude = "caterpillar", ylim = c(0,12), main = "Prairie Ridge 2021 Frass vs caterpillar")
 par(new = TRUE)
 frassplot2(meanfrass, inputSite = 117, 2021, 'darkorange3', new = F, var = 'mass', xlim = c(138,205),
-          ylim = c(0, 11.5), lwd = 2, minReliability = 2, Axes = FALSE, lty = 'dotdash', main = '')
+          ylim = c(0, 11.5), lwd = 2, minReliability = 2, axes = FALSE, lty = 'dotdash', main = '')
 axis(side = 4, at = pretty(range(z)))
 mtext("z", side = 4, line = 3)
 
-catcount = filter(fullDataset, Name== "", Year== "")
+###establish site and year first before using function below: 
+sitefilter = filter(fullDataset, Name== "Prairie Ridge Ecostation", Year== 2021)
+catsfiltered = meanDensityByWeek(sitefilter, ordersToInclude = "caterpillar", ylim = c(0,12), main = "Prairie Ridge 2021 Frass vs caterpillar")
 
-arthrofrass <- function(x1, y1, x2, y2,
-                        y1lab = "Y1", y2lab = "Y2",
-                        xlab = "X", main = "Dual Y-Axis Plot",
-                        col1 = "blue", col2 = "red") {
-  plot(x1, y1, type = "l", col = col1,
-   xlab = xlab, ylab = y1lab, main = main,
-   ylim = range(y1, na.rm = TRUE))
+
+###dual axis graph testing:
+dual_plot_frass_cats <- function(catsfiltered, frassdata,
+                                 site_name = "",
+                                 site_id = "",
+                                 year = "",
+                                 frass_color = "pink",
+                                 cat_colr = "lightblue",
+                                 var = "mass",
+                                 minReliability = 2,
+                                 xlim = c(130, 210),
+                                 ylim_frass = c(0, 12),
+                                 ylim_cats = c(0, 12),
+                                 xlab = "Julian Day",
+                                 ylab_frass = "Frass (mg/day)",
+                                 ylab_cats = "Caterpillars/branch",
+                                 main = NULL) {
+# 1. Run meanDensityByWeek() — assume it returns a data frame
+  cat_summary <- meanDensityByWeek(sitefilter,
+                                   ordersToInclude = "caterpillar",
+                                   plot = FALSE)  # disable auto-plot if possible
+  # 3. Plot frass on left y-axis
+  frassplot(frassdata,
+            inputSite = site_id,
+            year = year,
+            color = frass_color,
+            new = TRUE,
+            var = var,
+            minReliability = minReliability,
+            xlab = xlab,
+            ylab = ylab_frass,
+            xlim = xlim,
+            ylim = ylim_frass,
+            main = main)
+  
+  # 4. Overlay caterpillar plot on right y-axis
   par(new = TRUE)
-  plot(x2, y2, type = "l", col = col2,
-       axes = FALSE, xlab = "", ylab = "",
-       ylim = range(y2, na.rm = TRUE))
-  axis(side = 4)
-  mtext(y2lab, side = 4, line = 3, col = col2)
+  plot(cat_summary$jday, cat_summary$meanDensity,
+       type = "l", col = cat_color, lty = 2, lwd = 2,
+       xlim = xlim, ylim = ylim_cats,
+       xlab = "", ylab = "", axes = FALSE)
+  points(cat_summary$jday, cat_summary$meanDensity, col = cat_color, pch = 16)
+  
+  # 5. Right y-axis
+  axis(4, col = cat_color, col.axis = cat_color)
+  mtext(ylab_cats, side = 4, line = 3, col = cat_color)
+   
 }
-  
+dual_yaxis_frass_caterpillar_plot(
+  fullDataset = fullDataset,
+  frassdata = meanfrass,
+  site_name = "Prairie Ridge Ecostation",
+  site_id = 117,
+  year = 2021,
+  main = "Prairie Ridge 2021 Frass vs Caterpillar")
 
-  
-  
-  
-  
+
+
+
+
+
+
+
+
+
+
+
+
+
