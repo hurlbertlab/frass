@@ -605,68 +605,57 @@ sitefilter = filter(fullDataset, Name== "Prairie Ridge Ecostation", Year== 2021)
 catsfiltered = meanDensityByWeek(sitefilter, ordersToInclude = "caterpillar", ylim = c(0,12), main = "Prairie Ridge 2021 Frass vs caterpillar")
 
 
-###dual axis graph testing:
-dual_plot_frass_cats <- function(catsfiltered, frassdata,
-                                 site_name = "",
-                                 site_id = "",
-                                 year = "",
-                                 frass_color = "pink",
-                                 cat_colr = "lightblue",
-                                 var = "mass",
-                                 minReliability = 2,
-                                 xlim = c(130, 210),
-                                 ylim_frass = c(0, 12),
-                                 ylim_cats = c(0, 12),
-                                 xlab = "Julian Day",
-                                 ylab_frass = "Frass (mg/day)",
-                                 ylab_cats = "Caterpillars/branch",
-                                 main = NULL) {
-# 1. Run meanDensityByWeek() — assume it returns a data frame
-  cat_summary <- meanDensityByWeek(sitefilter,
-                                   ordersToInclude = "caterpillar",
-                                   plot = FALSE)  # disable auto-plot if possible
-  # 3. Plot frass on left y-axis
-  frassplot(frassdata,
+dual_axis_frass_caterpillar_plot <- function(fullDataset, frassdata,
+                                             site_name, site_id, year,
+                                             frass_color = "darkgreen",
+                                             cat_color = "darkorange",
+                                             var = "mass",
+                                             minReliability = 0,
+                                             xlim = c(130, 210),
+                                             ylim_frass = c(0, 12),
+                                             ylim_cats = c(0, 12),
+                                             xlab = "Julian Day",
+                                             ylab_frass = "Frass (mg/day)",
+                                             ylab_cats = "Caterpillars/branch",
+                                             main = NULL,
+                                             jds = c(136, 167, 197)) {
+  
+  # 1. Filter caterpillar data for specified site and year
+  site_cats <- dplyr::filter(fullDataset, Name == site_name, Year == year)
+  
+  # 2. Run meanDensityByWeek() to get caterpillar summary data
+  # This assumes meanDensityByWeek returns a data frame with jday & meanDensity
+  cat_summary <- meanDensityByWeek(site_cats, ordersToInclude = "caterpillar",
+                                   plot = FALSE)
+  
+  # 3. Plot frass data on left y-axis
+  frassplot(frassdata = frassdata,
             inputSite = site_id,
             year = year,
             color = frass_color,
             new = TRUE,
             var = var,
             minReliability = minReliability,
-            xlab = xlab,
-            ylab = ylab_frass,
             xlim = xlim,
             ylim = ylim_frass,
-            main = main)
+            xlab = xlab,
+            ylab = ylab_frass,
+            main = main,
+            jds = jds)
   
-  # 4. Overlay caterpillar plot on right y-axis
+  # 4. Overlay caterpillar data with right y-axis
   par(new = TRUE)
   plot(cat_summary$jday, cat_summary$meanDensity,
-       type = "l", col = cat_color, lty = 2, lwd = 2,
+       type = "l", col = cat_color, lwd = 2, lty = 2,
        xlim = xlim, ylim = ylim_cats,
        xlab = "", ylab = "", axes = FALSE)
-  points(cat_summary$jday, cat_summary$meanDensity, col = cat_color, pch = 16)
+  points(cat_summary$jday, cat_summary$meanDensity,
+         col = cat_color, pch = 16)
   
-  # 5. Right y-axis
-  axis(4, col = cat_color, col.axis = cat_color)
+  # 5. Add right axis and label
+  axis(side = 4, col = cat_color, col.axis = cat_color)
   mtext(ylab_cats, side = 4, line = 3, col = cat_color)
-   
 }
-dual_yaxis_frass_caterpillar_plot(
-  fullDataset = fullDataset,
-  frassdata = meanfrass,
-  site_name = "Prairie Ridge Ecostation",
-  site_id = 117,
-  year = 2021,
-  main = "Prairie Ridge 2021 Frass vs Caterpillar")
-
-
-
-
-
-
-
-
 
 
 
