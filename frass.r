@@ -86,20 +86,8 @@ frassplot = function(frassdata, inputSite, year, color = 'black', new = T,
   }
 }
   
-  temp = filter(frassdata, site == inputSite, Year == year, reliability >= minReliability) %>%
-    data.frame()
   
-  if (new) {
-    plot(temp$jday, temp[, var], xlab = xlab, ylab = ylab,
-         type = 'l', col = color, axes = Axes, xaxt = 'n',...)
-    points(temp$jday, temp[, var], pch = 16, col = color,...)
-    mtext(jds, 1, at = jds, line = 1)
-    axis(1, at = c(jds, jds+14), tck = -.02, labels = FALSE)
-  } else {
-    points(temp$jday, temp[, var], type = 'l', col = color, ...)
-    points(temp$jday, temp[, var], pch = 16, col = color, ...)
-  }
-}
+
 
 #################################################################
 
@@ -595,68 +583,23 @@ z <- runif(12, min=0, max=12)
 pr21 = filter(fullDataset, Name== "Prairie Ridge Ecostation", Year== 2021)
 prCats21 = meanDensityByWeek(pr21, ordersToInclude = "caterpillar", ylim = c(0,12), main = "Prairie Ridge 2021 Frass vs caterpillar")
 par(new = TRUE)
-frassplot2(meanfrass, inputSite = 117, 2021, 'darkorange3', new = F, var = 'mass', xlim = c(138,205),
-          ylim = c(0, 11.5), lwd = 2, minReliability = 2, axes = FALSE, lty = 'dotdash', main = '')
+frassplot(meanfrass, inputSite = 117, 2015, 'red', new = T, var = 'mass',  xlim = c(138, 205),
+          ylim = c(0, 8), lwd = 2, minReliability = 1, lty = 'dotted', main = 'PR, 2015')
 axis(side = 4, at = pretty(range(z)))
 mtext("z", side = 4, line = 3)
 
-###establish site and year first before using function below: 
-sitefilter = filter(fullDataset, Name== "Prairie Ridge Ecostation", Year== 2021)
-catsfiltered = meanDensityByWeek(sitefilter, ordersToInclude = "caterpillar", ylim = c(0,12), main = "Prairie Ridge 2021 Frass vs caterpillar")
+
+#### linear model of frass mass vs caterpillar density, the data sets which these come from need to be the same length so mean mass of the frass had to averaged over the course of a week
+#first filter by year and site to find caterpillar density
+sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2024)
+catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar")
+#average mass by julianweek for years 2015-2022 (not2020) bc PR and NCBG were monitored mutliple times per week
 
 
-dual_axis_frass_caterpillar_plot <- function(fullDataset, frassdata,
-                                             site_name, site_id, year,
-                                             frass_color = "darkgreen",
-                                             cat_color = "darkorange",
-                                             var = "mass",
-                                             minReliability = 0,
-                                             xlim = c(130, 210),
-                                             ylim_frass = c(0, 12),
-                                             ylim_cats = c(0, 12),
-                                             xlab = "Julian Day",
-                                             ylab_frass = "Frass (mg/day)",
-                                             ylab_cats = "Caterpillars/branch",
-                                             main = NULL,
-                                             jds = c(136, 167, 197)) {
-  
-  # 1. Filter caterpillar data for specified site and year
-  site_cats <- dplyr::filter(fullDataset, Name == site_name, Year == year)
-  
-  # 2. Run meanDensityByWeek() to get caterpillar summary data
-  # This assumes meanDensityByWeek returns a data frame with jday & meanDensity
-  cat_summary <- meanDensityByWeek(site_cats, ordersToInclude = "caterpillar",
-                                   plot = FALSE)
-  
-  # 3. Plot frass data on left y-axis
-  frassplot(frassdata = frassdata,
-            inputSite = site_id,
-            year = year,
-            color = frass_color,
-            new = TRUE,
-            var = var,
-            minReliability = minReliability,
-            xlim = xlim,
-            ylim = ylim_frass,
-            xlab = xlab,
-            ylab = ylab_frass,
-            main = main,
-            jds = jds)
-  
-  # 4. Overlay caterpillar data with right y-axis
-  par(new = TRUE)
-  plot(cat_summary$jday, cat_summary$meanDensity,
-       type = "l", col = cat_color, lwd = 2, lty = 2,
-       xlim = xlim, ylim = ylim_cats,
-       xlab = "", ylab = "", axes = FALSE)
-  points(cat_summary$jday, cat_summary$meanDensity,
-         col = cat_color, pch = 16)
-  
-  # 5. Add right axis and label
-  axis(side = 4, col = cat_color, col.axis = cat_color)
-  mtext(ylab_cats, side = 4, line = 3, col = cat_color)
-}
-
+#filter meanfrass by site and year
+sitefilter_meanfrass = filter(meanfrass, site == 8892356 , Year == 2024)
+#linear regression using catsdensity as indep var and frass as depen var
+linear_regeression_frass_catdensity <- lm(sitefilter_meanfrass$mass ~ catsfiltered$meanDensity)
 
 
 
