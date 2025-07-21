@@ -590,18 +590,21 @@ mtext("z", side = 4, line = 3)
 
 
 #### linear model of frass mass vs caterpillar density, the data sets which these come from need to be the same length so mean mass of the frass had to averaged over the course of a week
-#first filter by year and site to find caterpillar density
+#first filter by year, site, and julianweek so that the frass data and catcount data has same weeks matching up 
 sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2024)
 catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar")
-#average mass by julianweek for years 2015-2022 (not2020) bc PR and NCBG were monitored mutliple times per week
-
-
-#filter meanfrass by site and year
+catsfiltered_julianweek = filter(catsfiltered, julianweek %in% 144:207)
+#filter meanfrass by site and year 
 sitefilter_meanfrass = filter(meanfrass, site == 8892356 , Year == 2024)
 #linear regression using catsdensity as indep var and frass as depen var
-linear_regeression_frass_catdensity <- lm(sitefilter_meanfrass$mass ~ catsfiltered$meanDensity)
-
-
+linear_regeression_frass_catdensity <- lm(sitefilter_meanfrass$mass ~ catsfiltered_julianweek$meanDensity)
+summary(linear_regeression_frass_catdensity) #to view data of linear regression
+#plotting data
+plot(catsfiltered_julianweek$meanDensity, sitefilter_meanfrass$mass,
+     main = "2024 Linear Regression Frass Mass vs cat Density",
+     xlab = ""
+     
+     )
 
 
 
