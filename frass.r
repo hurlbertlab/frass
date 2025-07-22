@@ -591,7 +591,7 @@ frassplot2 = function(frassdata, inputSite, year, color = 'black', new = T,
     points(temp$jday, temp[, var], pch = 16, col = color, ...)
   }
 }
-#2025
+#2025NCBG
 sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2025)
 catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE, xlim = c(138, 205), main = 'NCBG 2025', xlab = 'Julian Week', ylab = 'Cat Count')
 par(new = TRUE)
@@ -600,9 +600,9 @@ frassplot2(meanfrass, inputSite = 8892356, 2025, 'red', new = T, var = 'mass',  
           ylim = c(0, .5), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
 par(yaxt = "s")
 par(xaxt = "s")
-axis(side = 4, at = seq(0, 0.5, by = 0.1))
-mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0) #not working for some reason??
-#2024
+axis(side = 4, at = seq(0, 0.5, by = 0.1), col.axis = "red")
+mtext("Frass mass (mg)", side = 4, line = 2, col = "red", cex = 1, las = 0) #not working for some reason??
+#2024NCBG
 sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2024)
 catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE, xlim = c(138, 205), main = 'NCBG 2024', xlab = 'Julian Week', ylab = 'Cat Count')
 par(new = TRUE)
@@ -611,9 +611,9 @@ frassplot2(meanfrass, inputSite = 8892356, 2024, 'red', new = T, var = 'mass',  
            ylim = c(0, 1), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
 par(yaxt = "s")
 par(xaxt = "s")
-axis(side = 4, at = seq(0, 1, by = 0.1))
-mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0) 
-#2023
+axis(side = 4, at = seq(0, 1, by = 0.1), col.axis = "red")
+mtext("Frass mass (mg)", side = 4, line = 2, col = "red", cex = 1, las = 0) 
+#2023NCBG
 sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2023)
 catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE, xlim = c(138, 205), main = 'NCBG 2023', xlab = 'Julian Week', ylab = 'Cat Count')
 par(new = TRUE)
@@ -622,7 +622,7 @@ frassplot2(meanfrass, inputSite = 8892356, 2023, 'red', new = T, var = 'mass',  
            ylim = c(0, 3), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
 par(yaxt = "s")
 par(xaxt = "s")
-axis(side = 4, at = seq(0, 3, by = 0.1))
+axis(side = 4, at = seq(0, 3, by = 0.3), col.axis = "red")
 mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0) 
 #2022NCBG
 sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2022)
@@ -633,7 +633,7 @@ frassplot2(meanfrass, inputSite = 8892356, 2022, 'red', new = T, var = 'mass',  
            ylim = c(0, 1.5), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
 par(yaxt = "s")
 par(xaxt = "s")
-axis(side = 4, at = seq(0, 1.5, by = 0.1))
+axis(side = 4, at = seq(0, 1.5, by = 0.1), col.axis = "red")
 mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
 #2022PR
 sitefilter_fulldataset = filter(fullDataset, Name== "Prairie Ridge Ecostation", Year== 2022)
@@ -644,7 +644,7 @@ frassplot2(meanfrass, inputSite = 117, 2022, 'red', new = T, var = 'mass',  xlim
            ylim = c(0, 3), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
 par(yaxt = "s")
 par(xaxt = "s")
-axis(side = 4, at = seq(0, 3, by = 0.1))
+axis(side = 4, at = seq(0, 3, by = 0.1), col.axis = "red")
 mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
 #2021NCBG
 sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2021)
@@ -655,7 +655,7 @@ frassplot2(meanfrass, inputSite = 8892356, 2021, 'red', new = T, var = 'mass',  
            ylim = c(0, 1.5), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
 par(yaxt = "s")
 par(xaxt = "s")
-axis(side = 4, at = seq(0, 1.5, by = 0.1))
+axis(side = 4, at = seq(0, 1.5, by = 0.1), col.axis = "red")
 mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
 #2021PR
 sitefilter_fulldataset = filter(fullDataset, Name== "Prairie Ridge Ecostation", Year== 2021)
@@ -666,7 +666,7 @@ frassplot2(meanfrass, inputSite = 117, 2021, 'red', new = T, var = 'mass',  xlim
            ylim = c(0, 16), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
 par(yaxt = "s")
 par(xaxt = "s")
-axis(side = 4, at = seq(0, 16, by = 1))
+axis(side = 4, at = seq(0, 16, by = 1), col.axis = "red")
 mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
 #2019NCBG
 sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2019)
@@ -677,7 +677,7 @@ frassplot2(meanfrass, inputSite = 8892356, 2019, 'red', new = T, var = 'mass',  
            ylim = c(0, 3), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
 par(yaxt = "s")
 par(xaxt = "s")
-axis(side = 4, at = seq(0, 3, by = 0.1))
+axis(side = 4, at = seq(0, 3, by = 0.2), col.axis = "red")
 mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
 #2019PR
 sitefilter_fulldataset = filter(fullDataset, Name== "Prairie Ridge Ecostation", Year== 2019)
@@ -688,7 +688,7 @@ frassplot2(meanfrass, inputSite = 117, 2019, 'red', new = T, var = 'mass',  xlim
            ylim = c(0, 5), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
 par(yaxt = "s")
 par(xaxt = "s")
-axis(side = 4, at = seq(0, 5, by = 0.4))
+axis(side = 4, at = seq(0, 5, by = 0.4), col.axis = "red")
 mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
 #2018NCBG
 sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2018)
@@ -699,7 +699,7 @@ frassplot2(meanfrass, inputSite = 8892356, 2018, 'red', new = T, var = 'mass',  
            ylim = c(0, 9), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
 par(yaxt = "s")
 par(xaxt = "s")
-axis(side = 4, at = seq(0, 9, by = .8))
+axis(side = 4, at = seq(0, 9, by = 1), col.axis = "red")
 mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
 #2018PR
 sitefilter_fulldataset = filter(fullDataset, Name== "Prairie Ridge Ecostation", Year== 2018)
@@ -710,7 +710,7 @@ frassplot2(meanfrass, inputSite = 117, 2018, 'red', new = T, var = 'mass',  xlim
            ylim = c(0, 12), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
 par(yaxt = "s")
 par(xaxt = "s")
-axis(side = 4, at = seq(0, 12, by = 1)) #skips 10 and 12 on axis??
+axis(side = 4, at = seq(0, 12, by = 1), col.axis = "red") #skips 10 and 12 on axis??
 mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
 #2017NCBG
 sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2017)
@@ -721,29 +721,48 @@ frassplot2(meanfrass, inputSite = 8892356, 2017, 'red', new = T, var = 'mass',  
            ylim = c(0, 10.5), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
 par(yaxt = "s")
 par(xaxt = "s")
-axis(side = 4, at = seq(0, 10.5, by = .8))
+axis(side = 4, at = seq(0, 10.5, by = 1), col.axis = "red")
 mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
 #2016NCBG
-sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2018)
-catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE, xlim = c(138, 205), main = 'NCBG 2018', xlab = 'Julian Week', ylab = 'Cat Count')
+sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2016)
+catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE, xlim = c(138, 205), main = 'NCBG 2016', xlab = 'Julian Week', ylab = 'Cat Count')
 par(new = TRUE)
 par(yaxt = "n")
-frassplot2(meanfrass, inputSite = 8892356, 2018, 'red', new = T, var = 'mass',  xlim = c(138, 205),
+frassplot2(meanfrass, inputSite = 8892356, 2016, 'red', new = T, var = 'mass',  xlim = c(138, 205),
+           ylim = c(0, 3), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
+par(yaxt = "s")
+par(xaxt = "s")
+axis(side = 4, at = seq(0, 3, by = .2), col.axis = "red")
+mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
+#legend
+legend("topleft",                            
+       legend = c("Cat count", "Frass mass (mg)"),  
+       col = c("black", "red"),              
+       lty = c(1, 3),                 
+       lwd = 2,                               
+       bty = "n",
+       cex = .75)                             
+#2015NCBG
+sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2015)
+catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE, xlim = c(138, 205), main = 'NCBG 2015', xlab = 'Julian Week', ylab = 'Cat Count')
+par(new = TRUE)
+par(yaxt = "n")
+frassplot2(meanfrass, inputSite = 8892356, 2015, 'red', new = T, var = 'mass',  xlim = c(138, 205),
+           ylim = c(0, 3), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
+par(yaxt = "s")
+par(xaxt = "s")
+axis(side = 4, at = seq(0, 3, by = .2), col.axis = "red")
+mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
+#2015PR
+sitefilter_fulldataset = filter(fullDataset, Name== "Prairie Ridge Ecostation", Year== 2015)
+catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE, xlim = c(138, 205), main = 'PR 2015', xlab = 'Julian Week', ylab = 'Cat Count')
+par(new = TRUE)
+par(yaxt = "n")
+frassplot2(meanfrass, inputSite = 117, 2015, 'red', new = T, var = 'mass',  xlim = c(138, 205),
            ylim = c(0, 9), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
 par(yaxt = "s")
 par(xaxt = "s")
-axis(side = 4, at = seq(0, 9, by = .8))
-mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
-#2016PR
-sitefilter_fulldataset = filter(fullDataset, Name== "Prairie Ridge Ecostation", Year== 2018)
-catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE, xlim = c(138, 205), main = 'PR 2018', xlab = 'Julian Week', ylab = 'Cat Count')
-par(new = TRUE)
-par(yaxt = "n")
-frassplot2(meanfrass, inputSite = 117, 2018, 'red', new = T, var = 'mass',  xlim = c(138, 205),
-           ylim = c(0, 12), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
-par(yaxt = "s")
-par(xaxt = "s")
-axis(side = 4, at = seq(0, 12, by = 1)) #skips 10 and 12 on axis??
+axis(side = 4, at = seq(0, 9, by = 1), col.axis = "red") 
 mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
 
 
