@@ -734,14 +734,6 @@ par(yaxt = "s")
 par(xaxt = "s")
 axis(side = 4, at = seq(0, 3, by = .2), col.axis = "red")
 mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
-#legend
-legend("topleft",                            
-       legend = c("Cat count", "Frass mass (mg)"),  
-       col = c("black", "red"),              
-       lty = c(1, 3),                 
-       lwd = 2,                               
-       bty = "n",
-       cex = .75)                             
 #2015NCBG
 sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2015)
 catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE, xlim = c(138, 205), main = 'NCBG 2015', xlab = 'Julian Week', ylab = 'Cat Count')
@@ -764,20 +756,28 @@ par(yaxt = "s")
 par(xaxt = "s")
 axis(side = 4, at = seq(0, 9, by = 1), col.axis = "red") 
 mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
+#legend to add to graphs
+legend("topleft",                            
+       legend = c("Cat count", "Frass mass (mg)"),  
+       col = c("black", "red"),              
+       lty = c(1, 3),                 
+       lwd = 2,                               
+       bty = "n",
+       cex = .75)                             
 
-
-
-
-   
-#### linear model of frass mass vs caterpillar density, the data sets which these come from needs to have same number of rows so either the catdensity will need to be trimmed or with years that NCBG is surveyed multiple times a week the weeks need to be grouped
+#### linear model of frass mass vs caterpillar density
 #2024: first filter by year, site, and julianweek so that the frass data and catcount data has same weeks matching up 
 sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2024)
 catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE)
-catsfiltered_julianweek = filter(catsfiltered, julianweek %in% 144:207)
+#catsfiltered_julianweek = filter(catsfiltered, julianweek %in% 144:207)
 #filter meanfrass by site and year 
 #meandensitybyweek on the frass
-
 sitefilter_meanfrass = filter(meanfrass, site == 8892356 , Year == 2024)
+
+sitefilter_meanfrass <- meanfrass %>%
+  filter(jday >= jdRange[1], jday <= jdRange[2]) %>%
+  mutate(julianweek = 7 * floor(jday / 7) + 4)
+
 #linear regression using catsdensity as indep var and frass as depen var
 linear_regeression_frass_catdensity <- lm(sitefilter_meanfrass$mass ~ catsfiltered_julianweek$meanDensity)
 summary(linear_regeression_frass_catdensity) #to view data of linear regression
