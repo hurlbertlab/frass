@@ -591,6 +591,8 @@ frassplot2 = function(frassdata, inputSite, year, color = 'black', new = T,
     points(temp$jday, temp[, var], pch = 16, col = color, ...)
   }
 }
+#wider margins
+par(mar = c(4, 4, 4, 4))
 #2025NCBG
 sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2025)
 catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE, xlim = c(138, 205), main = 'NCBG 2025', xlab = 'Julian Week', ylab = 'Cat Count')
@@ -765,65 +767,38 @@ legend("topleft",
        bty = "n",
        cex = .75)                             
 
-#### linear model of frass mass vs caterpillar density
-#2024: first filter by year, site, and julianweek so that the frass data and catcount data has same weeks matching up 
-sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2024)
-catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE)
-#catsfiltered_julianweek = filter(catsfiltered, julianweek %in% 144:207)
-#filter meanfrass by site and year 
-#meandensitybyweek on the frass
-sitefilter_meanfrass = filter(meanfrass, site == 8892356 , Year == 2024)
-
+#### linear model of frass mass vs caterpillar density ####
+#filter the fulldataset so that cat count info can be found 
+sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2018)
+catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar")
+#meanfrass filtered by year, site, and convert jday to julianweek
 sitefilter_meanfrass <- meanfrass %>%
   filter(jday >= jdRange[1], jday <= jdRange[2]) %>%
-  mutate(julianweek = 7 * floor(jday / 7) + 4)
-
+  mutate(julianweek = 7 * floor(jday / 7) + 4) %>%
+  filter(site == 8892356, Year == 2018)  
+#do a table join with two data sets so LM works
+joined_frasscat <- left_join(catsfiltered, sitefilter_meanfrass, by = "julianweek")
 #linear regression using catsdensity as indep var and frass as depen var
-linear_regeression_frass_catdensity <- lm(sitefilter_meanfrass$mass ~ catsfiltered_julianweek$meanDensity)
-summary(linear_regeression_frass_catdensity) #to view data of linear regression
-#do a join on them
-
-#plotting data
-plot(catsfiltered_julianweek$meanDensity, sitefilter_meanfrass$mass,
-     main = "2024 Linear Regression Frass Mass vs cat Density",
-     xlab = "Cat Density",
-     ylab = "Frass Mass",
-     pch = 16, col = "blue")  #make sure xlim the same
-
-# Add regression line
+linear_regeression_frass_catdensity <- lm(mass ~ meanDensity, data = joined_frasscat)
+summary(linear_regeression_frass_catdensity)
+#Scatterplot of the data
+plot(joined_frasscat$meanDensity, joined_frasscat$mass,
+     xlab = "Mean Caterpillar Density",
+     ylab = "Frass Mass (mg)",
+     main = "NCBG 2018 Linear Regression: Frass ~ Density",
+     pch = 16, col = "darkgray")
+#Add regression line
 abline(linear_regeression_frass_catdensity, col = "red", lwd = 2)
-     
-coef <- coef(linear_regeression_frass_catdensity)
+#legend
+# Extract coefficients
+coefs <- coef(linear_regeression_frass_catdensity)
+intercept <- round(coefs[1], 3)
+slope <- round(coefs[2], 3)
+# Get R-squared
 r2 <- summary(linear_regeression_frass_catdensity)$r.squared
-
-# Add text to plot
-legend("topleft",
-       legend = paste0("y = ", round(coef[1], 2), " + ", round(coef[2], 2), "x\nR² = ", round(r2, 3)),
-       bty = "n")
-
-#2023: first filter by year, site, and julianweek so that the frass data and catcount data has same weeks matching up 
-sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2023)
-catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar")
-
-#catsfiltered_julianweek = filter(catsfiltered, julianweek %in% 144:207)
-#filter meanfrass by site and year 
-sitefilter_meanfrass = filter(meanfrass, site == 8892356 , Year == 2023)
-#linear regression using catsdensity as indep var and frass as depen var
-linear_regeression_frass_catdensity <- lm(sitefilter_meanfrass$mass ~ catsfiltered$meanDensity)
-summary(linear_regeression_frass_catdensity) #to view data of linear regression
-#plotting data
-plot(catsfiltered$meanDensity, sitefilter_meanfrass$mass,
-     main = "2023 Linear Regression Frass Mass vs Cat Density",
-     xlab = "Cat Density",
-     ylab = "Frass Mass",
-     pch = 16, col = "blue")
-# Add regression line
-abline(linear_regeression_frass_catdensity, col = "red", lwd = 2)
-coef <- coef(linear_regeression_frass_catdensity)
-r2 <- summary(linear_regeression_frass_catdensity)$r.squared
-# Add text to plot
-legend("topleft",
-       legend = paste0("y = ", round(coef[1], 2), " + ", round(coef[2], 2), "x\nR² = ", round(r2, 3)),
-       bty = "n")
-
+r2 <- round(r2, 3)
+# Build equation text
+eq <- paste0("y = ", slope, "x + ", intercept, "\nR² = ", r2)
+# Add legend to plot
+legend("topleft", legend = eq, bty = "n", text.col = "blue", cex = 1)
 
