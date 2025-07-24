@@ -767,15 +767,15 @@ legend("topleft",
        bty = "n",
        cex = .75)                             
 
-#### linear model of frass mass vs caterpillar density ####
+#### linear model of frass mass vs caterpillar density, change name and year to get data ####
 #filter the fulldataset so that cat count info can be found 
-sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2018)
+sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2015)
 catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar")
 #meanfrass filtered by year, site, and convert jday to julianweek
 sitefilter_meanfrass <- meanfrass %>%
   filter(jday >= jdRange[1], jday <= jdRange[2]) %>%
   mutate(julianweek = 7 * floor(jday / 7) + 4) %>%
-  filter(site == 8892356, Year == 2018)  
+  filter(site == 8892356, Year == 2015)  
 #do a table join with two data sets so LM works
 joined_frasscat <- left_join(catsfiltered, sitefilter_meanfrass, by = "julianweek")
 #linear regression using catsdensity as indep var and frass as depen var
@@ -785,7 +785,42 @@ summary(linear_regeression_frass_catdensity)
 plot(joined_frasscat$meanDensity, joined_frasscat$mass,
      xlab = "Mean Caterpillar Density",
      ylab = "Frass Mass (mg)",
-     main = "NCBG 2018 Linear Regression: Frass ~ Density",
+     main = "NCBG 2015 Linear Regression: Frass ~ Density",
+     pch = 16, col = "darkgray")
+#Add regression line
+abline(linear_regeression_frass_catdensity, col = "red", lwd = 2)
+#legend
+# Extract coefficients
+coefs <- coef(linear_regeression_frass_catdensity)
+intercept <- round(coefs[1], 3)
+slope <- round(coefs[2], 3)
+# Get R-squared
+r2 <- summary(linear_regeression_frass_catdensity)$r.squared
+r2 <- round(r2, 3)
+# Build equation text
+eq <- paste0("y = ", slope, "x + ", intercept, "\nR² = ", r2)
+# Add legend to plot
+legend("topleft", legend = eq, bty = "n", text.col = "blue", cex = 1)
+
+#### same thing but caterpillar meanbiomass vs meanfrass ####
+#filter the fulldataset so that cat count info can be found 
+sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2015)
+catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar")
+#meanfrass filtered by year, site, and convert jday to julianweek
+sitefilter_meanfrass <- meanfrass %>%
+  filter(jday >= jdRange[1], jday <= jdRange[2]) %>%
+  mutate(julianweek = 7 * floor(jday / 7) + 4) %>%
+  filter(site == 8892356, Year == 2015)  
+#do a table join with two data sets so LM works
+joined_frasscat <- left_join(catsfiltered, sitefilter_meanfrass, by = "julianweek")
+#linear regression using catsdensity as indep var and frass as depen var
+linear_regeression_frass_catdensity <- lm(mass ~ meanBiomass, data = joined_frasscat)
+summary(linear_regeression_frass_catdensity)
+#Scatterplot of the data
+plot(joined_frasscat$meanBiomass, joined_frasscat$mass,
+     xlab = "Mean Caterpillar Biomass",
+     ylab = "Frass Mass (mg)",
+     main = "NCBG 2015 Linear Regression: Frass ~ Biomass",
      pch = 16, col = "darkgray")
 #Add regression line
 abline(linear_regeression_frass_catdensity, col = "red", lwd = 2)
