@@ -3,6 +3,13 @@ library(gsheet)
 library(dplyr)
 library(tidyr)
 
+# Instead of sourcing, read the written output file (with ImageJ data)
+source('Frass_ImagedataRemastered.r')
+
+# convert that raw particle data to summed biomass estimate with group_by, summarize
+# ( sum(x^1.5))
+
+
 
 # Function for reading in frass data from GoogleDoc
 # *if aim is to backup GoogleDoc and write to disk only, then open =F and write = T
@@ -212,7 +219,7 @@ data = frassData(open = T) %>%
          Time.Set = as.character(Time.Set),
          Time.Collected = as.character(Time.Collected),
          Date.Collected = as.Date(Date.Collected, format = "%m/%d/%Y"),
-         Year = format(Date.Collected, "%Y"),
+         Year = as.integer(format(Date.Collected, "%Y")),
          jday.Set = julianDayTime(Date.Set, Time.Set),
          jday.Collected = julianDayTime(Date.Collected, Time.Collected),
          frass.mg.d = Frass.mass..mg./(jday.Collected - jday.Set),
@@ -223,8 +230,8 @@ data = frassData(open = T) %>%
 # (due to storms, etc that may affect frass recovery)
 
 url = "https://docs.google.com/spreadsheets/d/1RwXzwhHUbP0m5gKSOVhnKZbS1C_NrbdfHLglIVCzyFc/edit#gid=1611171427"
-events = gsheet2tbl(url)
-events$date = as.Date(events$date, format = "%m/%d/%Y")
+events = gsheet2tbl(url) %>%
+  mutate(date = as.Date(.$date, format = "%m/%d/%Y"))
 
 
 meanfrass = data %>%
@@ -233,8 +240,8 @@ meanfrass = data %>%
   group_by(site, Date.Collected, Year, jday) %>%
   summarize(mass = mean(frass.mg.d, na.rm=T),
             density = mean(frass.no.d, na.rm=T)) %>%
-  left_join(events[, c('date', 'site', 'reliability')], by = c('Date.Collected' = 'date', 
-                                                              'site' = 'site')) %>%
+  left_join(events[, c('date', 'site', 'reliability')], 
+            by = c('Date.Collected' = 'date', 'site' = 'site')) %>%
   rename(date = Date.Collected)
 
 write.csv(meanfrass, "data/frass_by_day_2015-2021.csv", row.names = F)
@@ -539,21 +546,23 @@ frassVolumes = function(address) { #address is a file address for the folder con
 }
 
 ##### savannah's attempt at connecting data to output from frass_imagedataRemastered so that they can be compared
-DataFiltered = filter(data, Year %in% c(2021:2025))
+
+areafrass <- data %>%
+  filter(Year %in% 2021:2025) %>%
+  left_join(output, by = c("Trap", "Date.Collected", "Year")) %>%
+  mutate(site = as.character(ifelse(Site.x == "Botanical Garden", 8892356, 117))) %>%
+  left_join(events, by = c("Date.Collected" = "date", "site" = "site"))
+
+
 # combining data on frass pieces mass and particle number from 2021-2025 and the area data 
-combined <- left_join(DataFiltered, output, by = c("Trap", "Date.Collected", "Year"))
-areafrass = combined
-# adding reliability score from events df
-events <- events %>%
-  rename(Date.Collected = date)  
+areafrass <- left_join(DataFiltered, output, by = c("Trap", "Date.Collected", "Year")) 
+
 areafrass <- left_join(
   areafrass,
-  events %>% select(Date.Collected, reliability),
+  events ,
   by = c("Date.Collected")
-)
-# change back events column to be just date
-events <- events %>%
-  rename(date = Date.Collected)  
+)%>% select(Date.Collected, reliability)
+
 # taking inspo from meanfrass and doing the same thing with the area
 meanarea <- areafrass %>%
   filter(!is.na(Area)) %>%

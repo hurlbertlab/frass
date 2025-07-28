@@ -95,5 +95,5 @@ output$Date = as.Date(output$Date, format = "%Y-%m-%d")
 names(output)[names(output) == "Date"] <- "Date.Collected"
 
 
-
+# write as a file
 
