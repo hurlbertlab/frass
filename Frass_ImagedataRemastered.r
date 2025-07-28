@@ -32,7 +32,7 @@ yearsWithData = 2021:2025
 frassPath = "//ad.unc.edu/bio/HurlbertLab/Databases/CaterpillarsCount/Frass"
 
 
-output = data.frame(Year = NULL, Site = NULL, Trap = NULL, Date = NULL, X = NULL, Area = NULL)
+output = data.frame(Year = NULL, Site = NULL, Trap = NULL, Date = NULL, Particle = NULL, Area = NULL)
 
 
 for (year in yearsWithData) {
@@ -90,9 +90,8 @@ for (year in yearsWithData) {
 
 }
 
-output = output[, c("Year", "Site", "Trap", "Date", "X", "Area")]
+output = output[, c("Year", "Site", "Trap", "Date", "Particle", "Area")]
 output$Date = as.Date(output$Date, format = "%Y-%m-%d")
-names(output)[4] = "Particle"
 names(output)[names(output) == "Date"] <- "Date.Collected"
 
 
