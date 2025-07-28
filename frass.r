@@ -320,6 +320,10 @@ legend("topleft", cex = .58 , title = "Survey Site & Year", c("BG 2015", "BG 201
 
 
 ##### savannah's attempt at connecting data to output from frass_imagedataRemastered so that they can be compared
+#first need to convert area to volume size by doing to 1.5 power then adding up all particles with same date, then we can join the output df with datafiltered which has mass of frass, then compare caluclated area vs actual mass measured 
+
+
+
 DataFiltered = filter(data, Year %in% c(2021:2025))
 #combining data on frass pieces mass and particle number from 2021-2025 and the area data 
 combined <- left_join(DataFiltered, output, by = c("Trap", "Date.Collected", "Year"))
