@@ -95,57 +95,5 @@ output$Date = as.Date(output$Date, format = "%Y-%m-%d")
 names(output)[names(output) == "Date"] <- "Date.Collected"
 
 
-## untouched code if need to fall back on ##
-
-yearsWithData3 = c(2022)
-
-frassPath3 = "//ad.unc.edu/bio/HurlbertLab/Databases/CaterpillarsCount/Frass"
-
-output3 = data.frame(Year = NULL, Site = NULL, Trap = NULL, Date = NULL, X = NULL, Area = NULL)
-
-
-for (year in yearsWithData3) {
-  
-  tmpPath3 = paste0(frassPath3, "/", year, "/Results")
-  
-  filelist <- list.files(path = tmpPath3, recursive = TRUE,
-                         pattern = "\\.(txt|csv)$", 
-                         full.names = TRUE)
-  
-  # For loop, read in each file
-  
-  
-  for (file in filelist) {
-    
-    tmpfile3 = read.table(file, sep = '\t', header = T)
-    
-    # extracting site, date, and trap from the filename using word()
-    # example:
-    
-    Datestring <- word(file, sep = "_", 1) 
-    Site <- word(file, sep = "_", 2) 
-    Trap <- word(file, sep = "_", 3) %>% word(sep = "\\.", 1)
-    
-    Date = paste(substr(Datestring, 1, 4), substr(Datestring, 5, 6), substr(Datestring, 7, 8), sep = "-")
-    
-    tmpdf3 = data.frame(Year = NULL, Site = NULL, Trap = NULL, Date = NULL, X = NULL, Area = NULL)
-    
-    tmpdf3 = tmpfile3[, c("X", "Area")]
-    tmpdf3$Year = rep(year, nrow(tmpdf3))
-    tmpdf3$Date = rep(Date, nrow(tmpdf3))
-    tmpdf3$Site = rep(Site, nrow(tmpdf3))
-    tmpdf3$Trap = rep(Trap, nrow(tmpdf3))
-    
-    output3 = rbind(output3, tmpdf3)
-    
-  } # end loop
-  
-  
-}
-
-output3 = output3[, c("Year", "Site", "Trap", "Date", "X", "Area")]
-output3$Date = as.Date(output3$Date, format = "%Y-%m-%d")
-names(output3)[4] = "Particle"
-
 
 
