@@ -132,6 +132,26 @@ NCBG = fullDataset %>%
 PR = fullDataset %>%
   filter(Name =="Prairie Ridge Ecostation", Year == 2025)
 
+# Function for calculating the mode of a series of values
+# --in this particular use case, if there multiple modes, we want the largest value
+Mode = function(x){ 
+  if (!is.numeric(x)) {
+    stop("values must be numeric for mode calculation")
+  }
+  ta = table(x)
+  tam = max(ta)
+  mod = as.numeric(names(ta)[ta == tam])
+  return(max(mod))
+}
+
+# Function for substituting values based on a condition using dplyr::mutate
+# Modification of dplyr's mutate function that only acts on the rows meeting a condition
+mutate_cond <- function(.data, condition, ..., envir = parent.frame()) {
+  condition <- eval(substitute(condition), .data, envir)
+  .data[condition, ] <- .data[condition, ] %>% mutate(...)
+  .data
+}
+
 # Function for calculating and displaying arthropod phenology by week
 meanDensityByWeek = function(surveyData, # merged dataframe of Survey and arthropodSighting tables for a single site
                              ordersToInclude = 'All',       # which arthropod orders to calculate density for (codes)
@@ -209,7 +229,7 @@ meanDensityByWeek = function(surveyData, # merged dataframe of Survey and arthro
   return(arthCount)
 }
 
-
+#as of now showing 2025 caterpillar count vs density??? need to look into this
 # Make sure to establish beatvis.bg to use meanDensityByDay function
 beatvis.bg = meanDensityByWeek(NCBG, ordersToInclude = 'caterpillar', plot = TRUE)
 beatvis.pr = meanDensityByWeek(PR, ordersToInclude = 'caterpillar', plot = TRUE, new = TRUE)
