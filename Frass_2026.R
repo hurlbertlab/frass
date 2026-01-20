@@ -57,6 +57,24 @@ julianDayTime = function(date, hour_min) {
   return(output)
 }
 #--------------------------------------------------------------------------------------------------------------------------------
+# using data to find mean frass 
+#--------------------------------------------------------------------------------------------------------------------------------
+#read in proper url, change dates and label events for below meanfrass
+url = "https://docs.google.com/spreadsheets/d/1RwXzwhHUbP0m5gKSOVhnKZbS1C_NrbdfHLglIVCzyFc/edit#gid=1611171427"
+events = gsheet2tbl(url)
+events$date = as.Date(events$date, format = "%m/%d/%Y")
+
+meanfrass = data %>%
+  filter(!is.na(Frass.mass..mg.)) %>%
+  mutate(site = as.character(ifelse(Site=="Botanical Garden", 8892356, 117))) %>%
+  group_by(site, Date.Collected, Year, jday) %>%
+  summarize(mass = mean(frass.mg.d, na.rm=T),
+            density = mean(frass.no.d, na.rm=T)) %>%
+  left_join(events[, c('date', 'site', 'reliability')], by = c('Date.Collected' = 'date', 
+                                                               'site' = 'site')) %>%
+  rename(date = Date.Collected)
+
+#--------------------------------------------------------------------------------------------------------------------------------
 # function for plotting frass phenology
 #--------------------------------------------------------------------------------------------------------------------------------
 # minReliability is the minimum reliability score for including in the analysis.
@@ -100,23 +118,6 @@ data = frassData(open = T) %>%
          frass.mg.d = Frass.mass..mg./(jday.Collected - jday.Set),
          frass.no.d = Frass.number/(jday.Collected - jday.Set),
          jday = (floor(jday.Collected) + floor(jday.Set))/2)
-#--------------------------------------------------------------------------------------------------------------------------------
-# using data to find mean frass 
-#--------------------------------------------------------------------------------------------------------------------------------
-#read in proper url, change dates and label events for below meanfrass
-url = "https://docs.google.com/spreadsheets/d/1RwXzwhHUbP0m5gKSOVhnKZbS1C_NrbdfHLglIVCzyFc/edit#gid=1611171427"
-events = gsheet2tbl(url)
-events$date = as.Date(events$date, format = "%m/%d/%Y")
-
-meanfrass = data %>%
-  filter(!is.na(Frass.mass..mg.)) %>%
-  mutate(site = as.character(ifelse(Site=="Botanical Garden", 8892356, 117))) %>%
-  group_by(site, Date.Collected, Year, jday) %>%
-  summarize(mass = mean(frass.mg.d, na.rm=T),
-            density = mean(frass.no.d, na.rm=T)) %>%
-  left_join(events[, c('date', 'site', 'reliability')], by = c('Date.Collected' = 'date', 
-                                                               'site' = 'site')) %>%
-  rename(date = Date.Collected)
 
 #+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+
 
