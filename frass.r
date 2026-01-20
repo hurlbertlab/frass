@@ -359,229 +359,34 @@ meanarea <- areafrass %>%
   
 #################################################################################################
 #plotting both frass and arthrocount, Future goal: *make this a actual function so that can just plug in year/site
-frassplot2 = function(frassdata, inputSite, year, color = 'black', new = T, #julian week
-                      var = 'mass', minReliability = 0, xlab = 'Julian Week', ylab = '', 
-                      ...) {
-  
-  temp = filter(frassdata, site == inputSite, Year == year, reliability >= minReliability) %>%
-    mutate(julianweek = 7 * floor(jday / 7) + 4) %>%
-    data.frame()
-  
-  if (new) {
-    plot(temp$julianweek, temp[, var], xlab = xlab, ylab = ylab,
-         type = 'l', col = color, xaxt = 'n', ...)
-    points(temp$julianweek, temp[, var], pch = 16, col = color, ...)
-    mtext(jds, 1, at = jds, line = 1)
-    axis(1, at = c(jds, jds + 14), tck = -0.02, labels = FALSE)
-  } else {
-    points(temp$julianweek, temp[, var], type = 'l', col = color, ...)
-    points(temp$julianweek, temp[, var], pch = 16, col = color, ...)
-  }
-} 
-frassplot2 = function(frassdata, inputSite, year, color = 'black', new = T, #julian day
-                      var = 'mass', minReliability = 0, xlab = 'Julian day', ylab = '', 
-                      ...) {
-  
-  temp = filter(frassdata, site == inputSite, Year == year, reliability >= minReliability) %>%
-    mutate(julianweek = 7 * floor(jday / 7) + 4) %>%
-    data.frame()
-  
-  if (new) {
-    plot(temp$jday, temp[, var], xlab = xlab, ylab = ylab,
-         type = 'l', col = color, xaxt = 'n', ...)
-    points(temp$jday, temp[, var], pch = 16, col = color, ...)
-    mtext(jds, 1, at = jds, line = 1)
-    axis(1, at = c(jds, jds + 14), tck = -0.02, labels = FALSE)
-  } else {
-    points(temp$jday, temp[, var], type = 'l', col = color, ...)
-    points(temp$jday, temp[, var], pch = 16, col = color, ...)
-  }
-}
-#wider margins
-par(mar = c(4, 4, 4, 4))
-#2025NCBG
-sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2025)
-catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE, xlim = c(138, 205), main = 'NCBG 2025', xlab = 'Julian Week', ylab = 'Cat Count')
-par(new = TRUE)
-par(yaxt = "n")
-frassplot2(meanfrass, inputSite = 8892356, 2025, 'red', new = T, var = 'mass',  xlim = c(138, 205),
-          ylim = c(0, .5), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
-par(yaxt = "s")
-par(xaxt = "s")
-axis(side = 4, at = seq(0, 0.5, by = 0.1), col.axis = "red")
-mtext("Frass mass (mg)", side = 4, line = 2, col = "red", cex = 1, las = 0) #not working for some reason??
-#2024NCBG
-sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2024)
-catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE, xlim = c(138, 205), main = 'NCBG 2024', xlab = 'Julian Week', ylab = 'Cat Count')
-par(new = TRUE)
-par(yaxt = "n")
-frassplot2(meanfrass, inputSite = 8892356, 2024, 'red', new = T, var = 'mass',  xlim = c(138, 205),
-           ylim = c(0, 1), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
-par(yaxt = "s")
-par(xaxt = "s")
-axis(side = 4, at = seq(0, 1, by = 0.1), col.axis = "red")
-mtext("Frass mass (mg)", side = 4, line = 2, col = "red", cex = 1, las = 0) 
-#2023NCBG
-sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2023)
-catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE, xlim = c(138, 205), main = 'NCBG 2023', xlab = 'Julian Week', ylab = 'Cat Count')
-par(new = TRUE)
-par(yaxt = "n")
-frassplot2(meanfrass, inputSite = 8892356, 2023, 'red', new = T, var = 'mass',  xlim = c(138, 205),
-           ylim = c(0, 3), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
-par(yaxt = "s")
-par(xaxt = "s")
-axis(side = 4, at = seq(0, 3, by = 0.3), col.axis = "red")
-mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0) 
-#2022NCBG
-sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2022)
-catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE, xlim = c(138, 205), main = 'NCBG 2022', xlab = 'Julian Week', ylab = 'Cat Count')
-par(new = TRUE)
-par(yaxt = "n")
-frassplot2(meanfrass, inputSite = 8892356, 2022, 'red', new = T, var = 'mass',  xlim = c(138, 205),
-           ylim = c(0, 1.5), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
-par(yaxt = "s")
-par(xaxt = "s")
-axis(side = 4, at = seq(0, 1.5, by = 0.1), col.axis = "red")
-mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
-#2022PR
-sitefilter_fulldataset = filter(fullDataset, Name== "Prairie Ridge Ecostation", Year== 2022)
-catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE, xlim = c(138, 205), main = 'PR 2022', xlab = 'Julian Week', ylab = 'Cat Count')
-par(new = TRUE)
-par(yaxt = "n")
-frassplot2(meanfrass, inputSite = 117, 2022, 'red', new = T, var = 'mass',  xlim = c(138, 205),
-           ylim = c(0, 3), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
-par(yaxt = "s")
-par(xaxt = "s")
-axis(side = 4, at = seq(0, 3, by = 0.1), col.axis = "red")
-mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
-#2021NCBG
-sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2021)
-catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE, xlim = c(138, 205), main = 'NCBG 2021', xlab = 'Julian Week', ylab = 'Cat Count')
-par(new = TRUE)
-par(yaxt = "n")
-frassplot2(meanfrass, inputSite = 8892356, 2021, 'red', new = T, var = 'mass',  xlim = c(138, 205),
-           ylim = c(0, 1.5), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
-par(yaxt = "s")
-par(xaxt = "s")
-axis(side = 4, at = seq(0, 1.5, by = 0.1), col.axis = "red")
-mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
-#2021PR
-sitefilter_fulldataset = filter(fullDataset, Name== "Prairie Ridge Ecostation", Year== 2021)
-catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE, xlim = c(138, 205), main = 'PR 2021', xlab = 'Julian Week', ylab = 'Cat Count')
-par(new = TRUE)
-par(yaxt = "n")
-frassplot2(meanfrass, inputSite = 117, 2021, 'red', new = T, var = 'mass',  xlim = c(138, 205),
-           ylim = c(0, 16), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
-par(yaxt = "s")
-par(xaxt = "s")
-axis(side = 4, at = seq(0, 16, by = 1), col.axis = "red")
-mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
-#2019NCBG
-sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2019)
-catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE, xlim = c(138, 205), main = 'NCBG 2019', xlab = 'Julian Week', ylab = 'Cat Count')
-par(new = TRUE)
-par(yaxt = "n")
-frassplot2(meanfrass, inputSite = 8892356, 2019, 'red', new = T, var = 'mass',  xlim = c(138, 205),
-           ylim = c(0, 3), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
-par(yaxt = "s")
-par(xaxt = "s")
-axis(side = 4, at = seq(0, 3, by = 0.2), col.axis = "red")
-mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
-#2019PR
-sitefilter_fulldataset = filter(fullDataset, Name== "Prairie Ridge Ecostation", Year== 2019)
-catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE, xlim = c(138, 205), main = 'PR 2019', xlab = 'Julian Week', ylab = 'Cat Count')
-par(new = TRUE)
-par(yaxt = "n")
-frassplot2(meanfrass, inputSite = 117, 2019, 'red', new = T, var = 'mass',  xlim = c(138, 205),
-           ylim = c(0, 5), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
-par(yaxt = "s")
-par(xaxt = "s")
-axis(side = 4, at = seq(0, 5, by = 0.4), col.axis = "red")
-mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
-#2018NCBG
-sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2018)
-catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE, xlim = c(138, 205), main = 'NCBG 2018', xlab = 'Julian Week', ylab = 'Cat Count')
-par(new = TRUE)
-par(yaxt = "n")
-frassplot2(meanfrass, inputSite = 8892356, 2018, 'red', new = T, var = 'mass',  xlim = c(138, 205),
-           ylim = c(0, 9), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
-par(yaxt = "s")
-par(xaxt = "s")
-axis(side = 4, at = seq(0, 9, by = 1), col.axis = "red")
-mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
-#2018PR
-sitefilter_fulldataset = filter(fullDataset, Name== "Prairie Ridge Ecostation", Year== 2018)
-catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE, xlim = c(138, 205), main = 'PR 2018', xlab = 'Julian Week', ylab = 'Cat Count')
-par(new = TRUE)
-par(yaxt = "n")
-frassplot2(meanfrass, inputSite = 117, 2018, 'red', new = T, var = 'mass',  xlim = c(138, 205),
-           ylim = c(0, 12), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
-par(yaxt = "s")
-par(xaxt = "s")
-axis(side = 4, at = seq(0, 12, by = 1), col.axis = "red") #skips 10 and 12 on axis??
-mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
-#2017NCBG
-sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2017)
-catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE, xlim = c(138, 205), main = 'NCBG 2017', xlab = 'Julian Week', ylab = 'Cat Count')
-par(new = TRUE)
-par(yaxt = "n")
-frassplot2(meanfrass, inputSite = 8892356, 2017, 'red', new = T, var = 'mass',  xlim = c(138, 205),
-           ylim = c(0, 10.5), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
-par(yaxt = "s")
-par(xaxt = "s")
-axis(side = 4, at = seq(0, 10.5, by = 1), col.axis = "red")
-mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
-#2016NCBG
-sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2016)
-catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE, xlim = c(138, 205), main = 'NCBG 2016', xlab = 'Julian Week', ylab = 'Cat Count')
-par(new = TRUE)
-par(yaxt = "n")
-frassplot2(meanfrass, inputSite = 8892356, 2016, 'red', new = T, var = 'mass',  xlim = c(138, 205),
-           ylim = c(0, 3), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
-par(yaxt = "s")
-par(xaxt = "s")
-axis(side = 4, at = seq(0, 3, by = .2), col.axis = "red")
-mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
-#2015NCBG
-sitefilter_fulldataset = filter(fullDataset, Name== "NC Botanical Garden", Year== 2015)
-catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE, xlim = c(138, 205), main = 'NCBG 2015', xlab = 'Julian Week', ylab = 'Cat Count')
-par(new = TRUE)
-par(yaxt = "n")
-frassplot2(meanfrass, inputSite = 8892356, 2015, 'red', new = T, var = 'mass',  xlim = c(138, 205),
-           ylim = c(0, 3), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
-par(yaxt = "s")
-par(xaxt = "s")
-axis(side = 4, at = seq(0, 3, by = .2), col.axis = "red")
-mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
-#2015PR
-sitefilter_fulldataset = filter(fullDataset, Name== "Prairie Ridge Ecostation", Year== 2015)
-catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar", plot = TRUE, xlim = c(138, 205), main = 'PR 2015', xlab = 'Julian Week', ylab = 'Cat Count')
-par(new = TRUE)
-par(yaxt = "n")
-frassplot2(meanfrass, inputSite = 117, 2015, 'red', new = T, var = 'mass',  xlim = c(138, 205),
-           ylim = c(0, 9), lwd = 2, minReliability = 2, lty = 'dotted', xlab = '', xaxt = "n")
-par(yaxt = "s")
-par(xaxt = "s")
-axis(side = 4, at = seq(0, 9, by = 1), col.axis = "red") 
-mtext("Frass mass (mg)", side = 4, line = 3, col = "darkgreen", cex = 1.2, las = 0)
-#legend to add to graphs
-legend("topleft",                            
-       legend = c("Cat count", "Frass mass (mg)"),  
-       col = c("black", "red"),              
-       lty = c(1, 3),                 
-       lwd = 2,                               
-       bty = "n",
-       cex = .75)                             
+                          
 
 #### linear model of frass mass vs caterpillar density, change name and year to get data ####
 #filter the fulldataset so that cat count info can be found 
 sitefilter_fulldataset = filter(fullDataset, Name== "Prairie Ridge Ecostation", Year== 2015)
 catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar")
 #meanfrass filtered by year, site, and convert jday to julianweek
-sitefilter_meanfrass <- meanfrass %>%
-  filter(jday >= jdRange[1], jday <= jdRange[2]) %>%
-  mutate(julianweek = 7 * floor(jday / 7) + 4) %>%
+meanfrass_week <- data %>%
+  filter(!is.na(Frass.mass..mg.)) %>%
+  mutate(
+    site = as.character(ifelse(Site == "Botanical Garden", 8892356, 117)),
+    julianweek = 7 * floor(jday / 7) + 4   # midpoint of each 7‑day block
+  ) %>%
+  group_by(site, Date.Collected, Year, julianweek) %>%
+  summarize(
+    mass = mean(frass.mg.d, na.rm = TRUE),
+    density = mean(frass.no.d, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  left_join(
+    events[, c("date", "site", "reliability")],
+    by = c("Date.Collected" = "date", "site" = "site")
+  ) %>%
+  rename(date = Date.Collected)
+
+sitefilter_meanfrass <- meanfrass_week %>%
   filter(site == 8892356, Year == 2015)  
+
 #do a table join with two data sets so LM works
 joined_frasscat <- left_join(catsfiltered, sitefilter_meanfrass, by = "julianweek")
 #linear regression using catsdensity as indep var and frass as depen var
@@ -590,7 +395,7 @@ summary(linear_regeression_frass_catdensity)
 #Scatterplot of the data
 plot(joined_frasscat$meanDensity, joined_frasscat$mass,
      xlab = "Mean Caterpillar Density",
-     ylab = "Frass Mass (mg)",
+     ylab = "Mean Frass Mass (mg)",
      main = "PR 2015 Linear Regression: Frass ~ Density",
      pch = 16, col = "darkgray")
 #Add regression line
@@ -613,10 +418,27 @@ legend("topleft", legend = eq, bty = "n", text.col = "blue", cex = 1)
 sitefilter_fulldataset = filter(fullDataset, Name== "Prairie Ridge Ecostation", Year== 2015)
 catsfiltered = meanDensityByWeek(sitefilter_fulldataset, ordersToInclude = "caterpillar")
 #meanfrass filtered by year, site, and convert jday to julianweek
-sitefilter_meanfrass <- meanfrass %>%
-  filter(jday >= jdRange[1], jday <= jdRange[2]) %>%
-  mutate(julianweek = 7 * floor(jday / 7) + 4) %>%
+meanfrass_week <- data %>%
+  filter(!is.na(Frass.mass..mg.)) %>%
+  mutate(
+    site = as.character(ifelse(Site == "Botanical Garden", 8892356, 117)),
+    julianweek = 7 * floor(jday / 7) + 4   # midpoint of each 7‑day block
+  ) %>%
+  group_by(site, Date.Collected, Year, julianweek) %>%
+  summarize(
+    mass = mean(frass.mg.d, na.rm = TRUE),
+    density = mean(frass.no.d, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  left_join(
+    events[, c("date", "site", "reliability")],
+    by = c("Date.Collected" = "date", "site" = "site")
+  ) %>%
+  rename(date = Date.Collected)
+
+sitefilter_meanfrass <- meanfrass_week %>%
   filter(site == 8892356, Year == 2015)  
+
 #do a table join with two data sets so LM works
 joined_frasscat <- left_join(catsfiltered, sitefilter_meanfrass, by = "julianweek")
 #linear regression using catsdensity as indep var and frass as depen var
