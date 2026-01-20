@@ -57,6 +57,21 @@ julianDayTime = function(date, hour_min) {
   return(output)
 }
 #--------------------------------------------------------------------------------------------------------------------------------
+# altering frassdata so that times and days are corrected
+#--------------------------------------------------------------------------------------------------------------------------------
+data = frassData(open = T) %>%
+  filter(!is.na(Time.Set) & !is.na(Time.Collected)) %>%
+  mutate(Date.Set = as.Date(Date.Set, format = "%m/%d/%Y"),
+         Time.Set = as.character(Time.Set),
+         Time.Collected = as.character(Time.Collected),
+         Date.Collected = as.Date(Date.Collected, format = "%m/%d/%Y"),
+         Year = format(Date.Collected, "%Y"),
+         jday.Set = julianDayTime(Date.Set, Time.Set),
+         jday.Collected = julianDayTime(Date.Collected, Time.Collected),
+         frass.mg.d = Frass.mass..mg./(jday.Collected - jday.Set),
+         frass.no.d = Frass.number/(jday.Collected - jday.Set),
+         jday = (floor(jday.Collected) + floor(jday.Set))/2)
+#--------------------------------------------------------------------------------------------------------------------------------
 # using data to find mean frass 
 #--------------------------------------------------------------------------------------------------------------------------------
 #read in proper url, change dates and label events for below meanfrass
@@ -101,26 +116,10 @@ frassplot = function(frassdata, inputSite, year, color = 'black', new = T,
   }
 }
 #general frassplot example to alter
-frassplot(meanfrass, inputSite = 8892356, 2015, 'red', new = T, var = 'mass', xlim = c(138,205),
-          ylim = c(0, 10.14), lwd = 2, minReliability = 2, xlab = "Julian Day", ylab = "Frass (mg./day)", lty = 'solid', main = 'NCBG Frass')
-#--------------------------------------------------------------------------------------------------------------------------------
-# altering frassdata so that times and days are corrected
-#--------------------------------------------------------------------------------------------------------------------------------
-data = frassData(open = T) %>%
-  filter(!is.na(Time.Set) & !is.na(Time.Collected)) %>%
-  mutate(Date.Set = as.Date(Date.Set, format = "%m/%d/%Y"),
-         Time.Set = as.character(Time.Set),
-         Time.Collected = as.character(Time.Collected),
-         Date.Collected = as.Date(Date.Collected, format = "%m/%d/%Y"),
-         Year = format(Date.Collected, "%Y"),
-         jday.Set = julianDayTime(Date.Set, Time.Set),
-         jday.Collected = julianDayTime(Date.Collected, Time.Collected),
-         frass.mg.d = Frass.mass..mg./(jday.Collected - jday.Set),
-         frass.no.d = Frass.number/(jday.Collected - jday.Set),
-         jday = (floor(jday.Collected) + floor(jday.Set))/2)
+frassplot(meanfrass, inputSite = 117, 2022, 'red', new = T, var = 'mass', xlim = c(138,205),
+          ylim = c(0, 10.5), lwd = 2, minReliability = 2, xlab = "Julian Day", ylab = "Frass (mg./day)", lty = 'solid', main = 'NCBG Frass')
 
 #+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+
-
 #--------------------------------------------------------------------------------------------------------------------------------
 # bringing in caterpillar count data
 #--------------------------------------------------------------------------------------------------------------------------------
@@ -306,12 +305,11 @@ frass_density_lm <- function(fullDataset, data, events,
   # 7. Return model + joined data
   return(list(
     model = linear_model,
-    data = joined_frasscat
-  ))
+    data = joined_frasscat))
 }
 
 #example of use:
-frass_density_lm( fullDataset = fullDataset, data = data, events = events, site_name = "NC Botanical Garden", year = 2024 )
+frass_density_lm( fullDataset = fullDataset, data = data, events = events, site_name = "Prairie Ridge Ecostation", year = 2021 )
 
 #linear model of frass mass vs caterpillar biomass -> compared by jweek
 frass_biomass_lm <- function(fullDataset, data, events,
@@ -380,11 +378,10 @@ frass_biomass_lm <- function(fullDataset, data, events,
   # 7. Return model + joined data
   return(list(
     model = linear_model,
-    data = joined_frasscat
-  ))
+    data = joined_frasscat))
 }
 #example of use
-frass_biomass_lm( fullDataset = fullDataset, data = data, events = events, site_name = "NC Botanical Garden", year = 2025 )
+frass_biomass_lm( fullDataset = fullDataset, data = data, events = events, site_name = "Prairie Ridge Ecostation", year = 2022 )
 
 
 
