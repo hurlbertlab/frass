@@ -6,6 +6,7 @@
 library(gsheet)
 library(dplyr)
 library(tidyr)
+library(purrr)
 
 #--------------------------------------------------------------------------------------------------------------------------------
 # reading in frassdata and then functions for correcting time and date
@@ -125,13 +126,10 @@ frassplot(meanfrass, inputSite = 117, 2022, 'red', new = T, var = 'mass', xlim =
 #--------------------------------------------------------------------------------------------------------------------------------
 # Reading in Caterpillar Count dataset:
 fullDataset = read.csv('data/fullDataset_2025-06-17.csv') #**need to update this to at least end of summer
-#filtering caterpillar count dataset to just show NCBG
-NCBG = fullDataset %>%
-  filter(Name == "NC Botanical Garden", Year == 2025)
-#filtering caterpillar count dataset to just show PR
-PR = fullDataset %>%
-  filter(Name =="Prairie Ridge Ecostation", Year == 2025)
-
+#filtering caterpillar count dataset to just show NCBG and Prairie Ridge for selected years
+NCBG_PR <- fullDataset %>%
+  filter(Name %in% c("NC Botanical Garden", "Prairie Ridge Ecostation"),
+    Year %in% 2015:2025)
 # Function for calculating the mode of a series of values
 # --in this particular use case, if there multiple modes, we want the largest value
 Mode = function(x){ 
@@ -231,7 +229,7 @@ meanDensityByWeek = function(surveyData, # merged dataframe of Survey and arthro
 
 #as of now showing 2025 caterpillar count vs density??? need to look into this
 # Make sure to establish beatvis.bg to use meanDensityByDay function
-beatvis.bg = meanDensityByWeek(NCBG, ordersToInclude = 'caterpillar', plot = TRUE) #just showing 2025 data
+beatvis.bg = meanDensityByWeek(NCBG_PR, ordersToInclude = 'caterpillar', plot = TRUE) #just showing 2025 data
 beatvis.pr = meanDensityByWeek(PR, ordersToInclude = 'caterpillar', plot = TRUE, new = TRUE)
 
 #+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+
@@ -383,16 +381,43 @@ frass_biomass_lm <- function(fullDataset, data, events,
 #example of use
 frass_biomass_lm( fullDataset = fullDataset, data = data, events = events, site_name = "Prairie Ridge Ecostation", year = 2022 )
 
+#+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+
+#--------------------------------------------------------------------------------------------------------------------------------
+#Plots looking at frass mass vs caterpillar abundance 
+#--------------------------------------------------------------------------------------------------------------------------------
+#having mean Frass data sorted by julian week
+meanfrass <- meanfrass %>%
+  mutate(julianweek = 7 * floor(jday / 7) + 4)
+#make sure year is a integar
+meanfrass <- meanfrass %>%
+  mutate(Year = as.integer(Year))
+#have meandensitybyweek aggregate caterpillar stuff by week  ISSUE:::: may not be thinking about individual site, oops
+cats_by_week_year <- NCBG_PR %>%
+  group_by(Year) %>%
+  group_split() %>%                 # split into a list, one dataframe per year
+  map_dfr(~ {
+    out <- meanDensityByWeek(
+      surveyData = .x,
+      ordersToInclude = "caterpillar",
+      allDates = TRUE
+    )
+    out$Year <- unique(.x$Year)      # add Year back
+    out
+  })
+#left join fulldataset and meanfrass by julianweek
+frass_cats_week <- meanfrass %>%
+  left_join(cats_by_week_year, by = c("julianweek", "Year"))
+#rename columns to make sense:
+frass_cats_week <- rename(frass_cats_week, frass_mass=mass)
+frass_cats_week <- rename(frass_cats_week, frass_density=density)
+frass_cats_week <- rename(frass_cats_week, frass_reliability=reliability)
 
-
-
-
-
-
-
-
-
-
-
-
-
+plotfrasscat <- function(frass_cats_week, 
+    Year=Year,
+    
+    
+    
+    
+    
+    
+    
