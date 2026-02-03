@@ -564,81 +564,10 @@ plot_frass_vs_cats("PR", 2022)
 #--------------------------------------------------------------------------------------------------------------------------------
 #Plots looking at frass mass vs caterpillar BIOMASS 
 #--------------------------------------------------------------------------------------------------------------------------------
-#having mean Frass data sorted by julian week
-meanfrass <- meanfrass %>%
-  mutate(julianweek = 7 * floor(jday / 7) + 4)
-#make sure year is a integar
-meanfrass <- meanfrass %>%
-  mutate(Year = as.integer(Year))
-#combine and average meanfrass data that comes from same week (2015-2023 this happened)
-meanfrass_combinedweeks <- meanfrass %>%
-  group_by(site, Year, julianweek) %>%
-  summarise(
-    # average frass measurements
-    mass = mean(mass, na.rm = TRUE),
-    density = mean(density, na.rm = TRUE),
-    # keep representative values for the rest
-    date = min(date, na.rm = TRUE),   # or first(date)
-    jday = mean(jday, na.rm = TRUE),
-    reliability = first(reliability),
-    
-    .groups = "drop"
-  )
-#filter meanfrass by NCBG
-meanfrass_NCBG <- meanfrass_combinedweeks %>%
-  filter(site %in% c("8892356"))
-#filter meanfrass by PR
-meanfrass_PR <- meanfrass_combinedweeks %>%
-  filter(site %in% c("117"))
-#NCBG site filter fulldataset for all years
-NCBG <- fullDataset %>%
-  filter(Name %in% c("NC Botanical Garden"),
-         Year %in% 2015:2025)
-#PR site filter fulldataset for all years
-PR <- fullDataset %>%
-  filter(Name %in% c("Prairie Ridge Ecostation"),
-         Year %in% 2015:2025)
-#have meandensitybyweek aggregate caterpillar stuff by week for NCBG
-cats_NCBG <- NCBG %>%
-  group_by(Year) %>%
-  group_split() %>%                 # split into a list, one dataframe per year
-  map_dfr(~ {
-    out <- meanDensityByWeek(
-      surveyData = .x,
-      ordersToInclude = "caterpillar",
-      allDates = TRUE
-    )
-    out$Year <- unique(.x$Year)      # add Year back
-    out
-  })
-#have meandensitybyweek aggregate caterpillar stuff by week for PR
-cats_PR <- PR %>%
-  group_by(Year) %>%
-  group_split() %>%                 # split into a list, one dataframe per year
-  map_dfr(~ {
-    out <- meanDensityByWeek(
-      surveyData = .x,
-      ordersToInclude = "caterpillar",
-      allDates = TRUE
-    )
-    out$Year <- unique(.x$Year)      # add Year back
-    out
-  })
-#left join fulldataset and meanfrass by julianweek
-cats_NCBG <- meanfrass_NCBG %>%
-  left_join(cats_NCBG, by = c("julianweek", "Year"))
-cats_PR <- meanfrass_PR %>%
-  left_join(cats_PR, by = c("julianweek", "Year"))  
-#rename columns to make sense:
-cats_NCBG <- rename(cats_NCBG, frass_mass=mass)
-cats_NCBG <- rename(cats_NCBG, frass_density=density)
-cats_NCBG <- rename(cats_NCBG, frass_reliability=reliability)
-cats_PR <- rename(cats_PR, frass_mass=mass)
-cats_PR <- rename(cats_PR, frass_density=density)
-cats_PR <- rename(cats_PR, frass_reliability=reliability)
+## builds off work done before this so make sure to run all the stuff that comes before frass vs cat abundace graphs to make this work
 
-#combining code above to plot cat abundance vs frassmass
-plot_frass_vs_catsBiomass <- function(site, year,
+#combining code above to plot cat totalBIOMASS vs frassmass
+plot_frass_vs_catstotBiomass <- function(site, year,
                                frass_data = meanfrass_combinedweeks,
                                survey_data = fullDataset) {
   
@@ -726,7 +655,7 @@ plot_frass_vs_catsBiomass <- function(site, year,
   
   legend(
     "topleft",
-    legend = c("Frass mass", " Total cat biomass"),
+    legend = c("Frass mass", "Total cat biomass"),
     col = c("forestgreen", "sienna"),
     lwd = 1.5,
     cex =0.8,
@@ -736,8 +665,110 @@ plot_frass_vs_catsBiomass <- function(site, year,
   invisible(dat)
 }
 
-plot_frass_vs_catsBiomass("PR", 2022)
+plot_frass_vs_catstotBiomass("PR", 2022)
+plot_frass_vs_catsmeanBiomass("PR", 2022)
 
+####same thing but for meanbiomass.... very similar
+#combining code above to plot mean cat BIOMASS vs frassmass
+plot_frass_vs_catsmeanBiomass <- function(site, year,
+                                      frass_data = meanfrass_combinedweeks,
+                                      survey_data = fullDataset) {
+  
+  ## ---- Site mapping ----
+  if (site == "NCBG") {
+    frass_site <- "8892356"
+    survey_site <- "NC Botanical Garden"
+  } else if (site == "PR") {
+    frass_site <- "117"
+    survey_site <- "Prairie Ridge Ecostation"
+  } else {
+    stop("site must be 'NCBG' or 'PR'")
+  }
+  
+  ## ---- Frass data ----
+  frass <- frass_data %>%
+    mutate(
+      julianweek = 7 * floor(jday / 7) + 4,
+      Year = as.integer(Year)
+    ) %>%
+    filter(
+      site == frass_site,
+      Year == year
+    ) %>%
+    rename(
+      frass_mass = mass,
+      frass_density = density,
+      frass_reliability = reliability
+    )
+  
+  ## ---- Caterpillar data (add Year back explicitly) ----
+  cats <- survey_data %>%
+    filter(
+      Name == survey_site,
+      Year == year
+    ) %>%
+    group_by(Year) %>%
+    group_split() %>%
+    purrr::map_dfr(~ {
+      out <- meanDensityByWeek(
+        surveyData = .x,
+        ordersToInclude = "caterpillar",
+        allDates = TRUE
+      )
+      out$Year <- unique(.x$Year)
+      out
+    })
+  
+  ## ---- Join by julianweek + Year ----
+  dat <- frass %>%
+    left_join(cats, by = c("julianweek", "Year"))
+  
+  ## ---- Plot ----
+  par(mar = c(5, 4, 4, 4) + 0.1)
+  
+  plot(
+    dat$julianweek,
+    dat$frass_mass,
+    type = "l",
+    col = "forestgreen",
+    lwd = 2,
+    xlab = "Julian week",
+    ylab = "Frass mass"
+  )
+  
+  par(new = TRUE)
+  
+  plot(
+    dat$julianweek,
+    dat$meanBiomass,
+    type = "l",
+    col = "sienna",
+    lwd = 2,
+    axes = FALSE,
+    xlab = "",
+    ylab = ""
+  )
+  
+  axis(side = 4, cex.axis = 0.8)
+  mtext("Mean Caterpillar Biomass", side = 4, line = 2, cex = 1.0)
+  
+  title(
+    main = paste(year, survey_site)
+  )
+  
+  legend(
+    "topleft",
+    legend = c("Frass mass", "Mean cat biomass"),
+    col = c("forestgreen", "sienna"),
+    lwd = 1.5,
+    cex =0.8,
+    bty = "n"
+  )
+  
+  invisible(dat)
+}
+
+plot_frass_vs_catsmeanBiomass("NCBG", 2015)
     
     
     
