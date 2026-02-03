@@ -7,6 +7,7 @@ library(gsheet)
 library(dplyr)
 library(tidyr)
 library(purrr)
+library(rstatix)
 
 #--------------------------------------------------------------------------------------------------------------------------------
 # reading in frassdata and then functions for correcting time and date
@@ -234,156 +235,7 @@ beatvis.pr = meanDensityByWeek(PR, ordersToInclude = 'caterpillar', plot = TRUE,
 
 #+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+
 #--------------------------------------------------------------------------------------------------------------------------------
-#Plots looking at frass vs caterpillar density and biomass 
-#--------------------------------------------------------------------------------------------------------------------------------
-#linear model of frass mass vs caterpillar density -> compared by jweek
-frass_density_lm <- function(fullDataset, data, events,
-                             site_name, year) {
-  
-  # 1. Filter full dataset for caterpillar density
-  sitefilter_fulldataset <- fullDataset %>%
-    dplyr::filter(Name == site_name, Year == year)
-  
-  catsfiltered <- meanDensityByWeek(
-    sitefilter_fulldataset,
-    ordersToInclude = "caterpillar"
-  )
-  
-  # 2. Build mean frass per week
-  meanfrass_week <- data %>%
-    dplyr::filter(!is.na(Frass.mass..mg.)) %>%
-    dplyr::mutate(
-      site = as.character(ifelse(Site == "Botanical Garden", 8892356, 117)),
-      julianweek = 7 * floor(jday / 7) + 4
-    ) %>%
-    dplyr::group_by(site, Date.Collected, Year, julianweek) %>%
-    dplyr::summarize(
-      mass = mean(frass.mg.d, na.rm = TRUE),
-      density = mean(frass.no.d, na.rm = TRUE),
-      .groups = "drop"
-    ) %>%
-    dplyr::left_join(
-      events[, c("date", "site", "reliability")],
-      by = c("Date.Collected" = "date", "site" = "site")
-    ) %>%
-    dplyr::rename(date = Date.Collected)
-  
-  sitefilter_meanfrass <- meanfrass_week %>%
-    dplyr::filter(site == 8892356, Year == year)
-  
-  # 3. Join frass + caterpillar density
-  joined_frasscat <- dplyr::left_join(
-    catsfiltered,
-    sitefilter_meanfrass,
-    by = "julianweek"
-  )
-  
-  # 4. Linear regression
-  linear_model <- lm(mass ~ meanDensity, data = joined_frasscat) #mean density comes from average density per survey (n surveys)
-  
-  # 5. Plot
-  plot(joined_frasscat$meanDensity, joined_frasscat$mass,
-       xlab = "Mean Caterpillar Density",
-       ylab = "Mean Frass Mass (mg)",
-       main = paste(site_name, year, "Linear Regression: Frass ~ Density"),
-       pch = 16, col = "darkgray")
-  
-  abline(linear_model, col = "red", lwd = 2)
-  
-  # 6. Legend with equation + R²
-  coefs <- coef(linear_model)
-  intercept <- round(coefs[1], 3)
-  slope <- round(coefs[2], 3)
-  r2 <- round(summary(linear_model)$r.squared, 3)
-  
-  eq <- paste0("y = ", slope, "x + ", intercept, "\nR² = ", r2)
-  
-  legend("topleft", legend = eq, bty = "n", text.col = "blue", cex = 1)
-  
-  # 7. Return model + joined data
-  return(list(
-    model = linear_model,
-    data = joined_frasscat))
-}
-
-#example of use:
-frass_density_lm( fullDataset = fullDataset, data = data, events = events, site_name = "Prairie Ridge Ecostation", year = 2021 )
-
-#linear model of frass mass vs caterpillar biomass -> compared by jweek
-frass_biomass_lm <- function(fullDataset, data, events,
-                             site_name, year) {
-  
-  # 1. Filter full dataset for caterpillar biomass
-  sitefilter_fulldataset <- fullDataset %>%
-    dplyr::filter(Name == site_name, Year == year)
-  
-  catsfiltered <- meanDensityByWeek(
-    sitefilter_fulldataset,
-    ordersToInclude = "caterpillar"
-  )
-  
-  # 2. Build mean frass per week
-  meanfrass_week <- data %>%
-    dplyr::filter(!is.na(Frass.mass..mg.)) %>%
-    dplyr::mutate(
-      site = as.character(ifelse(Site == "Botanical Garden", 8892356, 117)),
-      julianweek = 7 * floor(jday / 7) + 4
-    ) %>%
-    dplyr::group_by(site, Date.Collected, Year, julianweek) %>%
-    dplyr::summarize(
-      mass = mean(frass.mg.d, na.rm = TRUE),
-      density = mean(frass.no.d, na.rm = TRUE),
-      .groups = "drop"
-    ) %>%
-    dplyr::left_join(
-      events[, c("date", "site", "reliability")],
-      by = c("Date.Collected" = "date", "site" = "site")
-    ) %>%
-    dplyr::rename(date = Date.Collected)
-  
-  sitefilter_meanfrass <- meanfrass_week %>%
-    dplyr::filter(site == 8892356, Year == year)
-  
-  # 3. Join frass + caterpillar biomass
-  joined_frasscat <- dplyr::left_join(
-    catsfiltered,
-    sitefilter_meanfrass,
-    by = "julianweek"
-  )
-  
-  # 4. Linear regression: frass mass ~ mean biomass
-  linear_model <- lm(mass ~ meanBiomass, data = joined_frasscat) #mean biomass comes from average biomass per survey (n surveys)
-  
-  # 5. Plot
-  plot(joined_frasscat$meanBiomass, joined_frasscat$mass,
-       xlab = "Mean Caterpillar Biomass",
-       ylab = "Frass Mass (mg)",
-       main = paste(site_name, year, "Linear Regression: Frass ~ Biomass"),
-       pch = 16, col = "darkgray")
-  
-  abline(linear_model, col = "red", lwd = 2)
-  
-  # 6. Legend with equation + R²
-  coefs <- coef(linear_model)
-  intercept <- round(coefs[1], 3)
-  slope <- round(coefs[2], 3)
-  r2 <- round(summary(linear_model)$r.squared, 3)
-  
-  eq <- paste0("y = ", slope, "x + ", intercept, "\nR² = ", r2)
-  
-  legend("topleft", legend = eq, bty = "n", text.col = "blue", cex = 1)
-  
-  # 7. Return model + joined data
-  return(list(
-    model = linear_model,
-    data = joined_frasscat))
-}
-#example of use
-frass_biomass_lm( fullDataset = fullDataset, data = data, events = events, site_name = "NC Botanical Garden", year = 2018 )
-
-#+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+
-#--------------------------------------------------------------------------------------------------------------------------------
-#Plots looking at frass mass vs caterpillar ABUNDANCE 
+#Plots looking at frass mass vs caterpillar ABUNDANCE (line chart)
 #--------------------------------------------------------------------------------------------------------------------------------
 #having mean Frass data sorted by julian week
 meanfrass <- meanfrass %>%
@@ -562,7 +414,7 @@ plot_frass_vs_cats("PR", 2022)
 
 #+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+
 #--------------------------------------------------------------------------------------------------------------------------------
-#Plots looking at frass mass vs caterpillar BIOMASS 
+#Plots looking at frass mass vs caterpillar BIOMASS (total vs mean) (line charts)
 #--------------------------------------------------------------------------------------------------------------------------------
 ## builds off work done before this so make sure to run all the stuff that comes before frass vs cat abundace graphs to make this work
 
@@ -668,7 +520,7 @@ plot_frass_vs_catstotBiomass <- function(site, year,
 plot_frass_vs_catstotBiomass("PR", 2022)
 plot_frass_vs_catsmeanBiomass("PR", 2022)
 
-####same thing but for meanbiomass.... very similar
+####same thing but for meanbiomass (means divided by #surveys).... very similar to total biomass graphs
 #combining code above to plot mean cat BIOMASS vs frassmass
 plot_frass_vs_catsmeanBiomass <- function(site, year,
                                       frass_data = meanfrass_combinedweeks,
@@ -767,10 +619,244 @@ plot_frass_vs_catsmeanBiomass <- function(site, year,
   
   invisible(dat)
 }
-
 plot_frass_vs_catsmeanBiomass("NCBG", 2015)
-    
-    
-    
-    
-    
+
+
+#+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+
+#--------------------------------------------------------------------------------------------------------------------------------
+#Determining Normality and variance 
+#--------------------------------------------------------------------------------------------------------------------------------
+#Shapiro Wilkes test NCBG
+normality_tests_NCBG <- cats_NCBG %>%
+  select(site, Year, meanBiomass, meanDensity, frass_mass) %>%
+  pivot_longer(
+    cols = c(meanBiomass, meanDensity, frass_mass),
+    names_to = "measure",   
+    values_to = "value"
+  ) %>%
+  group_by(site, Year, measure) %>%
+  shapiro_test(value)
+#shapiro wilkes test PR
+normality_tests_PR <- cats_PR %>%
+  select(site, Year, meanBiomass, meanDensity, frass_mass) %>%
+  pivot_longer(
+    cols = c(meanBiomass, meanDensity, frass_mass),
+    names_to = "measure",   
+    values_to = "value"
+  ) %>%
+  group_by(site, Year, measure) %>%
+  shapiro_test(value)
+
+
+#+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+
+#--------------------------------------------------------------------------------------------------------------------------------
+#Plots looking at frass vs caterpillar biomass and density (spearman correlation)
+#--------------------------------------------------------------------------------------------------------------------------------
+#linear model of frass mass vs caterpillar biomass -> compared by jweek
+plot_spearman_frass_catbiomass <- function(site, year,
+                                           frass_data = meanfrass_combinedweeks,
+                                           survey_data = fullDataset) {
+  
+  ## ---- Site mapping ----
+  if (site == "NCBG") {
+    frass_site <- "8892356"
+    survey_site <- "NC Botanical Garden"
+  } else if (site == "PR") {
+    frass_site <- "117"
+    survey_site <- "Prairie Ridge Ecostation"
+  } else {
+    stop("site must be 'NCBG' or 'PR'")
+  }
+  
+  ## ---- Frass data ----
+  frass <- frass_data %>%
+    mutate(
+      julianweek = 7 * floor(jday / 7) + 4,
+      Year = as.integer(Year)
+    ) %>%
+    filter(
+      site == frass_site,
+      Year == year
+    ) %>%
+    rename(
+      frass_mass = mass
+    )
+  
+  ## ---- Caterpillar data ----
+  cats <- survey_data %>%
+    filter(
+      Name == survey_site,
+      Year == year
+    ) %>%
+    group_by(Year) %>%
+    group_split() %>%
+    purrr::map_dfr(~ {
+      out <- meanDensityByWeek(
+        surveyData = .x,
+        ordersToInclude = "caterpillar",
+        allDates = TRUE
+      )
+      out$Year <- unique(.x$Year)
+      out
+    })
+  
+  ## ---- Join by julianweek + Year ----
+  dat <- frass %>%
+    left_join(cats, by = c("julianweek", "Year")) %>%
+    filter(
+      !is.na(frass_mass),
+      !is.na(meanBiomass)
+    )
+  
+  ## ---- Spearman correlation ----
+  cor_test <- cor.test(
+    dat$frass_mass,
+    dat$meanBiomass,
+    method = "spearman",
+    exact = FALSE   # safer for ties
+  )
+  rho_val <- round(cor_test$estimate, 2)
+  p_val <- signif(cor_test$p.value, 2)
+  
+  ## ---- Plot ----
+  par(mar = c(5, 5, 4, 2) + 0.1)
+  
+  plot(
+    dat$frass_mass,
+    dat$meanBiomass,
+    pch = 16,
+    col = "sienna",
+    xlab = "Mean weekly frass mass",
+    ylab = "Mean caterpillar biomass",
+    main = paste(year, survey_site)
+  )
+  ## Optional: monotonic trend (loess is okay for visualization)
+  lines(
+    lowess(dat$frass_mass, dat$meanBiomass),
+    col = "forestgreen",
+    lwd = 2
+  )
+  ## correlation text
+  legend(
+    "topleft",
+    legend = c(
+      paste0("\u03C1 = ", rho_val),   # rho symbol
+      paste0("p = ", p_val)
+    ),
+    bty = "n",
+    cex = 0.9
+  )
+  invisible(dat)
+}
+
+#example of use:
+plot_spearman_frass_catbiomass("NCBG", 2015)
+
+#linear model of frass mass vs caterpillar density -> compared by jweek
+plot_spearman_frass_catdensity <- function(site, year,
+                                           frass_data = meanfrass_combinedweeks,
+                                           survey_data = fullDataset) {
+  
+  ## ---- Site mapping ----
+  if (site == "NCBG") {
+    frass_site <- "8892356"
+    survey_site <- "NC Botanical Garden"
+  } else if (site == "PR") {
+    frass_site <- "117"
+    survey_site <- "Prairie Ridge Ecostation"
+  } else {
+    stop("site must be 'NCBG' or 'PR'")
+  }
+  
+  ## ---- Frass data ----
+  frass <- frass_data %>%
+    mutate(
+      julianweek = 7 * floor(jday / 7) + 4,
+      Year = as.integer(Year)
+    ) %>%
+    filter(
+      site == frass_site,
+      Year == year
+    ) %>%
+    rename(
+      frass_mass = mass
+    )
+  
+  ## ---- Caterpillar data ----
+  cats <- survey_data %>%
+    filter(
+      Name == survey_site,
+      Year == year
+    ) %>%
+    group_by(Year) %>%
+    group_split() %>%
+    purrr::map_dfr(~ {
+      out <- meanDensityByWeek(
+        surveyData = .x,
+        ordersToInclude = "caterpillar",
+        allDates = TRUE
+      )
+      out$Year <- unique(.x$Year)
+      out
+    })
+  
+  ## ---- Join by julianweek + Year ----
+  dat <- frass %>%
+    left_join(cats, by = c("julianweek", "Year")) %>%
+    filter(
+      !is.na(frass_mass),
+      !is.na(meanDensity)
+    )
+  
+  ## ---- Spearman correlation ----
+  cor_test <- cor.test(
+    dat$frass_mass,
+    dat$meanDensity,
+    method = "spearman",
+    exact = FALSE   # safer for ties
+  )
+  
+  rho_val <- round(cor_test$estimate, 2)
+  p_val <- signif(cor_test$p.value, 2)
+  
+  ## ---- Plot ----
+  par(mar = c(5, 5, 4, 2) + 0.1)
+  
+  plot(
+    dat$frass_mass,
+    dat$meanBiomass,
+    pch = 16,
+    col = "sienna",
+    xlab = "Mean weekly frass mass",
+    ylab = "Mean caterpillar Density",
+    ylim = c(0, 2.5),
+    main = paste(year, survey_site)
+  )
+  
+  ## Optional: monotonic trend (loess is okay for visualization)
+  lines(
+    lowess(dat$frass_mass, dat$meanDensity),
+    col = "forestgreen",
+    lwd = 2
+  )
+  
+  ## correlation text
+  legend(
+    "topleft",
+    legend = c(
+      paste0("\u03C1 = ", rho_val),   # rho symbol
+      paste0("p = ", p_val)
+    ),
+    bty = "n",
+    cex = 0.9
+  )
+  
+  invisible(dat)
+}
+
+#example of use:
+plot_spearman_frass_catdensity("PR", 2022)
+
+
+
+
