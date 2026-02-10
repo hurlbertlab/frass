@@ -130,7 +130,7 @@ events$date = as.Date(events$date, format = "%m/%d/%Y")
 
 meanfrass = data %>%
   filter(!is.na(Frass.mass..mg.)) %>%
-  filter(OK == 1) %>% #keeps only rows where frass is reliable
+  filter(OK == 1) %>% #keeps only rows where frass is reliable (sav has gone through)
   mutate(site = as.character(ifelse(Site=="Botanical Garden", 8892356, 117))) %>%
   group_by(site, Date.Collected, Year, jday) %>%
   summarize(mass = mean(frass.mg.d, na.rm=T),
@@ -240,7 +240,7 @@ meanDensityByWeek = function(surveyData, # merged dataframe of Survey and arthro
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   Combing meanfrass, temp, and fulldataset into one data sheet:
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
-#want to combine by julian week, year, and site, for all of them
+#correcting functions so can combine properly----------------------------
 #having mean Frass data sorted by julian week
 meanfrass <- meanfrass %>%
   mutate(julianweek = 7 * floor(jday / 7) + 4)
@@ -313,30 +313,191 @@ cats_NCBG <- rename(cats_NCBG, frass_reliability=reliability)
 cats_PR <- rename(cats_PR, frass_mass=mass)
 cats_PR <- rename(cats_PR, frass_density=density)
 cats_PR <- rename(cats_PR, frass_reliability=reliability)
+
+# Temp stuff--------------------------------------
 #add average temp column to alltemp data
 AllTemp <- AllTemp %>%
   mutate(avgtemp = (tmax..deg.c. + tmin..deg.c.) / 2)  #avg max and min temps
-#rename site names so match other dataframs
+#rename site names so match other dataframes, also rename to can be joined properly with meanfrass data
 AllTemp <- AllTemp %>%
   mutate(site = case_when(
     site == "NC Botanical Garden" ~ "117",
-    site == "Prairie Ridge Ecostation" ~ "8892356"  ))
-
+    site == "Prairie Ridge Ecostation" ~ "8892356"  )) 
+AllTemp <- rename(AllTemp, jday=yday)
+AllTemp<- rename(AllTemp, Year=year)
+#round jday values in meanfrass_combinedweeks so it can properly be joined with Alltemp
+meanfrass_rounded <- meanfrass %>% transform(jday = round(jday))
 #correcting caterpillar mass for temp based on Tinbergen 2024 HV equation
-mass_correction <- data.frame(
-  mass_temp_corr = c(
-    
-    
+Temp_with_frass <- meanfrass_rounded %>%
+  left_join(AllTemp, by = c("jday", "Year", "site"))
+
+#first biomass estimate (using tinbergen2024 HV)
+Tinbergen_biomass <- Temp_with_frass %>%
+  mutate(biomass = mass * exp(3.8 - 0.10 * avgtemp))
+
+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   Doing centroid comparisons on years (no temp correction)
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+#NCBG centroid
+frassNCBG_centroid <- cats_NCBG %>%
+  group_by(Year) %>%
+  summarise(
+    centroid_frass = weighted.mean(frass_mass, na.rm = TRUE)
+  )
+#visualize
+ggplot(cats_NCBG, aes(x = Year, y = frass_mass)) +
+  geom_point(alpha = 0.3) +
+  geom_point(
+    data = frassNCBG_centroid,
+    aes(y = centroid_frass),
+    color = "red",
+    size = 3
+  ) +
+  geom_line(
+    data = frassNCBG_centroid,
+    aes(y = centroid_frass),
+    color = "red"
+  ) +
+  labs(
+    title = "NCBG Centroids"
+  )
+##PR centroid
+frassPR_centroid <- cats_PR %>%
+  group_by(Year) %>%
+  summarise(centroid_frass = weighted.mean(frass_mass, na.rm = TRUE))
+#visualize
+ggplot(cats_PR, aes(x = Year, y = frass_mass)) +
+  geom_point(alpha = 0.3) +
+  geom_point(
+    data = frassPR_centroid,
+    aes(y = centroid_frass),
+    color = "red",
+    size = 3
+  ) +
+  geom_line(
+    data = frassPR_centroid,
+    aes(y = centroid_frass),
+    color = "red"
+  ) +
+  labs(
+    title = "PR Centroids"
+  )
+
+#visualize each year with centroid placed
+Plot_frass_catbiomass_centroid <- function(site, year,
+                                           frass_data = meanfrass_combinedweeks,
+                                           survey_data = fullDataset) {
+  
+  ## ---- Site mapping ----
+  if (site == "NCBG") {
+    frass_site <- "8892356"
+    survey_site <- "NC Botanical Garden"
+  } else if (site == "PR") {
+    frass_site <- "117"
+    survey_site <- "Prairie Ridge Ecostation"
+  } else {
+    stop("site must be 'NCBG' or 'PR'")
+  }
+  
+  ## ---- Frass data ----
+  frass <- frass_data %>%
+    mutate(
+      julianweek = 7 * floor(jday / 7) + 4,
+      Year = as.integer(Year)
+    ) %>%
+    filter(site == frass_site, Year == year) %>%
+    rename(frass_mass = mass)
+  
+  ## ---- Caterpillar data ----
+  cats <- survey_data %>%
+    filter(Name == survey_site, Year == year) %>%
+    group_by(Year) %>%
+    group_split() %>%
+    purrr::map_dfr(~ {
+      out <- meanDensityByWeek(
+        surveyData = .x,
+        ordersToInclude = "caterpillar",
+        allDates = TRUE
+      )
+      out$Year <- unique(.x$Year)
+      out
+    })
+  
+  ## ---- Join ----
+  dat <- frass %>%
+    left_join(cats, by = c("julianweek", "Year"))
+  
+  ## ---- Weighted x-centroids (phenology) ----
+  frass_x_centroid <- weighted.mean(
+    dat$julianweek,
+    dat$frass_mass,
+    na.rm = TRUE
   )
   
-)
+  biomass_x_centroid <- weighted.mean(
+    dat$julianweek,
+    dat$meanBiomass,
+    na.rm = TRUE
+  )
   
+  ## ---- Plot ----
+  par(mar = c(5, 4, 4, 4) + 0.1)
   
+  plot(
+    dat$julianweek,
+    dat$frass_mass,
+    type = "l",
+    col = "forestgreen",
+    lwd = 2,
+    xlab = "Julian week",
+    ylab = "Frass mass",
+    main = paste(year, survey_site)
+  )
   
+  ## ---- Frass weighted centroid (vertical line) ----
+  abline(v = frass_x_centroid, col = "forestgreen", lwd = 2, lty = 2)
   
+  par(new = TRUE)
   
-
+  plot(
+    dat$julianweek,
+    dat$meanBiomass,
+    type = "l",
+    col = "sienna",
+    lwd = 2,
+    axes = FALSE,
+    xlab = "",
+    ylab = ""
+  )
   
+  axis(side = 4, cex.axis = 0.8)
+  mtext("Mean Caterpillar Biomass", side = 4, line = 2)
+  
+  ## ---- Biomass weighted centroid ----
+  abline(v = biomass_x_centroid, col = "sienna", lwd = 2, lty = 2)
+  
+  ## ---- Legend ----
+  legend(
+    "topleft",
+    legend = c(
+      "Frass mass",
+      "Frass timing centroid",
+      "Mean cat biomass",
+      "Biomass timing centroid"
+    ),
+    col = c("forestgreen", "forestgreen", "sienna", "sienna"),
+    lwd = c(2, 2, 2, 2),
+    lty = c(1, 2, 1, 2),
+    bty = "n",
+    cex = 0.8
+  )
+  
+  invisible(dat)
+}
+
+#example
+Plot_frass_catbiomass_centroid(site = "PR", year = 2022)
 
 
 
@@ -348,5 +509,167 @@ mass_correction <- data.frame(
 
 
 
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   Doing centroid comparisons on years (no temp correction)
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+#NCBG centroid
+frassNCBG_centroid <- cats_NCBG %>%
+  group_by(Year) %>%
+  summarise(
+    centroid_frass = weighted.mean(frass_mass, na.rm = TRUE)
+  )
+#visualize
+ggplot(cats_NCBG, aes(x = Year, y = frass_mass)) +
+  geom_point(alpha = 0.3) +
+  geom_point(
+    data = frassNCBG_centroid,
+    aes(y = centroid_frass),
+    color = "red",
+    size = 3
+  ) +
+  geom_line(
+    data = frassNCBG_centroid,
+    aes(y = centroid_frass),
+    color = "red"
+  ) +
+  labs(
+    title = "NCBG Centroids"
+  )
+##PR centroid
+frassPR_centroid <- cats_PR %>%
+  group_by(Year) %>%
+  summarise(centroid_frass = weighted.mean(frass_mass, na.rm = TRUE))
+#visualize
+ggplot(cats_PR, aes(x = Year, y = frass_mass)) +
+  geom_point(alpha = 0.3) +
+  geom_point(
+    data = frassPR_centroid,
+    aes(y = centroid_frass),
+    color = "red",
+    size = 3
+  ) +
+  geom_line(
+    data = frassPR_centroid,
+    aes(y = centroid_frass),
+    color = "red"
+  ) +
+  labs(
+    title = "PR Centroids"
+  )
+
+#visualize each year with centroid placed
+Plot_frass_catbiomass_centroid <- function(site, year,
+                                                   frass_data = meanfrass_combinedweeks,
+                                                   survey_data = fullDataset) {
+  
+  ## ---- Site mapping ----
+  if (site == "NCBG") {
+    frass_site <- "8892356"
+    survey_site <- "NC Botanical Garden"
+  } else if (site == "PR") {
+    frass_site <- "117"
+    survey_site <- "Prairie Ridge Ecostation"
+  } else {
+    stop("site must be 'NCBG' or 'PR'")
+  }
+  
+  ## ---- Frass data ----
+  frass <- frass_data %>%
+    mutate(
+      julianweek = 7 * floor(jday / 7) + 4,
+      Year = as.integer(Year)
+    ) %>%
+    filter(site == frass_site, Year == year) %>%
+    rename(frass_mass = mass)
+  
+  ## ---- Caterpillar data ----
+  cats <- survey_data %>%
+    filter(Name == survey_site, Year == year) %>%
+    group_by(Year) %>%
+    group_split() %>%
+    purrr::map_dfr(~ {
+      out <- meanDensityByWeek(
+        surveyData = .x,
+        ordersToInclude = "caterpillar",
+        allDates = TRUE
+      )
+      out$Year <- unique(.x$Year)
+      out
+    })
+  
+  ## ---- Join ----
+  dat <- frass %>%
+    left_join(cats, by = c("julianweek", "Year"))
+  
+  ## ---- Weighted x-centroids (phenology) ----
+  frass_x_centroid <- weighted.mean(
+    dat$julianweek,
+    dat$frass_mass,
+    na.rm = TRUE
+  )
+  
+  biomass_x_centroid <- weighted.mean(
+    dat$julianweek,
+    dat$meanBiomass,
+    na.rm = TRUE
+  )
+  
+  ## ---- Plot ----
+  par(mar = c(5, 4, 4, 4) + 0.1)
+  
+  plot(
+    dat$julianweek,
+    dat$frass_mass,
+    type = "l",
+    col = "forestgreen",
+    lwd = 2,
+    xlab = "Julian week",
+    ylab = "Frass mass",
+    main = paste(year, survey_site)
+  )
+  
+  ## ---- Frass weighted centroid (vertical line) ----
+  abline(v = frass_x_centroid, col = "forestgreen", lwd = 2, lty = 2)
+  
+  par(new = TRUE)
+  
+  plot(
+    dat$julianweek,
+    dat$meanBiomass,
+    type = "l",
+    col = "sienna",
+    lwd = 2,
+    axes = FALSE,
+    xlab = "",
+    ylab = ""
+  )
+  
+  axis(side = 4, cex.axis = 0.8)
+  mtext("Mean Caterpillar Biomass", side = 4, line = 2)
+  
+  ## ---- Biomass weighted centroid ----
+  abline(v = biomass_x_centroid, col = "sienna", lwd = 2, lty = 2)
+  
+  ## ---- Legend ----
+  legend(
+    "topleft",
+    legend = c(
+      "Frass mass",
+      "Frass timing centroid",
+      "Mean cat biomass",
+      "Biomass timing centroid"
+    ),
+    col = c("forestgreen", "forestgreen", "sienna", "sienna"),
+    lwd = c(2, 2, 2, 2),
+    lty = c(1, 2, 1, 2),
+    bty = "n",
+    cex = 0.8
+  )
+  
+  invisible(dat)
+}
+
+#example
+Plot_frass_catbiomass_centroid(site = "PR", year = 2022)
 
 
