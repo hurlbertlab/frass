@@ -535,6 +535,9 @@ Plot_frass_catbiomass_centroid(site = "PR", year = 2022)
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   analyzing timing shifts across years
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+#round cats_NCBG and cats_PR jday so frass centroid estimates are the same
+cats_NCBG <- cats_NCBG %>% transform(jday = round(jday))
+cats_PR <- cats_PR %>% transform(jday = round(jday))
 #non temp corrected NCBG centroid (what day it occurred)
 frassNCBG_centroid <- cats_NCBG %>%
   group_by(Year) %>%
@@ -565,7 +568,7 @@ comparisonNCBG <- frassNCBG_centroid %>%
   mutate(
     diff_centroid = centroid_jday_biomass - centroid_biomass  # subtract
   )
-comparisonPR <- frassPR_centroid %>%
+comparisonPR <- frassPR_centroid %>% #same thing but PR
   left_join(
     tinbergen_centroid %>% 
       filter(site == '117') %>%       # select only the site you want
@@ -575,6 +578,8 @@ comparisonPR <- frassPR_centroid %>%
   mutate(
     diff_centroid = centroid_jday_biomass - centroid_biomass  # subtract
   )
+
+#percent of centroid peaks within same time period ---------------------------------
 
 
 
