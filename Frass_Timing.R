@@ -646,49 +646,14 @@ Plot_frass_catbiomass_centroid(site = "PR", year = 2023)
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   analyzing timing shifts across years
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
-#round cats_NCBG and cats_PR jday so frass centroid estimates are the same
-cats_NCBG <- cats_NCBG %>% transform(jday = round(jday))
-cats_PR <- cats_PR %>% transform(jday = round(jday))
-#non temp corrected NCBG centroid (what day it occurred)
-frassNCBG_centroid <- cats_NCBG %>%
-  group_by(Year) %>%
-  summarise(
-    centroid_jday_frass = weighted.mean(jday, frass_mass, na.rm = TRUE),
-    centroid_jday_biomass = weighted.mean(jday, meanBiomass, na.rm = TRUE)
-  )
-#non temp corrected PR centroid (what day)
-frassPR_centroid <- cats_PR %>%
-  group_by(Year) %>%
-  summarise(
-    centroid_jday_frass = weighted.mean(jday, frass_mass, na.rm = TRUE),
-    centroid_jday_biomass = weighted.mean(jday, meanBiomass, na.rm = TRUE)
-  )
 #temp corrected centroids for both sites (what day)
-tinbergen_centroid <- Tinbergen_biomass %>%
+All_centroids <- cats_tinbergen_biomass_cutoff %>%
   group_by(Year, site) %>%
   summarise(centroid_frass = weighted.mean(jday, mass, na.rm = TRUE),
-            centroid_biomass =weighted.mean(jday, biomass, na.rm = TRUE))
-##subtracting centroid biomass day values to see how they shifted once temp corrected
-comparisonNCBG <- frassNCBG_centroid %>%
-  left_join(
-    tinbergen_centroid %>% 
-      filter(site == '8892356') %>%       # select only the site you want
-      select(Year, centroid_biomass),     # only keep relevant columns
-    by = "Year"
-  ) %>%
-  mutate(
-    diff_centroid = centroid_jday_biomass - centroid_biomass  # subtract
-  )
-comparisonPR <- frassPR_centroid %>% #same thing but PR
-  left_join(
-    tinbergen_centroid %>% 
-      filter(site == '117') %>%       # select only the site you want
-      select(Year, centroid_biomass),     # only keep relevant columns
-    by = "Year"
-  ) %>%
-  mutate(
-    diff_centroid = centroid_jday_biomass - centroid_biomass  # subtract
-  )
+            centroid_tempbiomass =weighted.mean(jday, biomass, na.rm = TRUE),
+            centroid_NOtempbiomass =weighted.mean(jday, meanBiomass, na.rm = TRUE))%>%
+  mutate(diff_centroid = centroid_tempbiomass - centroid_NOtempbiomass)
+
 
 #percent of centroid peaks within same time period ---------------------------------
 
