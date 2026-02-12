@@ -315,9 +315,6 @@ cats_PR <- rename(cats_PR, frass_density=density)
 cats_PR <- rename(cats_PR, frass_reliability=reliability)
 
 # Temp stuff--------------------------------------
-#add average temp column to alltemp data
-AllTemp <- AllTemp %>%
-  mutate(avgtemp = (tmax..deg.c. + tmin..deg.c.) / 2)  #avg max and min temps
 #rename site names so match other dataframes, also rename to can be joined properly with meanfrass data
 AllTemp <- AllTemp %>%
   mutate(site = case_when(
@@ -325,15 +322,21 @@ AllTemp <- AllTemp %>%
     site == "Prairie Ridge Ecostation" ~ "8892356"  )) 
 AllTemp <- rename(AllTemp, jday=yday)
 AllTemp<- rename(AllTemp, Year=year)
-#round jday values in meanfrass_combinedweeks so it can properly be joined with Alltemp
-meanfrass_rounded <- meanfrass_combinedweeks %>% transform(jday = round(jday))
-#correcting caterpillar mass for temp based on Tinbergen 2024 HV equation
-Temp_with_frass <- meanfrass_rounded %>%
-  left_join(AllTemp, by = c("jday", "Year", "site"))
-
+#add average temp column to alltemp data
+AllTemp <- AllTemp %>%
+  mutate(avgtemp = (tmax..deg.c. + tmin..deg.c.) / 2)  #avg max and min temps
+#adding average weekly temp column to alltemp data, and averaging temp for all days with same jweek value
+AllTemp_weekly <- AllTemp %>%
+  mutate(julianweek = 7 * floor(jday / 7) + 4) %>%
+  group_by(Year, site, julianweek) %>%
+  summarise(weeklytemp = mean(avgtemp, na.rm = TRUE),
+            .groups = "drop")
+#combining temp data and frass data into one dataset
+Temp_with_frass <- meanfrass_combinedweeks %>%
+  left_join(AllTemp_weekly, by = c("julianweek", "Year", "site"))
 #first biomass estimate (using tinbergen2024 HV)
 Tinbergen_biomass <- Temp_with_frass %>%
-  mutate(biomass = mass * exp(3.8 - 0.10 * avgtemp))
+  mutate(biomass = mass * exp(3.8 - 0.10 * weeklytemp))
 
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
@@ -409,7 +412,7 @@ plot_tinbergen <- function(data, year_choice, site_choice) {
   invisible(df)
 }
 
-plot_tinbergen(Tinbergen_biomass, year_choice = 2022, site_choice = "117")
+plot_tinbergen(Tinbergen_biomass, year_choice = 2018, site_choice = "8892356")
 
 
 
@@ -529,7 +532,7 @@ Plot_frass_catbiomass_centroid <- function(site, year,
 }
 
 #example
-Plot_frass_catbiomass_centroid(site = "PR", year = 2022)
+Plot_frass_catbiomass_centroid(site = "PR", year = 2023)
 
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
