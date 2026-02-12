@@ -362,11 +362,10 @@ cats_tinbergen_biomass <- Tinbergen_biomass %>%
 #cutoff dates that are not shared between all years
 cats_tinbergen_biomass_cutoff <- cats_tinbergen_biomass %>%
   filter(
-    (site == 117 & between(jday, 154, 198)) |
-      (site == 8892356 & between(jday, 142, 200)) |
+    (site == 117 & between(jday, 142, 200)) |
+      (site == 8892356 & between(jday, 154, 198)) |
       !(site %in% c(117, 8892356))
   )
-
 #plot all 3
 biomass_plotting <- function(data, year_choice, site_choice) {
   
@@ -444,7 +443,8 @@ biomass_plotting <- function(data, year_choice, site_choice) {
          bty = "n",
          cex = 0.8)
 }
-biomass_plotting(cats_tinbergen_biomass, 2021, 8892356)
+biomass_plotting(cats_tinbergen_biomass, 2022, 117)
+biomass_plotting(cats_tinbergen_biomass_cutoff, 2022, 117)
 
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
