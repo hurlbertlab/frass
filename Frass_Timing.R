@@ -130,15 +130,15 @@ events$date = as.Date(events$date, format = "%m/%d/%Y")
 
 meanfrass = data %>%
   filter(!is.na(Frass.mass..mg.)) %>%
-  filter(OK == 1) %>% #keeps reiable frass row
+  filter(OK == 1) %>% #keeps reliable frass row
   mutate(site = as.character(ifelse(Site=="Botanical Garden", 8892356, 117))) %>%
   group_by(site, Date.Collected, Year, jday) %>%
   summarize(
     mass = mean(frass.mg.d, na.rm = TRUE),
     .groups = "drop"
   ) %>%
-  mutate(
-    trap_area_cm2 = ifelse(Year <= 2018, 309.74, 197.71),
+  mutate( #altering the density based on size of the trap
+    trap_area_cm2 = ifelse(Year <= 2018, 309.74, 197.71), #before 2018 use 309cm^2 after use 197cm^2 
     density_mg_cm2 = mass / trap_area_cm2,
     density_mg_m2 = density_mg_cm2 * 10000   # optional but recommended
   ) %>%
@@ -344,7 +344,7 @@ Temp_with_frass <- meanfrass_combinedweeks %>%
   left_join(AllTemp_weekly, by = c("julianweek", "Year", "site"))
 #first biomass estimate (using tinbergen2024 HV)
 Tinbergen_biomass <- Temp_with_frass %>%
-  mutate(biomass = mass * exp(3.8 - 0.10 * weeklytemp))
+  mutate(Tin_biomass = mass * exp(3.8 - 0.10 * weeklytemp))
 
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
@@ -377,7 +377,7 @@ biomass_plotting <- function(data, year_choice, site_choice) {
   # ---- Centroids ----
   frass_centroid  <- weighted.mean(df$julianweek, df$mass, na.rm = TRUE)
   notemp_centroid <- weighted.mean(df$julianweek, df$meanBiomass, na.rm = TRUE)
-  temp_centroid   <- weighted.mean(df$julianweek, df$biomass, na.rm = TRUE)
+  temp_centroid   <- weighted.mean(df$julianweek, df$Tin_biomass, na.rm = TRUE)
   
   par(mar = c(5, 4, 4, 10))  # extra space for 2nd right axis
     #  LEFT AXIS — FRASS
@@ -411,14 +411,14 @@ biomass_plotting <- function(data, year_choice, site_choice) {
   # RIGHT AXIS (OUTER) — TEMP BIOMASS (GREEN)
   par(new = TRUE)
   
-  plot(df$julianweek, df$biomass,
+  plot(df$julianweek, df$Tin_biomass,
        type = "l",
        col = "forestgreen",
        lwd = 2,
        axes = FALSE,
        xlab = "",
        ylab = "",
-       ylim = range(df$biomass, na.rm = TRUE))
+       ylim = range(df$Tin_biomass, na.rm = TRUE))
   
   axis(side = 4, line = 4, col = "forestgreen", col.axis = "forestgreen")
   mtext("Temp Corrected Biomass",
@@ -443,8 +443,8 @@ biomass_plotting <- function(data, year_choice, site_choice) {
          bty = "n",
          cex = 0.8)
 }
-biomass_plotting(cats_tinbergen_biomass, 2022, 117)
-biomass_plotting(cats_tinbergen_biomass_cutoff, 2022, 117)
+biomass_plotting(cats_tinbergen_biomass, 2022, 8892356)
+biomass_plotting(cats_tinbergen_biomass_cutoff, 2022, 8892356)
 
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
@@ -646,16 +646,102 @@ Plot_frass_catbiomass_centroid(site = "PR", year = 2023)
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   analyzing timing shifts across years
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
-#temp corrected centroids for both sites (what day)
-All_centroids <- cats_tinbergen_biomass_cutoff %>%
+#temp corrected centroids for both sites (what day), and create bins of 3 day periods (starting at 154 NCBG and 142 PR) and see what years go in each
+all_centroids <- cats_tinbergen_biomass_cutoff %>%
   group_by(Year, site) %>%
   summarise(centroid_frass = weighted.mean(jday, mass, na.rm = TRUE),
             centroid_tempbiomass =weighted.mean(jday, biomass, na.rm = TRUE),
             centroid_NOtempbiomass =weighted.mean(jday, meanBiomass, na.rm = TRUE))%>%
-  mutate(diff_centroid = centroid_tempbiomass - centroid_NOtempbiomass)
+  mutate(diff_centroid = centroid_tempbiomass - centroid_NOtempbiomass) %>%
+  mutate(start_day = case_when(
+  site == 8892356 ~ 154,
+  site == 117 ~ 142)) %>%
+  mutate(bin = floor((centroid_frass - start_day) / 3) + 1)
 
 
-#percent of centroid peaks within same time period ---------------------------------
 
-
-
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   create linechart of frass density vs biomass density (so both corrected for size of frass trap)
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+#creating biomass density colummn
+cats_tinbergen_biomass_density <- cats_tinbergen_biomass_cutoff %>%
+  mutate(Tin_biomass_density = Tin_biomass/(ifelse(Year <= 2018, 309.74, 197.71))) %>% #dividing by 209 for years 2018 and before, and 197 for years after
+  mutate(biomass_density = meanBiomass/ (ifelse(Year <= 2018, 309.74, 197.71)))
+#plotting temp corrected biomass density estimates, NON temp corrected biomass desnity, and frass density, with centroids shown
+density_plotting <- function(data, year_choice, site_choice) {
+  
+  df <- data %>%
+    filter(Year == year_choice, site == site_choice)
+  
+  if(nrow(df) == 0) stop("No data for that year/site")
+  
+  # ---- Centroids ----
+  frass_density_centroid  <- weighted.mean(df$julianweek, df$density, na.rm = TRUE)
+  notemp_centroid <- weighted.mean(df$julianweek, df$biomass_density, na.rm = TRUE)
+  temp_centroid   <- weighted.mean(df$julianweek, df$Tin_biomass_density, na.rm = TRUE)
+  
+  par(mar = c(5, 4, 4, 10))  # extra space for 2nd right axis
+  #  LEFT AXIS — FRASS
+  plot(df$julianweek, df$density,
+       type = "l",
+       col = "sienna",
+       lwd = 2,
+       xlab = "Julian week",
+       ylab = "Frass density",
+       main = paste(site_choice, year_choice))
+  
+  abline(v = frass_density_centroid, col = "sienna", lty = 2, lwd = 2)
+  
+  # RIGHT AXIS (INNER) — NOT TEMP BIOMASS (PURPLE)
+  par(new = TRUE)
+  
+  plot(df$julianweek, df$biomass_density,
+       type = "l",
+       col = "deepskyblue3",
+       lwd = 2,
+       axes = FALSE,
+       xlab = "",
+       ylab = "",
+       ylim = range(df$biomass_density, na.rm = TRUE))
+  
+  axis(side = 4, col.axis = "deepskyblue3")  # inner right axis
+  mtext("Not Temp Corrected Biomass Density", side = 4, line = 2, col='deepskyblue3')
+  
+  abline(v = notemp_centroid, col = "deepskyblue3", lty = 2, lwd = 2)
+  
+  # RIGHT AXIS (OUTER) — TEMP BIOMASS (GREEN)
+  par(new = TRUE)
+  
+  plot(df$julianweek, df$Tin_biomass_density,
+       type = "l",
+       col = "forestgreen",
+       lwd = 2,
+       axes = FALSE,
+       xlab = "",
+       ylab = "",
+       ylim = range(df$Tin_biomass_density, na.rm = TRUE))
+  
+  axis(side = 4, line = 4, col = "forestgreen", col.axis = "forestgreen")
+  mtext("Temp Corrected Biomass Density",
+        side = 4,
+        line = 6,
+        col = "forestgreen")
+  
+  abline(v = temp_centroid, col = "forestgreen", lty = 2, lwd = 2)
+  # LEGEND
+  legend("topleft",
+         legend = c("Frass density",
+                    "Frass centroid",
+                    "Not temp biomass density",
+                    "Not temp centroid",
+                    "Temp biomass density",
+                    "Temp centroid"),
+         col = c("sienna","sienna",
+                 "deepskyblue3","deepskyblue3",
+                 "forestgreen","forestgreen"),
+         lwd = 2,
+         lty = c(1,2,1,2,1,2),
+         bty = "n",
+         cex = 0.8)
+}
+density_plotting(cats_tinbergen_biomass_density, 2022, 117)
