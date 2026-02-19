@@ -366,6 +366,7 @@ cats_tinbergen_biomass_cutoff <- cats_tinbergen_biomass %>%
       (site == 8892356 & between(jday, 154, 198)) |
       !(site %in% c(117, 8892356))
   )
+
 #plot all 3
 biomass_plotting <- function(data, year_choice, site_choice) {
   
