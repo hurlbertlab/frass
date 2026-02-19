@@ -476,6 +476,24 @@ weekly_volume <- combined_area_frass %>%
 volume_all_data <- weekly_volume %>%
   left_join(cats_tinbergen_biomass, by = c("julianweek", "Year", "site"))
  
+
+cats_tinbergen_biomass <- cats_tinbergen_biomass %>%
+  mutate(site = as.character(site))
+
+weekly_volume <- weekly_volume %>%
+  mutate(site = as.character(site))
+
+volume_all_data <- cats_tinbergen_biomass %>%
+  left_join(weekly_volume,
+            by = c("Year", "site", "julianweek"))
+
+
+
+
+
+
+
+
 #plotting volume and frass mass and volume on same plot
 plot_volume <- function(data, year, site) {
   
@@ -540,7 +558,7 @@ plot_volume <- function(data, year, site) {
   invisible(df)
 }
 
-plot_volume(volume_all_data, year = 2022, site = "8892356")
+plot_volume(volume_all_data, year = 2024, site = "8892356")
 
 
 
