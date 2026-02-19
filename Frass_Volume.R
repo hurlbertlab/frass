@@ -476,33 +476,71 @@ weekly_volume <- combined_area_frass %>%
 volume_all_data <- weekly_volume %>%
   left_join(cats_tinbergen_biomass, by = c("julianweek", "Year", "site"))
  
-
-
-
-## plot volume
-plot_volume <- function(df, Site, Year) {
+#plotting volume and frass mass and volume on same plot
+plot_volume <- function(data, year, site) {
   
-  # ---- Filter by year and site ----
-  df_filtered <- df[df$Year == Year & df$Site == Site, ]
+  df <- data %>%
+    dplyr::filter(Year == year, .data$site == site)
   
-  if (nrow(df_filtered) == 0) {
+  if(nrow(df) == 0) {
     stop("No data for the specified year and site.")
   }
   
-  # ---- Order by jday (important for line plot) ----
-  df_filtered <- df_filtered[order(df_filtered$Date.Collected), ]
+  df <- df[order(df$julianweek), ]
   
-  # ---- Base R plot ----
-  plot(df_filtered$Date.Collected, df_filtered$volume_particles,
-       type = "o",          # points + lines
-       pch = 16,
-       xlab = "day collected",
-       ylab = "Volume",
-       main = paste("Volume over Time\nSite:", Site, "Year:", Year))
+  mass_x_centroid <- weighted.mean(df$julianweek, df$mass, na.rm = TRUE)
+  volume_x_centroid <- weighted.mean(df$julianweek, df$avg_volume_per_particle, na.rm = TRUE)
+  
+  par(mar = c(5, 4, 4, 4) + 0.1)
+  
+  plot(
+    df$julianweek,
+    df$mass,
+    type = "l",
+    col = "forestgreen",
+    lwd = 2,
+    xlab = "Julian week",
+    ylab = "frass Mass",
+    main = paste("Site:", site, "Year:", year)
+  )
+  
+  abline(v = mass_x_centroid, col = "forestgreen", lty = 2, lwd = 2)
+  
+  par(new = TRUE)
+  plot(
+    df$julianweek,
+    df$avg_volume_per_particle,
+    type = "l",
+    col = "sienna",
+    lwd = 2,
+    axes = FALSE,
+    xlab = "",
+    ylab = ""
+  )
+  
+  axis(side = 4)
+  mtext("Volume", side = 4, line = 2)
+  
+  abline(v = volume_x_centroid, col = "sienna", lty = 2, lwd = 2)
+  
+  legend(
+    "topleft",
+    legend = c(
+      "frass Mass",
+      "frass centroid",
+      "volume",
+      "volume centroid"
+    ),
+    col = c("forestgreen", "forestgreen", "sienna", "sienna"),
+    lwd = 2,
+    lty = c(1, 2, 1, 2),
+    bty = "n"
+  )
+  
+  invisible(df)
 }
-plot_volume(combined_area_frass, "Botanical Garden", 2021)
 
-
+plot_volume(volume_all_data, year = 2022, site = "8892356")
 
 
 
