@@ -81,6 +81,9 @@ for (year in yearsWithData) {
 output = output[, c("Year", "Site", "Trap", "Date", "Particle", "Area")]
 output$Date = as.Date(output$Date, format = "%Y-%m-%d")
 names(output)[names(output) == "Date"] <- "Date.Collected"
+#saving this as file on computer for later
+write.csv(output, file = "C:/Z_School/HurlbertLab/output.csv", row.names = FALSE)
+
 
 #----------------------------------------------------------------------------------------
 #Loading in CC data 
