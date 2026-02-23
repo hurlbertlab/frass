@@ -444,7 +444,7 @@ biomass_plotting <- function(data, year_choice, site_choice) {
          bty = "n",
          cex = 0.8)
 }
-biomass_plotting(cats_tinbergen_biomass, 2022, 8892356)
+biomass_plotting(cats_tinbergen_biomass, 2021, 117)
 biomass_plotting(cats_tinbergen_biomass_cutoff, 2022, 8892356)
 
 
@@ -746,3 +746,8 @@ density_plotting <- function(data, year_choice, site_choice) {
          cex = 0.8)
 }
 density_plotting(cats_tinbergen_biomass_density, 2022, 117)
+
+### CHECK ALL PLOTS, COLORS MAY BE WRONG FOR GRAPHS, CHECK BACK TO ORIGINAL GRAPHS
+
+
+

@@ -10,6 +10,13 @@ library(data.table)
 library(dplyr)
 library(lubridate)
 library(readxl)
+library(gsheet)
+library(tidyr)
+library(purrr)
+library(rstatix)
+library(tidyverse)
+library(jsonlite)
+library(daymetr)
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   Datasets needed:
@@ -83,6 +90,7 @@ output$Date = as.Date(output$Date, format = "%Y-%m-%d")
 names(output)[names(output) == "Date"] <- "Date.Collected"
 #saving this as file on computer for later
 write.csv(output, file = "C:/Z_School/HurlbertLab/output.csv", row.names = FALSE)
+output <- read.csv("C:/Z_School/HurlbertLab/output.csv")
 
 
 #----------------------------------------------------------------------------------------
@@ -443,13 +451,15 @@ cats_tinbergen_biomass_cutoff <- cats_tinbergen_biomass %>%
 #alter df so they can be combined
 data <- data %>%
   mutate(Trap = tolower(Trap)) %>%
-  mutate(Year = as.integer(Year))
+  mutate(Date.Collected = as.Date(Date.Collected))
 area_data <- output %>%
   mutate(Trap = tolower(Trap)) %>%
   mutate(Site = tolower(Site)) %>%
   mutate(Site = case_when(
     Site == "ncbg" ~ "Botanical Garden",
-    Site == "pr" ~ "Prairie Ridge"  )) 
+    Site == "pr" ~ "Prairie Ridge"  )) %>%
+  mutate(Date.Collected = as.Date(Date.Collected, format = "%m/%d/%Y")) %>%
+  mutate(Date.Collected = as.Date(Date.Collected))
 #combined dataframes: only reliable measurments in there now
 combined_area_frass = area_data %>%
   left_join(
@@ -478,24 +488,12 @@ weekly_volume <- combined_area_frass %>%
 #left join with cats_tinbergen_biomass so all data in one table
 volume_all_data <- weekly_volume %>%
   left_join(cats_tinbergen_biomass, by = c("julianweek", "Year", "site"))
- 
-
-cats_tinbergen_biomass <- cats_tinbergen_biomass %>%
-  mutate(site = as.character(site))
-
-weekly_volume <- weekly_volume %>%
-  mutate(site = as.character(site))
-
-volume_all_data <- cats_tinbergen_biomass %>%
-  left_join(weekly_volume,
-            by = c("Year", "site", "julianweek"))
-
-
-
-
-
-
-
+#clean before plotting
+volume_all_data_oneyear <- volume_all_data %>%
+  filter(
+   Year == 2021,
+   site == "117"
+  )
 
 #plotting volume and frass mass and volume on same plot
 plot_volume <- function(data, year, site) {
@@ -560,8 +558,9 @@ plot_volume <- function(data, year, site) {
   
   invisible(df)
 }
+# PLOT DOESNT WORK 
+plot_volume(volume_all_data_oneyear, year = 2021, site = 117)
 
-plot_volume(volume_all_data, year = 2024, site = "8892356")
 
 
 
