@@ -450,16 +450,20 @@ cats_tinbergen_biomass_cutoff <- cats_tinbergen_biomass %>%
 #thinking about combining with frass mass OK column to make sure only reliable frass in there...
 #alter df so they can be combined
 data <- data %>%
-  mutate(Trap = tolower(Trap)) %>%
-  mutate(Date.Collected = as.Date(Date.Collected))
+  mutate(
+    Trap = tolower(Trap),
+    Date.Collected = as.Date(Date.Collected),
+    Year = as.integer(Year))
 area_data <- output %>%
-  mutate(Trap = tolower(Trap)) %>%
-  mutate(Site = tolower(Site)) %>%
-  mutate(Site = case_when(
-    Site == "ncbg" ~ "Botanical Garden",
-    Site == "pr" ~ "Prairie Ridge"  )) %>%
-  mutate(Date.Collected = as.Date(Date.Collected, format = "%m/%d/%Y")) %>%
-  mutate(Date.Collected = as.Date(Date.Collected))
+  mutate(
+    Trap = tolower(Trap),
+    Site = tolower(Site),
+    Site = case_when(
+      Site == "ncbg" ~ "Botanical Garden",
+      Site == "pr" ~ "Prairie Ridge"),
+    Date.Collected = as.Date(Date.Collected, format = "%m/%d/%Y"),
+    Year = as.integer(Year))
+
 #combined dataframes: only reliable measurments in there now
 combined_area_frass = area_data %>%
   left_join(
@@ -488,49 +492,76 @@ weekly_volume <- combined_area_frass %>%
 #left join with cats_tinbergen_biomass so all data in one table
 volume_all_data <- weekly_volume %>%
   left_join(cats_tinbergen_biomass, by = c("julianweek", "Year", "site"))
-#clean before plotting
+#clean before plotting- do this before plotting
 volume_all_data_oneyear <- volume_all_data %>%
   filter(
-   Year == 2021,
+   Year == 2022,
    site == "117"
   )
 
 #plotting volume and frass mass and volume on same plot
 plot_volume <- function(data, year, site) {
   
+  # Filter
   df <- data %>%
-    dplyr::filter(Year == year, .data$site == site)
+    dplyr::filter(Year == year, site == site) %>%
+    dplyr::filter(!is.na(julianweek))
   
   if(nrow(df) == 0) {
-    stop("No data for the specified year and site.")
+    stop("No data for that year/site.")
   }
   
   df <- df[order(df$julianweek), ]
   
-  mass_x_centroid <- weighted.mean(df$julianweek, df$mass, na.rm = TRUE)
-  volume_x_centroid <- weighted.mean(df$julianweek, df$avg_volume_per_particle, na.rm = TRUE)
+  # Remove NA separately for each variable
+  df_mass <- df[!is.na(df$mass), ]
+  df_vol  <- df[!is.na(df$avg_volume_per_particle), ]
   
+  # ---- Centroids ----
+  mass_centroid <- NA
+  if(sum(df_mass$mass, na.rm = TRUE) > 0) {
+    mass_centroid <- weighted.mean(
+      df_mass$julianweek,
+      df_mass$mass,
+      na.rm = TRUE
+    )
+  }
+  
+  vol_centroid <- NA
+  if(sum(df_vol$avg_volume_per_particle, na.rm = TRUE) > 0) {
+    vol_centroid <- weighted.mean(
+      df_vol$julianweek,
+      df_vol$avg_volume_per_particle,
+      na.rm = TRUE
+    )
+  }
+  
+  # ---- Plot mass (left axis) ----
   par(mar = c(5, 4, 4, 4) + 0.1)
   
   plot(
-    df$julianweek,
-    df$mass,
+    df_mass$julianweek,
+    df_mass$mass,
     type = "l",
-    col = "forestgreen",
+    col = "sienna",
     lwd = 2,
-    xlab = "Julian week",
-    ylab = "frass Mass",
+    xlab = "Julian Week",
+    ylab = "Frass Mass",
     main = paste("Site:", site, "Year:", year)
   )
   
-  abline(v = mass_x_centroid, col = "forestgreen", lty = 2, lwd = 2)
+  if(!is.na(mass_centroid)) {
+    abline(v = mass_centroid, col = "sienna", lty = 2, lwd = 2)
+  }
   
+  # ---- Overlay volume (right axis) ----
   par(new = TRUE)
+  
   plot(
-    df$julianweek,
-    df$avg_volume_per_particle,
+    df_vol$julianweek,
+    df_vol$avg_volume_per_particle,
     type = "l",
-    col = "sienna",
+    col = "forestgreen",
     lwd = 2,
     axes = FALSE,
     xlab = "",
@@ -538,19 +569,21 @@ plot_volume <- function(data, year, site) {
   )
   
   axis(side = 4)
-  mtext("Volume", side = 4, line = 2)
+  mtext("Average Volume per Particle", side = 4, line = 3)
   
-  abline(v = volume_x_centroid, col = "sienna", lty = 2, lwd = 2)
+  if(!is.na(vol_centroid)) {
+    abline(v = vol_centroid, col = "forestgreen", lty = 2, lwd = 2)
+  }
   
   legend(
     "topleft",
     legend = c(
-      "frass Mass",
-      "frass centroid",
-      "volume",
-      "volume centroid"
+      "Frass Mass",
+      "Mass centroid",
+      "Volume",
+      "Volume centroid"
     ),
-    col = c("forestgreen", "forestgreen", "sienna", "sienna"),
+    col = c("sienna", "sienna", "forestgreen", "forestgreen"),
     lwd = 2,
     lty = c(1, 2, 1, 2),
     bty = "n"
@@ -558,10 +591,173 @@ plot_volume <- function(data, year, site) {
   
   invisible(df)
 }
-# PLOT DOESNT WORK 
-plot_volume(volume_all_data_oneyear, year = 2021, site = 117)
 
+#plot using filtered dataset (volume_all_data_oneyear or else it doesn't work? idk why...) 
+plot_volume(volume_all_data_oneyear, year = 2022, site = 117)
 
+#add biomass density:
+volume_all_data_density <- volume_all_data %>%
+  mutate(Tin_biomass_density = Tin_biomass/(ifelse(Year <= 2018, 309.74, 197.71))) %>% #dividing by 209 for years 2018 and before, and 197 for years after
+  mutate(biomass_density = meanBiomass/ (ifelse(Year <= 2018, 309.74, 197.71)))
+#filter before using:
+volume_all_data_oneyear <- volume_all_data_density %>%
+  filter(
+    Year == 2025,
+    site == "8892356"
+  )
+#plotting volume, frass density, and biomass density all on one graph 
+plot_all3 <- function(data, year, site) {
+  
+  df <- data %>%
+    dplyr::filter(Year == year, site == site) %>%
+    dplyr::filter(!is.na(julianweek)) %>%
+    arrange(julianweek)
+  
+  if(nrow(df) == 0) {
+    stop("No data for that year/site.")
+  }
+  
+  # Clean separately
+  df_den <- df[!is.na(df$density), ]
+  df_vol <- df[!is.na(df$avg_volume_per_particle), ]
+  df_bio <- df[!is.na(df$Tin_biomass_density), ]
+  
+  # ---- Centroids ----
+  density_centroid <- NA
+  if(sum(df_den$density, na.rm = TRUE) > 0) {
+    density_centroid <- weighted.mean(
+      df_den$julianweek,
+      df_den$density,
+      na.rm = TRUE
+    )
+  }
+  
+  volume_centroid <- NA
+  if(sum(df_vol$avg_volume_per_particle, na.rm = TRUE) > 0) {
+    volume_centroid <- weighted.mean(
+      df_vol$julianweek,
+      df_vol$avg_volume_per_particle,
+      na.rm = TRUE
+    )
+  }
+  
+  biomass_centroid <- NA
+  if(sum(df_bio$Tin_biomass_density, na.rm = TRUE) > 0) {
+    biomass_centroid <- weighted.mean(
+      df_bio$julianweek,
+      df_bio$Tin_biomass_density,
+      na.rm = TRUE
+    )
+  }
+  
+  # Expand right margin for two axes
+  par(mar = c(5, 4, 4, 9))
+  
+  # ---- 1️⃣ Density (LEFT AXIS) ----
+  plot(
+    df_den$julianweek,
+    df_den$density,
+    type = "l",
+    col = "sienna",
+    lwd = 2,
+    xlab = "Julian Week",
+    ylab = "Density",
+    main = paste("Site:", site, "Year:", year)
+  )
+  
+  if(!is.na(density_centroid)) {
+    abline(v = density_centroid, col = "sienna", lty = 2, lwd = 2)
+  }
+  
+  # ---- 2️⃣ Volume (RIGHT AXIS #1) ----
+  par(new = TRUE)
+  plot(
+    df_vol$julianweek,
+    df_vol$avg_volume_per_particle,
+    type = "l",
+    col = "deepskyblue3",
+    lwd = 2,
+    axes = FALSE,
+    xlab = "",
+    ylab = ""
+  )
+  
+  axis(side = 4)
+  mtext("Avg Volume per Particle", side = 4, line = 2)
+  
+  if(!is.na(volume_centroid)) {
+    abline(v = volume_centroid, col = "deepskyblue3", lty = 2, lwd = 2)
+  }
+  
+  # ---- 3️⃣ Tin Biomass (RIGHT AXIS #2 shifted outward) ----
+  par(new = TRUE)
+  plot(
+    df_bio$julianweek,
+    df_bio$Tin_biomass_density,
+    type = "l",
+    col = "forestgreen",
+    lwd = 2,
+    axes = FALSE,
+    xlab = "",
+    ylab = ""
+  )
+  
+  axis(side = 4, line = 4)
+  mtext("Tin Biomass", side = 4, line = 6)
+  
+  if(!is.na(biomass_centroid)) {
+    abline(v = biomass_centroid, col = "forestgreen", lty = 2, lwd = 2)
+  }
+  
+  legend(
+    "topleft",
+    legend = c(
+      "Frass Density",
+      "Density centroid",
+      "Volume",
+      "Volume centroid",
+      "Tin Biomass Density",
+      "Biomass centroid"
+    ),
+    col = c("sienna", "sienna", 
+            "deepskyblue3", "deepskyblue3", 
+            "forestgreen", "forestgreen"),
+    lwd = 2,
+    lty = c(1,2,1,2,1,2),
+    bty = "n"
+  )
+  
+  invisible(df)
+}
+#plot all 3
+plot_all3(volume_all_data_oneyear, 2025, 8892356)
+
+#get centroid dates for all of them:
+all_centroids <- volume_all_data_density %>%
+  group_by(Year, site) %>%
+  summarise(centroid_frass_density = weighted.mean(jday, density, na.rm = TRUE),
+            centroid_tempbiomass_density =weighted.mean(jday, Tin_biomass_density, na.rm = TRUE),
+            centroid_volume =weighted.mean(jday, avg_volume_per_particle, na.rm = TRUE))%>%
+  mutate(start_day = case_when(
+    site == 8892356 ~ 154,
+    site == 117 ~ 142)) %>%
+  mutate(bin = floor((centroid_frass_density - start_day) / 3) + 1)
+#centroid data using cutoff:
+all_centroids <- volume_all_data_density %>%
+  filter(
+    (site == 117 & between(jday, 142, 200)) |
+      (site == 8892356 & between(jday, 154, 198)) |
+      !(site %in% c(117, 8892356))) %>%
+  group_by(Year, site) %>%
+  summarise(centroid_frass_density = weighted.mean(jday, density, na.rm = TRUE),
+            centroid_tempbiomass_density =weighted.mean(jday, Tin_biomass_density, na.rm = TRUE),
+            centroid_volume =weighted.mean(jday, avg_volume_per_particle, na.rm = TRUE))%>%
+  mutate(start_day = case_when(
+    site == 8892356 ~ 154,
+    site == 117 ~ 142)) %>%
+  mutate(bin_frass_density = floor((centroid_frass_density - start_day) / 3) + 1) %>%
+  mutate(bin_tempbiomass_density = floor((centroid_tempbiomass_density - start_day) / 3) + 1) %>%
+  mutate(bin_centroid_volume = floor((centroid_volume - start_day) / 3) + 1)
 
 
 

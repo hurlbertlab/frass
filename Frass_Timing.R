@@ -651,15 +651,15 @@ Plot_frass_catbiomass_centroid(site = "PR", year = 2023)
 all_centroids <- cats_tinbergen_biomass_cutoff %>%
   group_by(Year, site) %>%
   summarise(centroid_frass = weighted.mean(jday, mass, na.rm = TRUE),
-            centroid_tempbiomass =weighted.mean(jday, biomass, na.rm = TRUE),
+            centroid_tempbiomass =weighted.mean(jday, Tin_biomass, na.rm = TRUE),
             centroid_NOtempbiomass =weighted.mean(jday, meanBiomass, na.rm = TRUE))%>%
   mutate(diff_centroid = centroid_tempbiomass - centroid_NOtempbiomass) %>%
   mutate(start_day = case_when(
   site == 8892356 ~ 154,
   site == 117 ~ 142)) %>%
-  mutate(bin = floor((centroid_frass - start_day) / 3) + 1)
-
-
+  mutate(bin_frass = floor((centroid_frass - start_day) / 3) + 1) %>%
+  mutate(bin_tempbiomass = floor((centroid_tempbiomass - start_day) / 3) + 1) %>%
+  mutate(bin_NOtempbiomass = floor((centroid_NOtempbiomass - start_day) / 3) + 1)
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   create linechart of frass density vs biomass density (so both corrected for size of frass trap)
@@ -750,14 +750,17 @@ density_plotting(cats_tinbergen_biomass_density, 2022, 117)
 #doing centroid calculations for all densities--------------------------------
 all_centroids <- cats_tinbergen_biomass_density %>%
   group_by(Year, site) %>%
-  summarise(centroid_frass = weighted.mean(jday, mass, na.rm = TRUE),
-            centroid_tempbiomass =weighted.mean(jday, Tin_biomass_density, na.rm = TRUE),
-            centroid_NOtempbiomass =weighted.mean(jday, biomass_density, na.rm = TRUE))%>%
-  mutate(diff_centroid = centroid_tempbiomass - centroid_NOtempbiomass) %>%
+  summarise(centroid_frass_density = weighted.mean(jday, density, na.rm = TRUE),
+            centroid_tempbiomass_density =weighted.mean(jday, Tin_biomass_density, na.rm = TRUE),
+            centroid_NOtempbiomass_density =weighted.mean(jday, biomass_density, na.rm = TRUE))%>%
+  mutate(diff_centroid = centroid_tempbiomass_density - centroid_NOtempbiomass_density) %>%
   mutate(start_day = case_when(
     site == 8892356 ~ 154,
     site == 117 ~ 142)) %>%
-  mutate(bin = floor((centroid_frass - start_day) / 3) + 1)
+  mutate(bin_frass_density = floor((centroid_frass_density - start_day) / 3) + 1) %>%
+  mutate(bin_tempbiomass_density = floor((centroid_tempbiomass_density - start_day) / 3) + 1) %>%
+  mutate(bin_NOtempbiomass = floor((centroid_NOtempbiomass_density - start_day) / 3) + 1)
+
 
 
 
