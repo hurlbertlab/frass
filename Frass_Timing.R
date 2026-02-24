@@ -836,9 +836,21 @@ all_centroids <- cats_tinbergen_biomass_density %>%
   mutate(bin_tempbiomass_density = floor((centroid_tempbiomass_density - start_day) / 3) + 1) %>%
   mutate(bin_NOtempbiomass = floor((centroid_NOtempbiomass_density - start_day) / 3) + 1) 
 #Is centroid timing shifting earlier or later over time? Now the Year coefficient tells you: Positive slope → peak happening later. Negative slope → peak happening earlier
+    #tinbergen biomass-------------------------
 all_centroids$Year_c <- all_centroids$Year - mean(all_centroids$Year) #center year so easier to interpret data
 model2 <- lm(centroid_tempbiomass_density ~ Year_c * factor(site),
              data = all_centroids)
 summary(model2) #centroid∼Yearc​×site
+    #frass density-------------------------------
+all_centroids$Year_c <- all_centroids$Year - mean(all_centroids$Year) #center year so easier to interpret data
+model2 <- lm(centroid_frass_density ~ Year_c * factor(site),
+             data = all_centroids)
+summary(model2) #centroid∼Yearc​×site
+
+
+
+
+
+
 
 
