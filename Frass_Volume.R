@@ -732,6 +732,9 @@ plot_all3 <- function(data, year, site) {
 #plot all 3
 plot_all3(volume_all_data_oneyear, 2025, 8892356)
 
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   getting centroid dates for different variables
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #get centroid dates for all of them:
 all_centroids <- volume_all_data_density %>%
   group_by(Year, site) %>%
@@ -742,7 +745,7 @@ all_centroids <- volume_all_data_density %>%
     site == 8892356 ~ 154,
     site == 117 ~ 142)) %>%
   mutate(bin = floor((centroid_frass_density - start_day) / 3) + 1)
-#centroid data using cutoff:
+#centroid data using cutoff periods:
 all_centroids <- volume_all_data_density %>%
   filter(
     (site == 117 & between(jday, 142, 200)) |
@@ -758,6 +761,61 @@ all_centroids <- volume_all_data_density %>%
   mutate(bin_frass_density = floor((centroid_frass_density - start_day) / 3) + 1) %>%
   mutate(bin_tempbiomass_density = floor((centroid_tempbiomass_density - start_day) / 3) + 1) %>%
   mutate(bin_centroid_volume = floor((centroid_volume - start_day) / 3) + 1)
+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   plotting year (x) centroid dates (y) for frass volume
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+#plot frass density centroid dates
+plot_centroid <- function(data, y_var) {
+  
+  data$site <- as.character(data$site)
+  y_values <- data[[y_var]]
+  
+  # Remove NA rows so lines don't break oddly
+  valid <- !is.na(y_values) & !is.na(data$Year)
+  data <- data[valid, ]
+  y_values <- y_values[valid]
+  
+  # Empty plot
+  plot(data$Year, y_values,
+       type = "n",
+       xlab = "Year",
+       ylab = y_var)
+  
+  # ---- Site 117 ----
+  site1 <- data$site == "117"
+  points(data$Year[site1], y_values[site1],
+         col = "darkcyan", pch = 16, cex=1.25)
+  
+  lines(data$Year[site1][order(data$Year[site1])],
+        y_values[site1][order(data$Year[site1])],
+        col = "darkcyan",
+        lty = 2, lwd=3)
+  # Fit regression
+  fit1 <- lm(y_values[site1] ~ data$Year[site1])
+  abline(fit1, col = "cyan", lwd = 2.5, lty=3)
+  
+  # ---- Site 8892356 ----
+  site2 <- data$site == "8892356"
+  points(data$Year[site2], y_values[site2],
+         col = "darkred", pch = 16, cex=1.25)
+  
+  lines(data$Year[site2][order(data$Year[site2])],
+        y_values[site2][order(data$Year[site2])],
+        col = "darkred",
+        lty = 2, lwd=3)
+  fit2 <- lm(y_values[site2] ~ data$Year[site2])
+  abline(fit2, col = "coral2", lwd = 2.5, lty=3)
+  
+  
+  legend("topright",
+         legend = c("117", "8892356"),
+         col = c("darkcyan", "darkred"),
+         pch = 16,
+         lty = 2)
+}
+
+plot_centroid(all_centroids, "centroid_volume")
 
 
 
