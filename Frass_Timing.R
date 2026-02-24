@@ -392,7 +392,7 @@ biomass_plotting <- function(data, year_choice, site_choice) {
   
   abline(v = frass_centroid, col = "sienna", lty = 2, lwd = 2)
   
-    # RIGHT AXIS (INNER) — NOT TEMP BIOMASS (PURPLE)
+    # RIGHT AXIS (INNER) — NOT TEMP BIOMASS (blue)
   par(new = TRUE)
   
   plot(df$julianweek, df$meanBiomass,
@@ -444,7 +444,7 @@ biomass_plotting <- function(data, year_choice, site_choice) {
          bty = "n",
          cex = 0.8)
 }
-biomass_plotting(cats_tinbergen_biomass, 2021, 117)
+biomass_plotting(cats_tinbergen_biomass, 2022, 117)
 biomass_plotting(cats_tinbergen_biomass_cutoff, 2022, 8892356)
 
 
@@ -747,7 +747,18 @@ density_plotting <- function(data, year_choice, site_choice) {
 }
 density_plotting(cats_tinbergen_biomass_density, 2022, 117)
 
-### CHECK ALL PLOTS, COLORS MAY BE WRONG FOR GRAPHS, CHECK BACK TO ORIGINAL GRAPHS
+#doing centroid calculations for all densities--------------------------------
+all_centroids <- cats_tinbergen_biomass_density %>%
+  group_by(Year, site) %>%
+  summarise(centroid_frass = weighted.mean(jday, mass, na.rm = TRUE),
+            centroid_tempbiomass =weighted.mean(jday, Tin_biomass_density, na.rm = TRUE),
+            centroid_NOtempbiomass =weighted.mean(jday, biomass_density, na.rm = TRUE))%>%
+  mutate(diff_centroid = centroid_tempbiomass - centroid_NOtempbiomass) %>%
+  mutate(start_day = case_when(
+    site == 8892356 ~ 154,
+    site == 117 ~ 142)) %>%
+  mutate(bin = floor((centroid_frass - start_day) / 3) + 1)
+
 
 
 
