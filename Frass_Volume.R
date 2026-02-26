@@ -461,7 +461,7 @@ area_data <- output %>%
     Site = case_when(
       Site == "ncbg" ~ "Botanical Garden",
       Site == "pr" ~ "Prairie Ridge"),
-    Date.Collected = as.Date(Date.Collected, format = "%m/%d/%Y"),
+    Date.Collected = as.Date(Date.Collected),
     Year = as.integer(Year))
 
 #combined dataframes: only reliable measurments in there now
@@ -496,9 +496,9 @@ volume_all_data <- weekly_volume %>%
 volume_all_data_oneyear <- volume_all_data %>%
   filter(
    Year == 2022,
-   site == "117"
-  )
+   site == "117")
 
+#-------------------------------------------------------------------------------------------------
 #plotting volume and frass mass and volume on same plot
 plot_volume <- function(data, year, site) {
   
@@ -592,9 +592,58 @@ plot_volume <- function(data, year, site) {
   invisible(df)
 }
 
-#plot using filtered dataset (volume_all_data_oneyear or else it doesn't work? idk why...) 
+#plot using filtered dataset (filter volume_all_data_oneyear or else it doesn't work? idk why...) 
 plot_volume(volume_all_data_oneyear, year = 2022, site = 117)
 
+#save to pdf
+years_8892356 <- c(2021, 2022, 2023, 2024, 2025) #saving what years
+years_117     <- c(2021, 2022)
+#establish pdf
+pdf(
+  file = "Frass_volume_centroids.pdf",
+  width = 11,
+  height = 11)
+#adjust pdf:
+par(
+  mfrow = c(3, 2),
+  mar = c(4, 4, 3, 6),  
+  oma = c(0, 0, 2, 0))
+#NCBG:
+for (yr in years_8892356) {
+  
+  volume_one <- volume_all_data %>%
+    dplyr::filter(Year == yr, site == 8892356)
+  
+  if (nrow(volume_one) == 0) {
+    plot.new()
+    text(0.5, 0.5,
+         paste("No data for site 8892356 in", yr),
+         cex = 1.2)
+    next}
+  plot_volume(
+    data = volume_one,
+    year = yr,
+    site = 8892356)}
+#PR
+for (yr in years_117) {
+  
+  volume_one <- volume_all_data %>%
+    dplyr::filter(Year == yr, site == 117)
+  
+  if (nrow(volume_one) == 0) {
+    plot.new()
+    text(0.5, 0.5,
+         paste("No data for site 117 in", yr),
+         cex = 1.2)
+    next}
+  plot_volume(
+    data = volume_one,
+    year = yr,
+    site = 117)}
+dev.off()
+
+
+#------------------------------------------------------------------------------------------------
 #add biomass density:
 volume_all_data_density <- volume_all_data %>%
   mutate(Tin_biomass_density = Tin_biomass/(ifelse(Year <= 2018, 309.74, 197.71))) %>% #dividing by 209 for years 2018 and before, and 197 for years after
@@ -602,9 +651,11 @@ volume_all_data_density <- volume_all_data %>%
 #filter before using:
 volume_all_data_oneyear <- volume_all_data_density %>%
   filter(
-    Year == 2025,
+    Year == 2022,
     site == "8892356"
   )
+
+#------------------------------------------------------------------------------------------------------
 #plotting volume, frass density, and biomass density all on one graph 
 plot_all3 <- function(data, year, site) {
   
@@ -620,7 +671,7 @@ plot_all3 <- function(data, year, site) {
   # Clean separately
   df_den <- df[!is.na(df$density), ]
   df_vol <- df[!is.na(df$avg_volume_per_particle), ]
-  df_bio <- df[!is.na(df$Tin_biomass_density), ]
+  df_bio <- df[!is.na(df$biomass_density), ]
   
   # ---- Centroids ----
   density_centroid <- NA
@@ -642,10 +693,10 @@ plot_all3 <- function(data, year, site) {
   }
   
   biomass_centroid <- NA
-  if(sum(df_bio$Tin_biomass_density, na.rm = TRUE) > 0) {
+  if(sum(df_bio$biomass_density, na.rm = TRUE) > 0) {
     biomass_centroid <- weighted.mean(
       df_bio$julianweek,
-      df_bio$Tin_biomass_density,
+      df_bio$biomass_density,
       na.rm = TRUE
     )
   }
@@ -661,7 +712,7 @@ plot_all3 <- function(data, year, site) {
     col = "sienna",
     lwd = 2,
     xlab = "Julian Week",
-    ylab = "Density",
+    ylab = "Frass Mass Density",
     main = paste("Site:", site, "Year:", year)
   )
   
@@ -693,7 +744,7 @@ plot_all3 <- function(data, year, site) {
   par(new = TRUE)
   plot(
     df_bio$julianweek,
-    df_bio$Tin_biomass_density,
+    df_bio$biomass_density,
     type = "l",
     col = "forestgreen",
     lwd = 2,
@@ -703,7 +754,7 @@ plot_all3 <- function(data, year, site) {
   )
   
   axis(side = 4, line = 4)
-  mtext("Tin Biomass", side = 4, line = 6)
+  mtext("Actual Biomass Density", side = 4, line = 6)
   
   if(!is.na(biomass_centroid)) {
     abline(v = biomass_centroid, col = "forestgreen", lty = 2, lwd = 2)
@@ -716,7 +767,7 @@ plot_all3 <- function(data, year, site) {
       "Density centroid",
       "Volume",
       "Volume centroid",
-      "Tin Biomass Density",
+      "Actual Biomass Density",
       "Biomass centroid"
     ),
     col = c("sienna", "sienna", 
@@ -730,7 +781,9 @@ plot_all3 <- function(data, year, site) {
   invisible(df)
 }
 #plot all 3
-plot_all3(volume_all_data_oneyear, 2025, 8892356)
+plot_all3(volume_all_data_oneyear, 2022, 8892356)
+
+
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   getting centroid dates for different variables
@@ -761,6 +814,8 @@ all_centroids <- volume_all_data_density %>%
   mutate(bin_frass_density = floor((centroid_frass_density - start_day) / 3) + 1) %>%
   mutate(bin_tempbiomass_density = floor((centroid_tempbiomass_density - start_day) / 3) + 1) %>%
   mutate(bin_centroid_volume = floor((centroid_volume - start_day) / 3) + 1)
+
+
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   plotting year (x) centroid dates (y) for frass volume
