@@ -367,7 +367,7 @@ cats_tinbergen_biomass_cutoff <- cats_tinbergen_biomass %>%
       !(site %in% c(117, 8892356))
   )
 
-#plot all 3
+#plot all 3 function
 biomass_plotting <- function(data, year_choice, site_choice) {
   
   df <- data %>%
@@ -397,55 +397,124 @@ biomass_plotting <- function(data, year_choice, site_choice) {
   
   plot(df$julianweek, df$meanBiomass,
        type = "l",
-       col = "deepskyblue3",
+       col = "forestgreen",
        lwd = 2,
        axes = FALSE,
        xlab = "",
        ylab = "",
        ylim = range(df$meanBiomass, na.rm = TRUE))
   
-  axis(side = 4, col.axis = "deepskyblue3")  # inner right axis
-  mtext("Not Temp Corrected Biomass", side = 4, line = 2, col='deepskyblue3')
+  axis(side = 4, col.axis = "forestgreen")  # inner right axis
+  mtext("Actual Cat Biomass", side = 4, line = 2, col='forestgreen', cex=0.8)
   
-  abline(v = notemp_centroid, col = "deepskyblue3", lty = 2, lwd = 2)
+  abline(v = notemp_centroid, col = "forestgreen", lty = 2, lwd = 2)
   
   # RIGHT AXIS (OUTER) — TEMP BIOMASS (GREEN)
   par(new = TRUE)
   
   plot(df$julianweek, df$Tin_biomass,
        type = "l",
-       col = "forestgreen",
+       col = "deepskyblue3",
        lwd = 2,
        axes = FALSE,
        xlab = "",
        ylab = "",
        ylim = range(df$Tin_biomass, na.rm = TRUE))
   
-  axis(side = 4, line = 4, col = "forestgreen", col.axis = "forestgreen")
-  mtext("Temp Corrected Biomass",
+  axis(side = 4, line = 4, col = "deepskyblue3", col.axis = "deepskyblue3")
+  mtext("Predicted Cat Biomass",
         side = 4,
         line = 6,
-        col = "forestgreen")
+        col = "deepskyblue3", cex=0.8)
   
-  abline(v = temp_centroid, col = "forestgreen", lty = 2, lwd = 2)
+  abline(v = temp_centroid, col = "deepskyblue3", lty = 2, lwd = 2)
     # LEGEND
   legend("topleft",
          legend = c("Frass mass",
                     "Frass centroid",
-                    "Not temp biomass",
-                    "Not temp centroid",
-                    "Temp biomass",
-                    "Temp centroid"),
+                    "Actual cat biomass",
+                    "Actual centroid",
+                    "predicted biomass",
+                    "predicted centroid"),
          col = c("sienna","sienna",
-                 "deepskyblue3","deepskyblue3",
-                 "forestgreen","forestgreen"),
+                 "forestgreen","forestgreen",
+                 "deepskyblue3","deepskyblue3"),
          lwd = 2,
          lty = c(1,2,1,2,1,2),
          bty = "n",
-         cex = 0.8)
+         cex = 0.65)
 }
+
+#---------------------------------------------------------------------
 biomass_plotting(cats_tinbergen_biomass, 2022, 117)
+#SAVING TO A PDF
+#Years for each site
+years_NCBG <- c(2015, 2016, 2017, 2018, 2019, 2021, 2022,2023, 2024)
+years_PR   <- c(2015, 2018, 2019, 2021, 2022)
+setwd("C:/Z_School/HurlbertLab/graphs")
+#set pdf size
+pdf(file = "Biomass_plotting_all3.pdf",
+    width = 11,
+    height = 8)
+#set up how many plots per page
+par(mfrow = c(3, 2),     
+    mar = c(3, 4, 3, 4), 
+    oma = c(0, 0, 2, 0)) 
+#loop through all plots and years
+# NCBG plots
+for (yr in years_NCBG) {
+  try(
+    biomass_plotting(
+      data = cats_tinbergen_biomass,
+      year_choice = yr,
+      site_choice = 8892356
+    ),
+    silent = TRUE)}
+# PR plots
+for (yr in years_PR) {
+  try(
+    biomass_plotting(
+      data = cats_tinbergen_biomass,
+      year_choice = yr,
+      site_choice = 117
+    ),
+    silent = TRUE)}
+dev.off()
+#------------------------------------------------------------------------
 biomass_plotting(cats_tinbergen_biomass_cutoff, 2022, 8892356)
+#SAVING TO A PDF
+#Years for each site
+years_NCBG <- c(2015, 2016, 2017, 2018, 2019, 2021, 2022,2023, 2024)
+years_PR   <- c(2015, 2018, 2019, 2021, 2022)
+setwd("C:/Z_School/HurlbertLab/graphs")
+#set pdf size
+pdf(file = "Biomass_plotting_all3_CUTOFFS.pdf",
+    width = 11,
+    height = 8)
+#set up how many plots per page
+par(mfrow = c(3, 2),     
+    mar = c(3, 4, 3, 4), 
+    oma = c(0, 0, 2, 0)) 
+#loop through all plots and years
+# NCBG plots
+for (yr in years_NCBG) {
+  try(
+    biomass_plotting(
+      data = cats_tinbergen_biomass_cutoff,
+      year_choice = yr,
+      site_choice = 8892356
+    ),
+    silent = TRUE)}
+# PR plots
+for (yr in years_PR) {
+  try(
+    biomass_plotting(
+      data = cats_tinbergen_biomass_cutoff,
+      year_choice = yr,
+      site_choice = 117
+    ),
+    silent = TRUE)}
+dev.off()
 
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
@@ -464,7 +533,7 @@ plot_tinbergen <- function(data, year_choice, site_choice) {
   
   # ---- Weighted centroids ----
   mass_x_centroid <- weighted.mean(df$julianweek, df$mass, na.rm = TRUE)
-  biomass_x_centroid <- weighted.mean(df$julianweek, df$biomass, na.rm = TRUE)
+  biomass_x_centroid <- weighted.mean(df$julianweek, df$Tin_biomass, na.rm = TRUE)
   
   # ---- Plot ----
   par(mar = c(5, 4, 4, 4) + 0.1)
@@ -474,7 +543,7 @@ plot_tinbergen <- function(data, year_choice, site_choice) {
     df$julianweek,
     df$mass,
     type = "l",
-    col = "forestgreen",
+    col = "sienna",
     lwd = 2,
     xlab = "Julian week",
     ylab = "frass Mass",
@@ -482,15 +551,15 @@ plot_tinbergen <- function(data, year_choice, site_choice) {
   )
   
   # Weighted centroid for mass
-  abline(v = mass_x_centroid, col = "forestgreen", lty = 2, lwd = 2)
+  abline(v = mass_x_centroid, col = "sienna", lty = 2, lwd = 2)
   
   # Biomass line (right y-axis)
   par(new = TRUE)
   plot(
     df$julianweek,
-    df$biomass,
+    df$Tin_biomass,
     type = "l",
-    col = "sienna",
+    col = "forestgreen",
     lwd = 2,
     axes = FALSE,
     xlab = "",
@@ -501,7 +570,7 @@ plot_tinbergen <- function(data, year_choice, site_choice) {
   mtext("Tinbergen Biomass", side = 4, line = 2)
   
   # Weighted centroid for biomass
-  abline(v = biomass_x_centroid, col = "sienna", lty = 2, lwd = 2)
+  abline(v = biomass_x_centroid, col = "forestgreen", lty = 2, lwd = 2)
   
   # Legend
   legend(
@@ -512,7 +581,7 @@ plot_tinbergen <- function(data, year_choice, site_choice) {
       "Tinbergen biomass",
       "Biomass centroid"
     ),
-    col = c("forestgreen", "forestgreen", "sienna", "sienna"),
+    col = c("sienna", "sienna", "forestgreen", "forestgreen"),
     lwd = c(2, 2, 2, 2),
     lty = c(1, 2, 1, 2),
     bty = "n"
@@ -520,9 +589,41 @@ plot_tinbergen <- function(data, year_choice, site_choice) {
   
   invisible(df)
 }
-
+#example
 plot_tinbergen(Tinbergen_biomass, year_choice = 2019, site_choice = "8892356")
-
+#saving as a pdf------------------------
+# Years for each site
+years_NCBG <- c(2015, 2016, 2017, 2018, 2019, 2021, 2022,2023, 2024)
+years_PR   <- c(2015, 2018, 2019, 2021, 2022)
+setwd("C:/Z_School/HurlbertLab/graphs")
+#set pdf size
+pdf(file = "frass_vs_caterpillar_tinbergenbiomass_centorids.pdf",
+  width = 8,
+  height = 8)
+#set up how many plots per page
+par(mfrow = c(3, 2),     
+    mar = c(4, 4, 3, 4), 
+    oma = c(0, 0, 2, 0)) 
+#loop through all plots and years
+# NCBG plots
+for (yr in years_NCBG) {
+  try(
+    plot_tinbergen(
+      data = Tinbergen_biomass,
+      year_choice = yr,
+      site_choice = 8892356
+    ),
+    silent = TRUE)}
+# PR plots
+for (yr in years_PR) {
+  try(
+    plot_tinbergen(
+      data = Tinbergen_biomass,
+      year_choice = yr,
+      site_choice = 117
+    ),
+    silent = TRUE)}
+dev.off()
 
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
@@ -658,11 +759,10 @@ par(mfrow = c(3, 2),     # 3 rows, 2 columns
     mar = c(4, 4, 3, 4), # margins per plot
     oma = c(0, 0, 2, 0)) 
 #loop through all plots and years
-# NCBG plots
+  # NCBG plots
 for (yr in years_NCBG) {
   Plot_frass_catbiomass_centroid("NCBG", yr)}
-
-# PR plots
+  # PR plots
 for (yr in years_PR) {
   Plot_frass_catbiomass_centroid("PR", yr)
 }
