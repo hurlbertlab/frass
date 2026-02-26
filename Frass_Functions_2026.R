@@ -646,7 +646,7 @@ plot_frass_vs_catsmeanBiomass <- function(site, year,
     dat$julianweek,
     dat$frass_mass,
     type = "l",
-    col = "forestgreen",
+    col = "sienna",
     lwd = 2,
     xlab = "Julian week",
     ylab = "Frass mass"
@@ -658,7 +658,7 @@ plot_frass_vs_catsmeanBiomass <- function(site, year,
     dat$julianweek,
     dat$meanBiomass,
     type = "l",
-    col = "sienna",
+    col = "forestgreen",
     lwd = 2,
     axes = FALSE,
     xlab = "",
@@ -675,7 +675,7 @@ plot_frass_vs_catsmeanBiomass <- function(site, year,
   legend(
     "topleft",
     legend = c("Frass mass", "Mean cat biomass"),
-    col = c("forestgreen", "sienna"),
+    col = c("sienna", "forestgreen"),
     lwd = 1.5,
     cex =0.8,
     bty = "n"
@@ -684,8 +684,30 @@ plot_frass_vs_catsmeanBiomass <- function(site, year,
   invisible(dat)
 }
 plot_frass_vs_catsmeanBiomass("NCBG", 2015)
+# Years for each site
+years_NCBG <- c(2015, 2016, 2017, 2018, 2019, 2021, 2022,2023, 2024, 2025)
+years_PR   <- c(2015, 2018, 2019, 2021, 2022)
+setwd("C:/Z_School/HurlbertLab/graphs")
+#set pdf size
+pdf(
+  file = "frass_vs_caterpillar_biomass.pdf",
+  width = 8,
+  height = 8
+)
+#set up how many plots per page
+par(mfrow = c(3, 2),     # 3 rows, 2 columns
+    mar = c(4, 4, 3, 4), # margins per plot
+    oma = c(0, 0, 2, 0)) 
+#loop through all plots and years
+# NCBG plots
+for (yr in years_NCBG) {
+  plot_frass_vs_catsmeanBiomass("NCBG", yr)}
 
-
+# PR plots
+for (yr in years_PR) {
+  plot_frass_vs_catsmeanBiomass("PR", yr)
+}
+dev.off()
 #+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+
 #--------------------------------------------------------------------------------------------------------------------------------
 #Determining Normality and variance 
