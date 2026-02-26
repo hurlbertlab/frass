@@ -973,7 +973,7 @@ pdf(
 #layout for pdf
 par(
   mfrow = c(3, 2),
-  mar = c(4, 4, 3, 6),  # room for right axis
+  mar = c(4, 4, 3, 6),  
   oma = c(0, 0, 2, 0))
 #loops over each sites
 for (yr in years_NCBG) {
@@ -1067,6 +1067,72 @@ plot_centroid <- function(data, y_var) {
 plot_centroid(all_centroids, "centroid_frass_density")
 plot_centroid(all_centroids, "centroid_tempbiomass_density")
 plot_centroid(all_centroids, "centroid_NOtempbiomass_density")
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   centroid agreement scatter plot, frass mass density vs actual biomass densnity and predicted biomass
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+# remove rows with missing centroids
+df_plot <- all_centroids[complete.cases(
+  all_centroids[, c("centroid_frass_density",
+         "centroid_tempbiomass_density",
+         "centroid_NOtempbiomass_density")]), ]
+#color gradient
+yr_pal <- colorRampPalette(c("lightblue", "blue4"))
+year_levels <- sort(unique(df_plot$Year))
+year_cols <- yr_pal(length(year_levels))
+col_vals <- year_cols[match(df_plot$Year, year_levels)]
+#site symbols
+site_levels <- sort(unique(df_plot$site))
+site_pch <- c(16, 17)
+
+pch_vals <- site_pch[match(df_plot$site, site_levels)]
+#shared plot limits
+lims <- range(
+  c(df_plot$centroid_frass_density,
+    df_plot$centroid_tempbiomass_density,
+    df_plot$centroid_NOtempbiomass_density),
+  na.rm = TRUE)
+#plot frass vs caterpillar densities
+par(mfrow = c(1, 2), mar = c(5, 5, 4, 1))
+
+## --- Temp-corrected ---
+plot(df_plot$centroid_tempbiomass_density,
+     df_plot$centroid_frass_density,
+     xlim = lims,
+     ylim = lims,
+     pch = pch_vals,
+     col = col_vals,
+     xlab = "Predicted Caterpillar centroid",
+     ylab = "Frass centroid",
+     main = "Predicted Caterpillar Centroid")
+
+abline(0, 1, lty = 2, lwd = 2)
+#site legend
+legend("topleft",
+       legend = site_levels,
+       pch = site_pch,
+       title = "Site",
+       bty = "n")
+## --- Non temp-corrected ---
+plot(df_plot$centroid_NOtempbiomass_density,
+     df_plot$centroid_frass_density,
+     xlim = lims,
+     ylim = lims,
+     pch = pch_vals,
+     col = col_vals,
+     xlab = "Actual Caterpillar centroid",
+     ylab = "Frass centroid",
+     main = "Actual Caterpillar Centroid")
+
+abline(0, 1, lty = 2, lwd = 2)
+par(mfrow = c(1, 1))
+# year legend (gradient)
+legend("bottomright",
+       legend = c(min(df_plot$Year), max(df_plot$Year)),
+       col = yr_pal(2),
+       pch = 16,
+       title = "Year",
+       bty = "n")
+
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   testing if width / height of tinbergen biomass density AND non temp corrected peaks different significantly from year to year
