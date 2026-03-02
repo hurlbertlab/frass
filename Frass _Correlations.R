@@ -353,7 +353,7 @@ Tinbergen_biomass <- Temp_with_frass %>%
   mutate(Tin_biomass = mass * exp(3.8 - 0.10 * weeklytemp))
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
-#   Doing centroid comparisons on years (with corrected biomass, not corrected biomass, frass)
+#   combining caterpillar data with tinbergen data set so all in one df
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
 #create nontemp corrected biomass dataframe:
 cats_all <- bind_rows(cats_NCBG, cats_PR)
@@ -385,30 +385,84 @@ cats_tinbergen_biomass_density <- cats_tinbergen_biomass_cutoff %>%
 all_centroids <- cats_tinbergen_biomass_density %>%
   group_by(Year, site) %>%
   summarise(centroid_frass_density = weighted.mean(jday, density, na.rm = TRUE),
-            centroid_tempbiomass_density =weighted.mean(jday, Tin_biomass_density, na.rm = TRUE),
-            centroid_NOtempbiomass_density =weighted.mean(jday, biomass_density, na.rm = TRUE))%>%
-  mutate(diff_centroid = centroid_tempbiomass_density - centroid_NOtempbiomass_density) %>%
+            centroid_TinbergenBiomass_density =weighted.mean(jday, Tin_biomass_density, na.rm = TRUE),
+            centroid_ActualBiomass_density =weighted.mean(jday, biomass_density, na.rm = TRUE))%>%
+  mutate(diff_centroid = centroid_TinbergenBiomass_density - centroid_ActualBiomass_density) %>%
   mutate(start_day = case_when(
     site == 8892356 ~ 154,
     site == 117 ~ 142)) %>%
   mutate(bin_frass_density = floor((centroid_frass_density - start_day) / 3) + 1) %>%
-  mutate(bin_tempbiomass_density = floor((centroid_tempbiomass_density - start_day) / 3) + 1) %>%
-  mutate(bin_NOtempbiomass = floor((centroid_NOtempbiomass_density - start_day) / 3) + 1) 
+  mutate(bin_tinbergenbiomass_density = floor((centroid_TinbergenBiomass_density - start_day) / 3) + 1) %>%
+  mutate(bin_Actualbiomass = floor((centroid_ActualBiomass_density - start_day) / 3) + 1) 
 #Is centroid timing shifting earlier or later over time? Now the Year coefficient tells you: Positive slope → peak happening later. Negative slope → peak happening earlier
 #tinbergen biomass-------------------------
 all_centroids$Year_c <- all_centroids$Year - mean(all_centroids$Year) #center year so easier to interpret data
-model2 <- lm(centroid_tempbiomass_density ~ Year_c * factor(site),
+model1 <- lm(centroid_TinbergenBiomass_density ~ Year_c * factor(site),
              data = all_centroids)
-summary(model2) #centroid∼Yearc​×site
+summary(model1) #centroid∼Yearc​×site
 #frass density-------------------------------
 all_centroids$Year_c <- all_centroids$Year - mean(all_centroids$Year) #center year so easier to interpret data
 model2 <- lm(centroid_frass_density ~ Year_c * factor(site),
              data = all_centroids)
 summary(model2) #centroid∼Yearc​×site
 
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   correlation between frass density and actual biomass density at each site (looking at cutoffs)
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+#calculating spearmans
+spearmans <- function(dataset) {
+  dataset %>%
+    group_by(site, Year) %>%
+    filter(
+      n() >= 2,
+      !all(is.na(density)),
+      !all(is.na(biomass_density))) %>%
+    summarise(
+      rho = cor(density, biomass_density, method = "spearman"),
+      p_value = cor.test(density, biomass_density, method = "spearman")$p.value,
+      n = n(),
+      .groups = "drop")}
+spearmans_results <- spearmans(cats_tinbergen_biomass_density)
 
-
-
+#plot results, Here filled circles = p < 0.05, open circles = not significant
+plot(
+  NA,
+  xlim = range(spearmans_results$Year),
+  ylim = c(-1, 1),
+  xlab = "Year",
+  ylab = "Spearman's rho",
+  main = "Spearman Correlation Through Time"
+)
+abline(h = 0, lty = 2, col = "gray50")
+# 2. Define sites and colors
+sites <- unique(spearmans_results$site)
+cols <- c(
+  "117" = "lightblue4",
+  "8892356" = "darkred"
+)# 3. Loop over sites
+for (i in seq_along(sites)) {
+  
+  sub <- spearmans_results[spearmans_results$site == sites[i], ]
+  sub <- sub[order(sub$Year), ]  # important!
+  
+  lines(sub$Year, sub$rho, col = cols[i], lwd = 2)
+  
+  points(
+    sub$Year,
+    sub$rho,
+    col = cols[i],
+    pch = ifelse(sub$p_value < 0.05, 16, 1),
+    cex = 1.2)}
+# 4. Legend
+legend(
+  "topleft",
+  legend = sites,
+  col = cols,
+  lwd = 2,
+  pch = 16,
+  title = "Site",
+  bty = "n"
+)
 
 
 
