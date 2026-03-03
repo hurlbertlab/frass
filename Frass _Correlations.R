@@ -17,6 +17,8 @@ library(rstatix)
 library(tidyverse)
 library(jsonlite)
 library(daymetr)
+library(lme4)
+
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   Datasets needed:
@@ -407,7 +409,7 @@ model2 <- lm(centroid_frass_density ~ Year_c * factor(site),
 summary(model2) #centroid∼Yearc​×site
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
-#   correlation between frass density and actual biomass density at each site (looking at cutoffs)
+#   Plotting within sites: correlation between frass density and actual biomass density at each site (looking at cutoffs)
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
 #calculating spearmans
 spearmans <- function(dataset) {
@@ -463,6 +465,98 @@ legend(
   title = "Site",
   bty = "n"
 )
+#all years liner model data
+model1 <- lm(biomass_density ~ density + factor(Year) + factor(site),
+             data = cats_tinbergen_biomass_density)
+
+summary(model1)
+
+
+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   Plotting between sites: correlation between frass density and actual biomass between years that line up at NCBG and PR
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+#shared years
+shared_years <- c(2015, 2018, 2019, 2021, 2022)
+#single correlation across both sites & all shared years: one overall Spearman for those two sites during shared years:
+shared_data <- cats_tinbergen_biomass_density %>%
+  filter(
+    site %in% c(117, 8892356),
+    Year %in% shared_years)
+
+cor.test(
+  shared_data$density,
+  shared_data$biomass_density,
+  method = "spearman")
+
+##add year as fixed effect:
+shared_data <- cats_tinbergen_biomass_density %>%
+  filter(
+    site %in% c(117, 8892356),
+    Year %in% shared_years
+  )
+
+model1 <- lm(biomass_density ~ density + factor(Year) + factor(site),
+             data = shared_data)
+
+summary(model1)
+
+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   Plotting between sites: adding in temp and precipitation data
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+#modify AllTemp to include precipitation average up for the week 
+AllTemp_weekly_prcp <- AllTemp %>%
+  mutate(julianweek = 7 * floor(jday / 7) + 4) %>%
+  group_by(Year, site, julianweek) %>%
+  summarise(
+    weeklytemp = mean(avgtemp, na.rm = TRUE),
+    avg_prcp   = mean(prcp..mm.day., na.rm = TRUE),
+    .groups = "drop"
+  )
+#combined new precipation data to shared_data so has all weather stuff
+shared_data_new <- shared_data %>%
+  left_join(
+    AllTemp_weekly_prcp %>%
+      select(Year, site, julianweek, avg_prcp),
+    by = c("Year", "site", "julianweek"))
+#center data
+shared_data_new <- shared_data_new %>%
+  mutate(
+    density_c = scale(density, scale = FALSE),
+    prcp_c = scale(avg_prcp, scale = FALSE),
+    temp_c = scale(weeklytemp, scale = FALSE)
+  )
+##Add an actual climate variable---------------------------------------
+model_mixed <- lmer(biomass_density ~ density_c + prcp_c + temp_c +
+                      (1 | site) + (1 | Year),
+                    data = shared_data_new)
+summary(model_mixed)
+#plotting
+plot(fitted(model_mixed), resid(model_mixed))
+abline(h = 0, col = "red")
+#checking qqplots
+qqnorm(resid(model_mixed))
+qqline(resid(model_mixed)) #indicating right skewed as some large frass measurements are not captured by line
+ranef(model_mixed)
+
+#adding log transformation to account for skew ---------------------------------
+model_log <- lmer(
+  log(biomass_density) ~ density_c + prcp_c + temp_c +
+    (1 | site) + (1 | Year),
+  data = shared_data_new)
+summary(model_log)
+#plot
+plot(model_log)
+qqnorm(resid(model_log))
+qqline(resid(model_log))
+
+
+
+
+
+
+
 
 
 
