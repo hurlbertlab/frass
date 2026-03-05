@@ -1176,8 +1176,120 @@ legend("bottomright",
        pch = 16,
        title = "Year",
        bty = "n")
-#-----------------------------
 
+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   Put together a dataframe for site year and how many frass surveys and cat points for cutoff
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+#have meandensitybyweek aggregate caterpillar stuff by week for NCBG and keep jday
+cats_NCBG2 <- NCBG %>%
+  group_by(Year) %>%
+  group_split() %>%                 # split into a list, one dataframe per year
+  map_dfr(~ {
+    out <- meanDensityByWeek(
+      surveyData = .x,
+      ordersToInclude = "caterpillar",
+      allDates = TRUE
+    )
+    out$Year <- unique(.x$Year)      # add Year back
+    out%>%
+      left_join(.x %>% select(julianweek, julianday) %>% distinct(),
+                by = "julianweek") %>%
+      rename(jday=julianday)
+  })
+#have meandensitybyweek aggregate caterpillar stuff by week for PR and keep jday
+cats_PR2 <- PR %>%
+  group_by(Year) %>%
+  group_split() %>%                 # split into a list, one dataframe per year
+  map_dfr(~ {
+    out <- meanDensityByWeek(
+      surveyData = .x,
+      ordersToInclude = "caterpillar",
+      allDates = TRUE
+    )
+    out$Year <- unique(.x$Year)      # add Year back
+    out %>%
+      left_join(.x %>% select(julianweek, julianday) %>% distinct(),
+                by = "julianweek") %>%
+      rename(jday=julianday)
+  })
+##add site column for both
+cats_NCBG2 <- cats_NCBG2 %>%
+  mutate(site = 8892356)
+cats_PR2 <- cats_PR2 %>%
+  mutate(site=117)
+#combine data into one table and filter jdays
+cats_only <- bind_rows(cats_NCBG2, cats_PR2) %>%
+  filter(
+    (site == 117 & jday >= 142 & jday <= 200) |
+      (site == 8892356 & jday >= 154 & jday <= 198))
+#filter meanfrass_combinedweeks to have correct jdays
+meanfrass_filterdays <- meanfrass %>%
+  filter(
+    (site == 117 & jday >= 142 & jday <= 200) |
+      (site == 8892356 & jday >= 154 & jday <= 198))
+#create one data frame that examines whether caterpillar and frass surveys have same sampling days
+check_date_cats <- cats_only %>%
+  group_by(site, Year, jday) %>%
+  summarise(number_surveys_cats = n(), .groups = "drop") %>%
+  group_by(site, Year) %>%
+  summarise(number_surveys_cats = n(), .groups = "drop") 
+
+check_date_frass <- meanfrass_filterdays %>%
+  group_by(site, Year, jday) %>%
+  summarise(number_surveys_frass = n(), .groups = "drop") %>%
+  group_by(site, Year) %>%
+  summarise(number_surveys_frass = n(), .groups = "drop") 
+#both in one dataframe
+check_date <- check_date_cats %>%
+  mutate(site = as.character(site)) %>%
+  left_join(
+    check_date_frass %>% mutate(site = as.character(site)),
+    by = c("site", "Year"))
+
+#keep dates in dataframe so I can see where point missing-------------------------------------
+#alter meanfrass function so I can keep Date.Collected original column and left join it with frass eventually
+meanfrass_altered = data %>%
+  filter(!is.na(Frass.mass..mg.)) %>%
+  filter(OK == 1) %>%
+  mutate(site = as.character(ifelse(Site=="Botanical Garden", 8892356, 117))) %>%
+  group_by(site, Date.Collected, Year, jday) %>%
+  summarize(
+    mass = mean(frass.mg.d, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    trap_area_cm2 = ifelse(Year <= 2018, 309.74, 197.71),
+    density_mg_cm2 = mass / trap_area_cm2,
+    density_mg_m2 = density_mg_cm2 * 10000
+  ) %>%
+  left_join(events[, c('date', 'site', 'reliability')],
+            by = c('Date.Collected' = 'date', 'site' = 'site')) %>%
+  mutate(jday_collected = yday(Date.Collected))
+#filter meanfrass_combinedweeks to have correct jdays
+meanfrass_filterdays <- meanfrass_altered %>%
+  filter(
+    (site == 117 & jday >= 142 & jday <= 200) |
+      (site == 8892356 & jday >= 154 & jday <= 198))
+#count same site year jday combos
+date_cats <- cats_only %>%
+  group_by(site, Year, jday) %>%
+  summarise(number_surveys_cats = n(), .groups = "drop") 
+date_frass <- meanfrass_filterdays %>%
+  group_by(site, Year, jday_collected) %>%
+  summarise(number_surveys_frass = n(), .groups = "drop")%>%
+  rename(jday=jday_collected)
+#full join so we can see when frass and cat surveys were not completed
+date_frass_cats <- date_cats %>%
+  mutate(
+    site = as.character(site),
+    Year = as.integer(Year)) %>%
+  full_join(
+    date_frass %>%
+      mutate(
+        site = as.character(site),
+        Year = as.integer(Year)),
+    by = c("Year", "site", "jday"))
 
 
 

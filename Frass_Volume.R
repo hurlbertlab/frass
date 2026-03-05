@@ -2,6 +2,9 @@
 #Savannah Carter
 #R 4.4.2
 
+#set wd for graphs
+setwd("C:/Z_School/HurlbertLab/graphs")
+
 #libraries:
 library(stringr)
 library(tidyverse)
@@ -90,7 +93,7 @@ output$Date = as.Date(output$Date, format = "%Y-%m-%d")
 names(output)[names(output) == "Date"] <- "Date.Collected"
 #saving this as file on computer for later
 write.csv(output, file = "C:/Z_School/HurlbertLab/output.csv", row.names = FALSE)
-output <- read.csv("C:/Z_School/HurlbertLab/output.csv")
+#output <- read.csv("C:/Z_School/HurlbertLab/output.csv")
 
 
 #----------------------------------------------------------------------------------------
