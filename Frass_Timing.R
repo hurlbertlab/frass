@@ -1291,6 +1291,32 @@ date_frass_cats <- date_cats %>%
         Year = as.integer(Year)),
     by = c("Year", "site", "jday"))
 
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   Total season estimations for frass and biomass
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+cats_tinbergen_biomass_density
+
+#add up mass column and mean biomass in the same year
+season_totals <- cats_tinbergen_biomass_density %>%
+  group_by(site, Year) %>%
+  mutate(total_frass = sum(mass),
+         total_actualbiomass = sum(meanBiomass))%>%
+  select(site, Year, total_frass, total_actualbiomass)%>%
+  distinct()
+#total biomass seems super low since its been divided by survey.... idk what to do about that
+
+#divide the totals by the correct number of surveys and stuff from check_date 
+
+
+
+
+
+
+
+
+
+
+
 
 
 
