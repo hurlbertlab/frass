@@ -1135,4 +1135,52 @@ legend("bottomright",
        title = "Year",
        bty = "n")
 
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   Doing centroid anomolies
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+#calculate mean of frass and actual caterpillar biomass centroids
+mean_centroids <- all_centroids %>%
+  group_by(site)%>%
+  mutate(mean_frass =mean(centroid_frass_density),
+         mean_actualbiomass = mean(centroid_ActualBiomass_density))%>%
+  ungroup()%>%
+  mutate(
+         actualBiomass_diff = centroid_ActualBiomass_density - mean_actualbiomass,
+         frass_diff = centroid_frass_density - mean_frass) %>%
+  select(Year, site, centroid_frass_density, mean_frass, frass_diff, centroid_ActualBiomass_density, mean_actualbiomass, actualBiomass_diff)
+##plot on 1:1 line so we can see if same years come before and after---------------------------------
+shared_years <- c(2015, 2018, 2019, 2021, 2022)
+plot_data <- mean_centroids[mean_centroids$Year %in% shared_years, ]
+years <- sort(unique(plot_data$Year))
+cols <- colorRampPalette(c("red","goldenrod1", "springgreen3","dodgerblue", "purple"))(length(years)) #color ramp
+year_cols <- cols[match(plot_data$Year, years)]
+site_pch <- ifelse(plot_data$site == 117, 8, 17) #symbols
+#plot
+plot(plot_data$frass_diff,
+plot_data$actualBiomass_diff,
+col = year_cols,
+pch = site_pch,
+cex = 1.5,
+xlab = "Frass centroid difference",
+ylab = "Actual biomass centroid difference")
+abline(0, 1, lty = 2)   # 1:1 line
+#legend
+legend("topleft",
+       legend = c("117", "8892356"),
+       pch = c(17,8),
+       title = "Site",
+       bty = "n")
+legend("bottomright",
+       legend = years,
+       col = cols,
+       pch = 16,
+       title = "Year",
+       bty = "n")
+#-----------------------------
+
+
+
+
+
+
 
