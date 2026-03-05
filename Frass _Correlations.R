@@ -551,6 +551,81 @@ plot(model_log)
 qqnorm(resid(model_log))
 qqline(resid(model_log))
 
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   Put together a dataframe for site year and how many frass surveys and cat points for cutoff
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+#have meandensitybyweek aggregate caterpillar stuff by week for NCBG and keep jday
+cats_NCBG2 <- NCBG %>%
+  group_by(Year) %>%
+  group_split() %>%                 # split into a list, one dataframe per year
+  map_dfr(~ {
+    out <- meanDensityByWeek(
+      surveyData = .x,
+      ordersToInclude = "caterpillar",
+      allDates = TRUE
+    )
+    out$Year <- unique(.x$Year)      # add Year back
+    out%>%
+      left_join(.x %>% select(julianweek, julianday) %>% distinct(),
+                by = "julianweek") %>%
+      rename(jday=julianday)
+  })
+#have meandensitybyweek aggregate caterpillar stuff by week for PR and keep jday
+cats_PR2 <- PR %>%
+  group_by(Year) %>%
+  group_split() %>%                 # split into a list, one dataframe per year
+  map_dfr(~ {
+    out <- meanDensityByWeek(
+      surveyData = .x,
+      ordersToInclude = "caterpillar",
+      allDates = TRUE
+    )
+    out$Year <- unique(.x$Year)      # add Year back
+    out %>%
+      left_join(.x %>% select(julianweek, julianday) %>% distinct(),
+                by = "julianweek") %>%
+      rename(jday=julianday)
+  })
+##add site column for both
+cats_NCBG2 <- cats_NCBG2 %>%
+  mutate(site = 8892356)
+cats_PR2 <- cats_PR2 %>%
+  mutate(site=117)
+#combine data into one table and filter jdays
+cats_only <- bind_rows(cats_NCBG2, cats_PR2) %>%
+  filter(
+    (site == 117 & jday >= 142 & jday <= 200) |
+      (site == 8892356 & jday >= 154 & jday <= 198))
+#filter meanfrass_combinedweeks to have correct jdays
+meanfrass_filterdays <- meanfrass_combinedweeks %>%
+  filter(
+    (site == 117 & jday >= 142 & jday <= 200) |
+      (site == 8892356 & jday >= 154 & jday <= 198))
+#create one data frame that examines whether caterpillar and frass surveys have same sampling days
+check_date_cats <- cats_only %>%
+  group_by(site, Year, jday) %>%
+  summarise(number_surveys_cats = n(), .groups = "drop") %>%
+  group_by(site, Year) %>%
+  summarise(number_surveys_cats = n(), .groups = "drop") 
+
+check_date_frass <- meanfrass_filterdays %>%
+  group_by(site, Year, jday) %>%
+  summarise(number_surveys_frass = n(), .groups = "drop") %>%
+  group_by(site, Year) %>%
+  summarise(number_surveys_frass = n(), .groups = "drop") 
+
+check_date <- check_date_cats %>%
+  mutate(site = as.character(site)) %>%
+  left_join(
+    check_date_frass %>% mutate(site = as.character(site)),
+    by = c("site", "Year")
+  )
+
+
+
+
+
+
 
 
 
