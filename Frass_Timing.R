@@ -11,6 +11,7 @@ library(rstatix)
 library(tidyverse)
 library(jsonlite)
 library(daymetr)
+library(gridExtra)
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   Datasets needed:
@@ -1177,7 +1178,38 @@ legend("bottomright",
        title = "Year",
        bty = "n")
 #Plot anomaly of cat centroid at given year and site and anomaly of frass centroid at given year and given site and find r^2 and p value
+plot_site_correlation <- function(data, site_name){
+  
+  # Filter site
+  site_data <- data[data$site == site_name, ]
+  
+  # Spearman correlation
+  cor_test <- cor.test(site_data$centroid_frass_density,
+                       site_data$centroid_ActualBiomass_density,
+                       method = "spearman")
+  
+  rho <- cor_test$estimate
+  r2 <- rho^2
+  
+  # Scatter plot
+  plot(site_data$centroid_frass_density,
+       site_data$centroid_ActualBiomass_density,
+       pch = 19,
+       col = "black",
+       xlab = "Frass Density",
+       ylab = "Actual Biomass Density",
+       main = paste("Site:", site_name))
+  
+  # Add regression line
+  model <- lm(centroid_ActualBiomass_density ~ centroid_frass_density, data = site_data)
+  abline(model, col = "blue", lwd = 2)
+  
+  # Add Spearman R² text
+  legend("topleft",
+         legend = paste("Spearman R² =", round(r2, 3)),
+         bty = "n")}
 
+plot_site_correlation(mean_centroids, "117")
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   Put together a dataframe for site year and how many frass surveys and cat points for cutoff
@@ -1291,7 +1323,12 @@ date_frass_cats <- date_cats %>%
         site = as.character(site),
         Year = as.integer(Year)),
     by = c("Year", "site", "jday"))
-
+#save as pdf:
+pdf("Missing_dates.pdf", height = nrow(date_frass_cats) / 3) 
+# Draw the table
+grid.table(date_frass_cats)
+# Close the PDF device to save the file
+dev.off() 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   Total season estimations for frass and biomass
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
