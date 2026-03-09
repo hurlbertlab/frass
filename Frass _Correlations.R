@@ -426,6 +426,40 @@ spearmans <- function(dataset) {
       .groups = "drop")}
 spearmans_results <- spearmans(cats_tinbergen_biomass_density)
 
+#plot results for individual site
+plot_site_correlation <- function(data, site_name){
+    
+    # Filter site
+    site_data <- data[data$site == site_name, ]
+    
+    # Spearman correlation
+    cor_test <- cor.test(site_data$density,
+                         site_data$biomass_density,
+                         method = "spearman")
+    
+    rho <- cor_test$estimate
+    r2 <- rho^2
+    
+    # Scatter plot
+    plot(site_data$density,
+         site_data$biomass_density,
+         pch = 19,
+         col = "black",
+         xlab = "Density",
+         ylab = "Biomass Density",
+         main = paste("Site:", site_name))
+    
+    # Add regression line
+    model <- lm(biomass_density ~ density, data = site_data)
+    abline(model, col = "blue", lwd = 2)
+    
+    # Add Spearman R² text
+    legend("topleft",
+           legend = paste("Spearman R² =", round(r2, 3)),
+           bty = "n")}
+
+plot_site_correlation(cats_tinbergen_biomass_density, "8892356")
+  
 #plot results, Here filled circles = p < 0.05, open circles = not significant
 plot(
   NA,
