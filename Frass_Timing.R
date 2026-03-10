@@ -1543,12 +1543,151 @@ plot_seasonal_estimates <- function(data, site_name){
          lty=1,
          pch=1, cex=0.8)}
 plot_seasonal_estimates(season_totals_impute, 8892356)
-#calcualte julanweek and make line charts
 
-
-
-
-
+#calculate julanweek and collapse values that are in same week and make line charts
+imputation_totals_week <- imputation_totals %>%
+  mutate(julianweek = 7 * floor(jday / 7) + 4) %>%
+  group_by(site, Year, julianweek) %>%
+  summarise(
+    meanBiomass = mean(meanBiomass, na.rm = TRUE),
+    mass = mean(mass, na.rm = TRUE),
+    frass_density = mean(frass_density, na.rm = TRUE),
+    biomass_density = mean(biomass_density, na.rm = TRUE),
+    .groups = "drop")
+#plot on linecharts with centroid dates
+density_plotting_impute <- function(data, year_choice, site_choice) {
+  
+  df <- data %>%
+    filter(Year == year_choice, site == site_choice)
+  
+  if (nrow(df) == 0 ||
+      all(is.na(df$julianweek)) ||
+      all(is.na(df$frass_density))) {
+    
+    plot.new()
+    text(0.5, 0.5,
+         paste("No data for", site_choice, year_choice),
+         cex = 1.2)
+    return(invisible(NULL))
+  }
+  
+  ## ---- Centroids ----
+  frass_density_centroid <- weighted.mean(
+    df$julianweek, df$frass_density, na.rm = TRUE
+  )
+  
+  biomass_centroid <- weighted.mean(
+    df$julianweek, df$biomass_density, na.rm = TRUE
+  )
+  
+  ## ---- Plot ----
+  par(mar = c(5, 4, 4, 6))  # space for one right axis
+  
+  # LEFT AXIS — FRASS
+  plot(
+    df$julianweek, df$frass_density,
+    type = "l",
+    col = "sienna",
+    lwd = 2,
+    xlab = "Julian week",
+    ylab = "Frass density",
+    main = paste(site_choice, year_choice)
+  )
+  
+  if (is.finite(frass_density_centroid)) {
+    abline(v = frass_density_centroid, col = "sienna", lty = 2, lwd = 2)
+  }
+  
+  ## ---- RIGHT AXIS — BIOMASS (NOT TEMP CORRECTED) ----
+  par(new = TRUE)
+  
+  plot(
+    df$julianweek, df$biomass_density,
+    type = "l",
+    col = "forestgreen",
+    lwd = 2,
+    axes = FALSE,
+    xlab = "",
+    ylab = "",
+    ylim = range(df$biomass_density, na.rm = TRUE)
+  )
+  
+  axis(side = 4, col.axis = "forestgreen")
+  mtext("Actual Caterpillar Biomass Density",
+        side = 4, line = 2.0, col = "forestgreen", cex=0.8)
+  
+  if (is.finite(biomass_centroid)) {
+    abline(v = biomass_centroid, col = "forestgreen", lty = 2, lwd = 2)
+  }
+  
+  ## ---- Legend ----
+  legend(
+    "topleft",
+    legend = c(
+      "Frass Mass density",
+      "Frass centroid",
+      "Actual Caterpillar Biomass density",
+      "Biomass centroid"
+    ),
+    col = c(
+      "sienna", "sienna",
+      "forestgreen", "forestgreen"
+    ),
+    lwd = 2,
+    lty = c(1, 2, 1, 2),
+    bty = "n",
+    cex = 0.8
+  )
+  
+  invisible(df)
+}
+density_plotting_impute(imputation_totals_week, 2022, 117)
+#saving as a pdf------------------------ ^^^^^
+# Years for each site
+years_PR   <- c(2015, 2018, 2019, 2021, 2022)
+years_NCBG <- setdiff(2015:2025, 2020)   
+setwd("C:/Z_School/HurlbertLab/graphs")
+#set up pdf
+pdf(
+  file = "imputation_plotting.pdf",
+  width = 8,
+  height = 8)
+#layout for pdf
+par(
+  mfrow = c(3, 2),
+  mar = c(4, 4, 3, 6),  
+  oma = c(0, 0, 2, 0))
+#loops over each sites
+for (yr in years_NCBG) {
+  try(
+    density_plotting_impute(
+      data = imputation_totals_week,
+      year_choice = yr,
+      site_choice = 8892356  
+    ),
+    silent = TRUE)}
+for (yr in years_PR) {
+  try(
+    density_plotting_impute(
+      data = imputation_totals_week,
+      year_choice = yr,
+      site_choice = 117   
+    ),
+    silent = TRUE)}
+dev.off()
+#getting centroid dates for imputated values
+imputation_centroid <- imputation_totals_week %>%
+  group_by(site, Year) %>%
+  summarise(
+    frass_centroid =
+      sum(julianweek * frass_density, na.rm = TRUE) /
+      sum(frass_density, na.rm = TRUE),
+    
+    biomass_centroid =
+      sum(julianweek * biomass_density, na.rm = TRUE) /
+      sum(biomass_density, na.rm = TRUE),
+    
+    .groups = "drop")
 
 
 
