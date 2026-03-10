@@ -12,6 +12,7 @@ library(tidyverse)
 library(jsonlite)
 library(daymetr)
 library(gridExtra)
+library(zoo)
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   Datasets needed:
@@ -1337,8 +1338,8 @@ dev.off()
 #add up mass column and mean biomass in the same year
 season_totals <- cats_tinbergen_biomass_density %>%
   group_by(site, Year) %>%
-  mutate(total_frass = sum(mass),
-         total_actualbiomass = sum(meanBiomass))%>% #total biomass seems super low since its been divided by survey.... idk what to do about that
+  mutate(total_frass = sum(density),
+         total_actualbiomass = sum(biomass_density))%>% #total biomass seems super low since its been divided by survey.... idk what to do about that
   select(site, Year, total_frass, total_actualbiomass)%>%
   distinct()%>%
   left_join(check_date, by = c("Year", "site"))%>% #divide the totals by the correct number of surveys and stuff from check_date 
@@ -1372,11 +1373,11 @@ plot_seasonal_estimates <- function(data, site_name){
   axis(4)
   mtext("Biomass Density Totals", side=4, line=3)
   
-  legend("topright",
+  legend("topleft",
          legend=c("Frass","Biomass"),
          col=c("sienna","forestgreen"),
          lty=1,
-         pch=1)}
+         pch=1, cex=0.8)}
 plot_seasonal_estimates(season_totals, 8892356)
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
@@ -1396,13 +1397,34 @@ imputation_cats <- date_frass_cats %>%
   mutate(site = as.numeric(site)) %>%  # convert to numeric
   full_join(
     cats_only %>%
-      select(julianweek, site, Year, meanBiomass, jday),
+      select(site, Year, meanBiomass, jday),
     by = c("site", "Year", "jday")
   ) %>%
   select(-number_surveys_frass) %>%
   filter(
     (site == 117 & jday >= 142 & jday <= 200) |
       (site == 8892356 & jday >= 154 & jday <= 198))
+#fill in NA values using dates above and below it and add back in 2021 day 117 and 186 at 8892356
+#add in missing values
+rows_to_add <- tibble::tibble(
+  site = c(117, 8892356),
+  Year = c(2021, 2021),
+  jday = c(183, 186))
+#add rows in 
+imputation_cats <- imputation_cats %>%
+  # left_join to add missing rows with NA for meanBiomass
+  full_join(rows_to_add, by = c("site", "Year", "jday")) %>%
+  arrange(site, Year, jday)
+#make sure to sort!!!
+imputation_cats <- imputation_cats %>%
+  arrange(site, Year, jday)
+#fill missing NA values
+imputation_cats_filled <- imputation_cats %>%
+  group_by(site, Year) %>% 
+  mutate(
+    meanBiomass = na.approx(meanBiomass, x = jday, na.rm = FALSE, rule = 2)
+  ) %>%
+  ungroup()
 #frass---------------------------------------------------
 #change column names
 meanfrass_filterdays2 <-meanfrass_filterdays%>%
@@ -1430,18 +1452,100 @@ imputation_frass <- date_frass_cats %>%
   filter(
     (site == 117 & Year %in% c(2015, 2018, 2019, 2021, 2022)) |
       (site == 8892356 & Year %in% c(2015, 2016, 2017, 2018, 2019, 2021, 2022, 2023, 2024, 2025)))
- 
 
-season_totals2 <- cats_tinbergen_biomass_density %>%
+#fill in NA values using dates above and below it and add back in 2021 day 117 and 186 at 8892356
+#add in missing values
+rows_to_add <- tibble::tibble(
+  site = c(117, 8892356),
+  Year = c(2021, 2021),
+  jday = c(183, 186))
+#add rows in 
+imputation_frass <- imputation_frass %>%
+  # left_join to add missing rows with NA for meanBiomass
+  full_join(rows_to_add, by = c("site", "Year", "jday")) %>%
+  arrange(site, Year, jday)
+#make sure to sort!!!
+imputation_frass <- imputation_frass %>%
+  arrange(site, Year, jday)
+#fill missing NA values
+imputation_frass_filled <- imputation_frass %>%
   group_by(site, Year) %>%
-  mutate(total_frass = sum(mass),
-         total_actualbiomass = sum(meanBiomass))%>% #total biomass seems super low since its been divided by survey.... idk what to do about that
-  select(site, Year, total_frass, total_actualbiomass)%>%
-  distinct()
+  group_modify(~{
+    df <- .x
+    # only interpolate if there are at least 2 non-NA points
+    if(sum(!is.na(df$mass)) >= 2){
+      df$mass <- approx(x = df$jday[!is.na(df$mass)],
+                        y = df$mass[!is.na(df$mass)],
+                        xout = df$jday,
+                        rule = 2)$y}
+    df}) %>%
+  ungroup()
+#--------------------------------------------------------
+#join imputation for both, calculate density variables
+imputation_totals <- imputation_cats_filled %>%
+  full_join(imputation_frass_filled %>%
+              select(Year, site, jday, mass),
+            by = c("site", "Year", "jday")) %>%
+  filter(
+    (site == 117 & Year %in% c(2015, 2018, 2019, 2021, 2022)) |
+      (site == 8892356 & Year %in% c(2015, 2016, 2017, 2018, 2019, 2021, 2022, 2023, 2024, 2025)))%>%
+  select(-number_surveys_cats) %>%
+  mutate(biomass_density = meanBiomass/(ifelse(Year <= 2018, 309.74, 197.71))) %>% #dividing by 209 for years 2018 and before, and 197 for years after
+  mutate(frass_density = mass/ (ifelse(Year <= 2018, 309.74, 197.71)))
 
-cats_tinbergen_biomass_density <- cats_tinbergen_biomass_cutoff %>%
-  mutate(Tin_biomass_density = Tin_biomass/(ifelse(Year <= 2018, 309.74, 197.71))) %>% #dividing by 209 for years 2018 and before, and 197 for years after
-  mutate(biomass_density = meanBiomass/ (ifelse(Year <= 2018, 309.74, 197.71)))
+#now add up total surveys done for frass and cats per site per year
+check_impute_dates <- imputation_totals %>%
+  group_by(site, Year) %>%
+  summarise(
+    number_surveys_frass = sum(!is.na(frass_density)),
+    number_surveys_biomass = sum(!is.na(biomass_density)),
+    .groups = "drop") #WERE GOOD!!!
+#calculate seasonal totals by site year
+season_totals_impute <- imputation_totals %>%
+  group_by(site, Year) %>%
+  mutate(total_frass = sum(frass_density),
+         total_actualbiomass = sum(biomass_density))%>% #total biomass seems super low since its been divided by survey.... idk what to do about that
+  select(site, Year, total_frass, total_actualbiomass)%>%
+  distinct()%>%
+  left_join(check_impute_dates, by = c("Year", "site"))%>% #divide the totals by the correct number of surveys and stuff from check_date 
+  mutate(
+    total_frass_divided = total_frass/number_surveys_frass,
+    total_actualbiomass_divided = total_actualbiomass/number_surveys_biomass)
+#plot new estimations
+plot_seasonal_estimates <- function(data, site_name){
+  # Filter data for the chosen site
+  site_data <- data[data$site == site_name, ]
+  # First plot (left axis)
+  plot(site_data$Year,
+       site_data$total_frass_divided,
+       type="b",
+       col="sienna",
+       ylab="Frass Density Totals",
+       xlab="Year",
+       main=paste("Site:", site_name))
+  
+  # Allow second plot on same figure
+  par(new=TRUE)
+  # Second plot (right axis)
+  plot(site_data$Year,
+       site_data$total_actualbiomass_divided,
+       type="b",
+       col="forestgreen",
+       axes=FALSE,
+       xlab="",
+       ylab="")
+  axis(4)
+  mtext("Biomass Density Totals", side=4, line=3)
+  
+  legend("topleft",
+         legend=c("Frass","Biomass"),
+         col=c("sienna","forestgreen"),
+         lty=1,
+         pch=1, cex=0.8)}
+plot_seasonal_estimates(season_totals_impute, 8892356)
+#calcualte julanweek and make line charts
+
+
 
 
 
