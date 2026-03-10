@@ -1329,31 +1329,119 @@ pdf("Missing_dates.pdf", height = nrow(date_frass_cats) / 3)
 grid.table(date_frass_cats)
 # Close the PDF device to save the file
 dev.off() 
+
+
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   Total season estimations for frass and biomass
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
-cats_tinbergen_biomass_density
-
 #add up mass column and mean biomass in the same year
 season_totals <- cats_tinbergen_biomass_density %>%
   group_by(site, Year) %>%
   mutate(total_frass = sum(mass),
-         total_actualbiomass = sum(meanBiomass))%>%
+         total_actualbiomass = sum(meanBiomass))%>% #total biomass seems super low since its been divided by survey.... idk what to do about that
+  select(site, Year, total_frass, total_actualbiomass)%>%
+  distinct()%>%
+  left_join(check_date, by = c("Year", "site"))%>% #divide the totals by the correct number of surveys and stuff from check_date 
+  mutate(
+    total_frass_divided = total_frass/number_surveys_frass,
+    total_actualbiomass_divided = total_actualbiomass/number_surveys_cats)
+#plot total estimations for frass and biomass across years
+par(mar = c(5, 4, 4, 5))   # increase right margin
+plot_seasonal_estimates <- function(data, site_name){
+  # Filter data for the chosen site
+  site_data <- data[data$site == site_name, ]
+  # First plot (left axis)
+  plot(site_data$Year,
+       site_data$total_frass_divided,
+       type="b",
+       col="sienna",
+       ylab="Frass Density Totals",
+       xlab="Year",
+       main=paste("Site:", site_name))
+  
+  # Allow second plot on same figure
+  par(new=TRUE)
+  # Second plot (right axis)
+  plot(site_data$Year,
+       site_data$total_actualbiomass_divided,
+       type="b",
+       col="forestgreen",
+       axes=FALSE,
+       xlab="",
+       ylab="")
+  axis(4)
+  mtext("Biomass Density Totals", side=4, line=3)
+  
+  legend("topright",
+         legend=c("Frass","Biomass"),
+         col=c("sienna","forestgreen"),
+         lty=1,
+         pch=1)}
+plot_seasonal_estimates(season_totals, 8892356)
+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   doing imputation to fill in missing date data
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+#filter dates so only cutoff and wanted years left
+date_frass_cats_filtered <- date_frass_cats %>%
+  filter(
+    (site == 117 & Year %in% c(2015, 2018, 2019, 2021, 2022)) |
+      (site == 8892356 & Year %in% c(2015, 2016, 2017, 2018, 2019, 2021, 2022, 2023, 2024, 2025)))%>%
+  filter(
+    (site == 117 & jday >= 142 & jday <= 200) |
+      (site == 8892356 & jday >= 154 & jday <= 198))
+#need full sheet of cat data with right days and full sheet of frass with right days, join them and then left join with date_frasscatsfiltered and thenuse avg of points on either side of missing ones and create estimates, then avg by juliann week and new values
+#cats:----------------------------------------------
+imputation_cats <- date_frass_cats %>%
+  mutate(site = as.numeric(site)) %>%  # convert to numeric
+  full_join(
+    cats_only %>%
+      select(julianweek, site, Year, meanBiomass, jday),
+    by = c("site", "Year", "jday")
+  ) %>%
+  select(-number_surveys_frass) %>%
+  filter(
+    (site == 117 & jday >= 142 & jday <= 200) |
+      (site == 8892356 & jday >= 154 & jday <= 198))
+#frass---------------------------------------------------
+#change column names
+meanfrass_filterdays2 <-meanfrass_filterdays%>%
+  select(-jday)%>%
+  rename(jday = jday_collected)
+#now join
+imputation_frass <- date_frass_cats %>%
+  mutate(
+    site = as.numeric(site),
+    Year = as.numeric(Year)
+  ) %>%
+  full_join(
+    meanfrass_filterdays2 %>%
+      mutate(
+        site = as.numeric(site),
+        Year = as.numeric(Year)
+      ) %>%
+      select(site, Year, mass, jday, density_mg_cm2),
+    by = c("site", "Year", "jday")
+  ) %>%
+  select(-number_surveys_cats) %>%
+  filter(
+    (site == 117 & jday >= 142 & jday <= 200) |
+      (site == 8892356 & jday >= 154 & jday <= 198))%>%
+  filter(
+    (site == 117 & Year %in% c(2015, 2018, 2019, 2021, 2022)) |
+      (site == 8892356 & Year %in% c(2015, 2016, 2017, 2018, 2019, 2021, 2022, 2023, 2024, 2025)))
+ 
+
+season_totals2 <- cats_tinbergen_biomass_density %>%
+  group_by(site, Year) %>%
+  mutate(total_frass = sum(mass),
+         total_actualbiomass = sum(meanBiomass))%>% #total biomass seems super low since its been divided by survey.... idk what to do about that
   select(site, Year, total_frass, total_actualbiomass)%>%
   distinct()
-#total biomass seems super low since its been divided by survey.... idk what to do about that
 
-#divide the totals by the correct number of surveys and stuff from check_date 
-
-
-
-
-
-
-
-
-
-
+cats_tinbergen_biomass_density <- cats_tinbergen_biomass_cutoff %>%
+  mutate(Tin_biomass_density = Tin_biomass/(ifelse(Year <= 2018, 309.74, 197.71))) %>% #dividing by 209 for years 2018 and before, and 197 for years after
+  mutate(biomass_density = meanBiomass/ (ifelse(Year <= 2018, 309.74, 197.71)))
 
 
 
