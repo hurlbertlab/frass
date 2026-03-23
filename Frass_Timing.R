@@ -1218,14 +1218,14 @@ plot_site_correlation(mean_centroids, "117")
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
 #filter dates so only cutoff and wanted years left
 ##add site column for both and rename column
-cats_NCBG3 <- NCBG %>%
+NCBG_names <- NCBG %>%
   mutate(site = 8892356)%>%
-  rename(jday = julianday)
-cats_PR3 <- PR %>%
+  mutate(jday = julianday)
+PR_names <- PR %>%
   mutate(site=117)%>%
-  rename(jday = julianday)
+  mutate(jday = julianday)
 #combine data into one table and filter jdays
-cats_only <- bind_rows(cats_NCBG3, cats_PR3) %>%
+all_surveys <- bind_rows(NCBG_names, PR_names) %>%
   filter(
     (site == 117 & jday >= 142 & jday <= 200) |
       (site == 8892356 & jday >= 154 & jday <= 198))
@@ -1235,7 +1235,7 @@ meanfrass_filterdays <- meanfrass %>%
     (site == 117 & jday >= 142 & jday <= 200) |
       (site == 8892356 & jday >= 154 & jday <= 198))
 #create one data frame that examines whether caterpillar and frass surveys have same sampling days
-check_date_cats <- cats_only %>%
+check_date_cats <- all_surveys %>%
   group_by(site, Year, jday) %>%
   summarise(number_surveys_bugs = n(), .groups = "drop") %>%
   group_by(site, Year) %>%
@@ -1278,7 +1278,7 @@ meanfrass_filterdays <- meanfrass_altered %>%
     (site == 117 & jday >= 142 & jday <= 200) |
       (site == 8892356 & jday >= 154 & jday <= 198))
 #count same site year jday combos
-date_cats <- cats_only %>%
+date_bugs <- all_surveys %>%
   group_by(site, Year, jday) %>%
   summarise(number_surveys_bugs = n(), .groups = "drop") 
 date_frass <- meanfrass_filterdays %>%
@@ -1286,7 +1286,7 @@ date_frass <- meanfrass_filterdays %>%
   summarise(number_surveys_frass = n(), .groups = "drop")%>%
   rename(jday=jday_collected)
 #full join so we can see when frass and cat surveys were not completed
-date_frass_cats <- date_cats %>%
+date_frass_bugs <- date_bugs %>%
   mutate(
     site = as.character(site),
     Year = as.integer(Year)) %>%
@@ -1309,7 +1309,7 @@ dev.off()
 #   doing imputation to fill in missing date data
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
 #filter dates so only cutoff and wanted years left
-date_frass_cats_filtered <- date_frass_cats %>%
+date_frass_bugs_filtered <- date_frass_bugs %>%
   filter(
     (site == 117 & Year %in% c(2015, 2018, 2019, 2021, 2022)) |
       (site == 8892356 & Year %in% c(2015, 2016, 2017, 2018, 2019, 2021, 2022, 2023, 2024, 2025)))%>%
@@ -1318,12 +1318,12 @@ date_frass_cats_filtered <- date_frass_cats %>%
       (site == 8892356 & jday >= 154 & jday <= 198))
 #need full sheet of cat data with right days and full sheet of frass with right days, join them and then left join with date_frasscatsfiltered and then use avg of points on either side of missing ones and create estimates, then avg by juliann week and new values
 
-#have meandensitybyweek aggregate caterpillar stuff by week for PR
-cats_PR <- PR %>%
-  group_by(Year) %>%
+#have meandensitybyweek aggregate caterpillar stuff by week for both ncbg and pr
+cats_only <- all_surveys %>%
+  group_by(Year, site) %>%
   group_split() %>%                 # split into a list, one dataframe per year
   map_dfr(~ {
-    out <- meanDensityByWeek(
+    out <- meanDensityByWeek(  
       surveyData = .x,
       ordersToInclude = "caterpillar",
       allDates = TRUE
@@ -1335,7 +1335,7 @@ cats_PR <- PR %>%
 
 
 #cats----------------------------------------------
-imputation_cats <- date_frass_cats %>%
+imputation_cats <- date_frass_bugs %>%
   mutate(site = as.numeric(site)) %>%  # convert to numeric
   full_join(
     cats_only %>%
