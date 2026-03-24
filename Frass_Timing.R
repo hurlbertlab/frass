@@ -1318,29 +1318,32 @@ date_frass_bugs_filtered <- date_frass_bugs %>%
       (site == 8892356 & jday >= 154 & jday <= 198))
 #need full sheet of cat data with right days and full sheet of frass with right days, join them and then left join with date_frasscatsfiltered and then use avg of points on either side of missing ones and create estimates, then avg by juliann week and new values
 
+#cats----------------------------------------------
+#add julian week column to date_frass_bugs so can left join with caterpillar data
+date_frass_bugs_filtered <- date_frass_bugs_filtered%>%
+  mutate(julianweek = 7*floor(jday/7) + 4)
 #have meandensitybyweek aggregate caterpillar stuff by week for both ncbg and pr
 cats_only <- all_surveys %>%
   group_by(Year, site) %>%
-  group_split() %>%                 # split into a list, one dataframe per year
+  group_split() %>%
   map_dfr(~ {
     out <- meanDensityByWeek(  
       surveyData = .x,
       ordersToInclude = "caterpillar",
       allDates = TRUE
     )
-    out$Year <- unique(.x$Year)      # add Year back
+    out$Year <- unique(.x$Year)   # keep year
+    out$site <- unique(.x$site)   # keep site
     out
   })
 
-
-
-#cats----------------------------------------------
-imputation_cats <- date_frass_bugs %>%
+#join date_frass_bugs and cats only so we can see what dates missing
+imputation_cats <- date_frass_bugs_filtered %>%
   mutate(site = as.numeric(site)) %>%  # convert to numeric
-  full_join(
+  full_join( #full join so dont miss any dates
     cats_only %>%
-      select(site, Year, meanBiomass, jday),
-    by = c("site", "Year", "jday")
+      select(site, Year, meanBiomass, julianweek),
+    by = c("site", "Year", "julianweek")
   ) %>%
   select(-number_surveys_frass) %>%
   filter(
@@ -1364,8 +1367,10 @@ imputation_cats <- imputation_cats %>%
 imputation_cats_filled <- imputation_cats %>%
   group_by(site, Year) %>% 
   mutate(
-    meanBiomass = na.approx(meanBiomass, x = jday, na.rm = FALSE, rule = 2)
-  ) %>%
+    meanBiomass = if_else(
+      is.na(number_surveys_bugs), #does imputation if surveys column is NA
+      na.approx(meanBiomass, x = jday, na.rm = FALSE, rule = 2),
+      meanBiomass)) %>%
   ungroup()
 #frass---------------------------------------------------
 #change column names
@@ -1423,7 +1428,7 @@ imputation_frass_filled <- imputation_frass %>%
     df}) %>%
   ungroup()
 #--------------------------------------------------------
-#join imputation for both, calculate density variables
+#join imputation for both, calculate frass and biomass per unit area variables
 imputation_totals <- imputation_cats_filled %>%
   full_join(imputation_frass_filled %>%
               select(Year, site, jday, mass),
@@ -1442,6 +1447,11 @@ check_impute_dates <- imputation_totals %>%
     number_surveys_frass = sum(!is.na(frass_density)),
     number_surveys_biomass = sum(!is.na(biomass_density)),
     .groups = "drop") #WERE GOOD!!!
+
+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   Total season estimations for frass and biomass for imputated data
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
 #calculate seasonal totals by site year
 season_totals_impute <- imputation_totals %>%
   group_by(site, Year) %>%
@@ -1483,7 +1493,7 @@ plot_seasonal_estimates <- function(data, site_name){
          legend=c("Frass","Biomass"),
          col=c("sienna","forestgreen"),
          lty=1,
-         pch=1, cex=0.8)}
+         pch=1, cex=0.6)}
 plot_seasonal_estimates(season_totals_impute, 8892356)
 
 #calculate julanweek and collapse values that are in same week and make line charts
@@ -1632,7 +1642,7 @@ imputation_centroid <- imputation_totals_week %>%
     .groups = "drop")
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
-#   Total season estimations for frass and biomass
+#   Total season estimations for frass and biomass for non imputated data
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
 #add up mass column and mean biomass in the same year
 season_totals <- cats_tinbergen_biomass_density %>%
