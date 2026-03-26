@@ -62,6 +62,33 @@ TempAnomalyData_clean <- lapply(TempAnomaly, function(x) {
 
 AllTemp= bind_rows(TempAnomalyData_clean) #this is the file we want (has all NCBG and PR data)
 
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   adding up wet leaf vs dry leaf totals for each arthropod group (all sites merged and all years merged)
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+raw_totals <- fullDataset %>%
+  group_by(Group) %>% #fixed group with inaturalists?
+  summarise(
+    sum_all_dry = sum(WetLeaves == 0),
+    sum_all_wet = sum(WetLeaves == 1))
+
+raw_totals2 <- fullDataset %>%
+  group_by(OriginalGroup) %>% #original bug group
+  summarise(
+    sum_all_dry2 = sum(WetLeaves == 0),
+    sum_all_wet2 = sum(WetLeaves == 1))
+raw_totals <- left_join(raw_totals, raw_totals2, by = c("Group" = "OriginalGroup"))
+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   adding up wet leaf vs dry leaf totals for each arthropod group by site (NCBG and PR) and year
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+leaf_data_ncbg_pr <- fullDataset %>%
+  filter(Name %in% c("NC Botanical Garden", "Prairie Ridge Ecostation"))
+
+
+
+
+
+
 
 
 
