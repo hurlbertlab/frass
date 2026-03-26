@@ -348,6 +348,81 @@ Temp_with_frass <- meanfrass_combinedweeks %>%
 Tinbergen_biomass <- Temp_with_frass %>%
   mutate(Tin_biomass = mass * exp(3.8 - 0.10 * weeklytemp))
 
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   making temperature graphs for each year of weekly average temp to help explain drops in total frass/biomass abundance
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+plotting_temp_yearly <- function(data, year_choice, site_choice) { 
+  # ---- Filter by year and site ----
+  df <- data %>%
+    filter(Year == year_choice, site == site_choice)
+  
+  if(nrow(df) == 0) {
+    stop("No data for the specified year and site.")
+  }
+  
+  # ---- Plot ----
+  par(mar = c(5, 4, 4, 4))
+  
+  plot(
+    df$julianweek,
+    df$weeklytemp,
+    type = "l",
+    col = "cornflowerblue",
+    lwd = 2,
+    xlab = "Julian week",
+    ylab = "Weekly average temp",
+    main = paste(site_choice, year_choice))
+  #add lines at start and end of smapling period for each site
+  if(site_choice == 117) {
+    abline(v = c(142, 200), lty = 5, col="darkred")
+  }
+  if(site_choice == 8892356){
+    abline(v = c(154, 198), lty = 5, col="darkred")
+  }
+  
+  legend(
+    "topleft",
+    legend = c("weekly temp"),
+    col = c("cornflowerblue"),
+    lwd = 2,
+    lty = 1,
+    bty = "n"
+  )
+  invisible(df)}
+plotting_temp_yearly(AllTemp_weekly, 2016, 8892356)
+#SAVING TO A PDF-------------------------------
+#Years for each site
+years_NCBG <- c(2015, 2016, 2017, 2018, 2019, 2021, 2022,2023, 2024)
+years_PR   <- c(2015, 2018, 2019, 2021, 2022)
+setwd("C:/Z_School/HurlbertLab/graphs")
+#set pdf size
+pdf(file = "plotting_temp.pdf",
+    width = 11,
+    height = 12)
+#set up how many plots per page
+par(mfrow = c(3, 2),     
+    mar = c(3, 4, 3, 4), 
+    oma = c(0, 0, 2, 0)) 
+#loop through all plots and years
+# NCBG plots
+# NCBG plots
+for (yr in years_NCBG) {
+  try(
+    plotting_temp_yearly(
+      data = AllTemp_weekly,
+      year_choice = yr,        # was years_NCBG, should be yr
+      site_choice = 8892356),
+    silent = TRUE)}
+# PR plots
+for (yr in years_PR) {
+  try(
+    plotting_temp_yearly(
+      data = AllTemp_weekly,
+      year_choice = yr,        # was years_PR, should be yr
+      site_choice = 117),
+    silent = TRUE)}
+dev.off()
+
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   Doing centroid comparisons on years (with corrected biomass, not corrected biomass, frass)
@@ -1689,13 +1764,92 @@ dev.off()
 imputation_centroid <- imputation_totals_week %>%
   group_by(site, Year) %>%
   summarise(
-    frass_centroid =
+    frass_centroid_D =
       sum(julianweek * frass_density, na.rm = TRUE) /
       sum(frass_density, na.rm = TRUE),
     
-    biomass_centroid =
+    biomass_centroid_D =
       sum(julianweek * biomass_density, na.rm = TRUE) /
       sum(biomass_density, na.rm = TRUE),
     
     .groups = "drop")
+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   Re-Doing centroid anomolies on new imputation data
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+#calculate mean of frass and actual caterpillar biomass centroids
+mean_imputation_centroids <- imputation_centroid %>%
+  group_by(site)%>%
+  mutate(mean_frass =mean(frass_centroid_D),
+         mean_actualbiomass = mean(biomass_centroid_D))%>%
+  ungroup()%>%
+  mutate(
+    actualBiomass_diff = biomass_centroid_D - mean_actualbiomass,
+    frass_diff = frass_centroid_D - mean_frass) %>%
+  select(Year, site, frass_centroid_D, mean_frass, frass_diff, biomass_centroid_D, mean_actualbiomass, actualBiomass_diff)
+##plot on 1:1 line so we can see if same years come before and after---------------------------------
+shared_years <- c(2015, 2018, 2019, 2021, 2022)
+plot_data <- mean_imputation_centroids[mean_imputation_centroids$Year %in% shared_years, ]
+years <- sort(unique(plot_data$Year))
+cols <- colorRampPalette(c("red","goldenrod1", "springgreen3","dodgerblue", "purple"))(length(years)) #color ramp
+year_cols <- cols[match(plot_data$Year, years)]
+site_pch <- ifelse(plot_data$site == 117, 8, 17) #symbols
+#plot
+plot(plot_data$frass_diff,
+     plot_data$actualBiomass_diff,
+     col = year_cols,
+     pch = site_pch,
+     cex = 1.5,
+     xlab = "Frass centroid difference",
+     ylab = "Actual biomass centroid difference")
+abline(h = 0, lty = 2)  # horizontal line at y = 0
+abline(v = 0, lty = 2)  # vertical line at x = 0
+#legend
+legend("topleft",
+       legend = c("117", "8892356"),
+       pch = c(17,8),
+       title = "Site",
+       bty = "n")
+legend("bottomright",
+       legend = years,
+       col = cols,
+       pch = 16,
+       title = "Year",
+       bty = "n")
+#Plot anomaly of cat centroid at given year and site and anomaly of frass centroid at given year and given site and find r^2 and p value
+plot_site_correlation <- function(data, site_name){
+  
+  # Filter site
+  site_data <- data[data$site == site_name, ]
+  
+  # Spearman correlation
+  cor_test <- cor.test(site_data$frass_centroid_D,
+                       site_data$biomass_centroid_D,
+                       method = "spearman")
+  
+  rho <- cor_test$estimate
+  r2 <- rho^2
+  
+  # Scatter plot
+  plot(site_data$frass_centroid_D,
+       site_data$biomass_centroid_D,
+       pch = 19,
+       col = "black",
+       xlab = "Frass Density",
+       ylab = "Actual Biomass Density",
+       main = paste("Site:", site_name))
+  
+  # Add regression line
+  model <- lm(biomass_centroid_D ~ frass_centroid_D, data = site_data)
+  abline(model, col = "blue", lwd = 2)
+  
+  # Add Spearman R² text
+  legend("topleft",
+         legend = paste("Spearman rho =", round(rho, 3)),
+         bty = "n")}
+
+plot_site_correlation(mean_imputation_centroids, "117")
+
+
+
 
