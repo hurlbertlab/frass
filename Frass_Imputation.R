@@ -392,10 +392,29 @@ cats_PR_day <- PR %>%
   })%>%
   mutate(site=117) %>%
   mutate(julianweek = 7 * floor(julianday / 7) + 4) #add in julian week
+#combine into one dataframe
+cats_all_days <- rbind(cats_NCBG_day, cats_PR_day)
+cats_all_days <- cats_all_days %>% #change name so can join
+  rename(jday=julianday)
 
 #change date in meanfrass to be real jday not calculated jday from data code
 meanfrass_day <- meanfrass %>%
-  mutate(jday = date)
+  mutate(julianweek = 7 * floor(jday / 7) + 4)%>%
+  mutate(jday = yday(date))
 
+#combine into one df
+all_data_imputation <- cats_all_days %>%
+  mutate(site = as.character(site),
+         Year = as.integer(Year)) %>%
+  full_join(meanfrass_day %>% mutate(Year = as.integer(Year), #make sure the same type 
+                                     site = as.character(site)),
+            by = c("julianweek", "Year", "site", "jday"))
 
+#now filter by right years and dates
+all_data_imputation <- all_data_imputation %>%
+  filter(
+    (site == 117 & Year %in% c(2015, 2018, 2019, 2021, 2022) & julianweek %in% 142:200) |
+      (site == 8892356 & Year %in% c(2015:2019, 2021:2025) & julianweek %in% 154:198)
+  ) #ok kinda shows weeks where no frass data compared to CC but doesnt address issues of individual days where no data
+#reorder 
 
