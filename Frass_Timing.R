@@ -1415,7 +1415,7 @@ imputation_cats_filled <- imputation_cats %>%
   group_by(site, Year) %>% 
   arrange(jday, .by_group = TRUE) %>%
   mutate(
-    original_meanBiomass = meanBiomass,  # 👈 save original
+    original_meanBiomass = meanBiomass,  # save original
     
     meanBiomass = if_else(is.na(number_surveys_bugs2), NA_real_, meanBiomass),
     meanBiomass = na.approx(meanBiomass, x = jday, na.rm = FALSE, rule = 2, maxgap=2),

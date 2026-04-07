@@ -359,6 +359,7 @@ all_data <- all_data %>%
       (site == 8892356 & Year %in% c(2015:2019, 2021:2025) & julianweek %in% 154:198)
   ) #ok kinda shows weeks where no frass data compared to CC but doesnt address issues of individual days where no data
 
+
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   trying to do imputation by jday
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
@@ -399,13 +400,13 @@ cats_all_days <- cats_all_days %>% #change name so can join
 
 #change date in meanfrass to be real jday not calculated jday from data code
 meanfrass_day <- meanfrass %>%
-  mutate(julianweek = 7 * floor(jday / 7) + 4)%>%
-  mutate(jday = yday(date))
+  mutate(jday = yday(date)) %>% #date is date collected
+  mutate(julianweek = 7 * floor(jday / 7) + 4)
 
 #combine into one df
 all_data_imputation <- cats_all_days %>%
   mutate(site = as.character(site),
-         Year = as.integer(Year)) %>%
+         Year = as.integer(Year)) %>% #full join to see all missing data
   full_join(meanfrass_day %>% mutate(Year = as.integer(Year), #make sure the same type 
                                      site = as.character(site)),
             by = c("julianweek", "Year", "site", "jday"))
@@ -415,6 +416,72 @@ all_data_imputation <- all_data_imputation %>%
   filter(
     (site == 117 & Year %in% c(2015, 2018, 2019, 2021, 2022) & julianweek %in% 142:200) |
       (site == 8892356 & Year %in% c(2015:2019, 2021:2025) & julianweek %in% 154:198)
-  ) #ok kinda shows weeks where no frass data compared to CC but doesnt address issues of individual days where no data
-#reorder 
+  ) #this dataframe shows where there are missing days between frass and bug surveys
+
+
+#based on field notes two missing days cancelled because of rain so add those back in before imputing data
+rows_to_add <- tibble::tibble(
+  site = c(117, 8892356),
+  Year = c(2021, 2021),
+  jday = c(183, 186))
+#add rows in 
+all_data_imputation_clean <- all_data_imputation %>%
+  select(site, Year, jday, julianweek, meanBiomass, date, mass) %>%
+  full_join(rows_to_add %>% mutate(site = as.character(site)), #fix site so same class in each df
+            by = c("site", "Year", "jday"))
+
+#now do imputation:
+#make sure to sort!!!
+all_data_imputation_clean <- all_data_imputation_clean %>%
+  arrange(site, Year, jday)
+#check for duplicates:
+all_data_imputation_clean %>%
+  group_by(site, Year, jday) %>%
+  filter(n() > 1) %>%
+  arrange(site, Year, jday) %>%
+  select(site, Year, jday, meanBiomass, mass)
+#one duplicate jday row, delet it make sure to sort first!!
+all_data_imputation_clean <- all_data_imputation_clean[-158, ]
+#fill missing NA values
+# Define this BEFORE the pipeline
+site_mass_defaults <- c("117" = 0.5574289, "8892356" = 0.246465433)
+#imputation
+all_data_imputation_filled <- all_data_imputation_clean %>%
+  group_by(site, Year) %>%
+  arrange(jday, .by_group = TRUE) %>%
+  mutate(
+    # --- save originals before imputation ---
+    orig_meanBiomass = meanBiomass,
+    orig_mass = mass,
+    
+    # --- meanBiomass imputation ---
+    meanBiomass = na.approx(meanBiomass, x = jday, na.rm = FALSE, rule = 2, maxgap = 2),
+    
+    # --- mass imputation ---
+    mass = if_else(
+      is.na(mass) & jday == first(jday),
+      site_mass_defaults[as.character(site)],
+      mass
+    ),
+    mass = na.approx(mass, x = jday, na.rm = FALSE, rule = 2, maxgap = 2),
+    
+    # --- flag imputed rows: 1 if original was NA but now has a value ---
+    imputed_biomass = as.integer(is.na(orig_meanBiomass) & !is.na(meanBiomass)),
+    imputed_mass    = as.integer(is.na(orig_mass) & !is.na(mass)),
+    
+    # --- drop helper columns ---
+    orig_meanBiomass = NULL,
+    orig_mass = NULL
+  ) %>%
+  ungroup()
+####### fake data to test ####
+fake_data= read.csv("fakedata.csv")
+##############
+
+
+
+
+
+##checking imputed columns
+
 
