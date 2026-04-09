@@ -1574,4 +1574,617 @@ dev.off()
 
 
 
+#old imputation
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   Total season estimations for frass and biomass for non imputated data
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+#add up mass column and mean biomass in the same year
+season_totals <- cats_tinbergen_biomass_density %>%
+  group_by(site, Year) %>%
+  mutate(total_frass = sum(density),
+         total_actualbiomass = sum(biomass_density))%>% #total biomass seems super low since its been divided by survey.... idk what to do about that
+  select(site, Year, total_frass, total_actualbiomass)%>%
+  distinct()%>%
+  left_join(check_date, by = c("Year", "site"))%>% #divide the totals by the correct number of surveys and stuff from check_date 
+  mutate(
+    total_frass_divided = total_frass/number_surveys_frass,
+    total_actualbiomass_divided = total_actualbiomass/number_surveys_bugs)
+#plot total estimations for frass and biomass across years
+par(mar = c(5, 4, 4, 5))   # increase right margin
+plot_seasonal_estimates <- function(data, site_name){
+  # Filter data for the chosen site
+  site_data <- data[data$site == site_name, ]
+  # First plot (left axis)
+  plot(site_data$Year,
+       site_data$total_frass_divided,
+       type="b",
+       col="sienna",
+       ylab="Frass Density Totals",
+       xlab="Year",
+       main=paste("Site:", site_name))
+  
+  # Allow second plot on same figure
+  par(new=TRUE)
+  # Second plot (right axis)
+  plot(site_data$Year,
+       site_data$total_actualbiomass_divided,
+       type="b",
+       col="forestgreen",
+       axes=FALSE,
+       xlab="",
+       ylab="")
+  axis(4)
+  mtext("Biomass Density Totals", side=4, line=3)
+  
+  legend("topleft",
+         legend=c("Frass","Biomass"),
+         col=c("sienna","forestgreen"),
+         lty=1,
+         pch=1, cex=0.8)}
+plot_seasonal_estimates(season_totals, 8892356)
+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   Put together a dataframe for site year and how many frass surveys and bug surveys for cutoff dates
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+#filter dates so only cutoff and wanted years left
+##add site column for both and rename column
+NCBG_names <- NCBG %>%
+  mutate(site = 8892356)%>%
+  mutate(jday = julianday)
+PR_names <- PR %>%
+  mutate(site=117)%>%
+  mutate(jday = julianday)
+#combine data into one table and filter jdays
+all_surveys <- bind_rows(NCBG_names, PR_names) %>%
+  filter(
+    (site == 117 & jday >= 142 & jday <= 200) |
+      (site == 8892356 & jday >= 154 & jday <= 198))
+#filter meanfrass_combinedweeks to have correct jdays
+meanfrass_filterdays <- meanfrass %>%
+  filter(
+    (site == 117 & jday >= 142 & jday <= 200) |
+      (site == 8892356 & jday >= 154 & jday <= 198))
+#create one data frame that examines whether bug surveys and frass surveys have same sampling days
+check_date_cats <- all_surveys %>%
+  group_by(site, Year, jday) %>%
+  summarise(number_surveys_bugs = n(), .groups = "drop") %>%
+  group_by(site, Year) %>%
+  summarise(number_surveys_bugs = n(), .groups = "drop") 
+
+check_date_frass <- meanfrass_filterdays %>%
+  group_by(site, Year, jday) %>%
+  summarise(number_surveys_frass = n(), .groups = "drop") %>%
+  group_by(site, Year) %>%
+  summarise(number_surveys_frass = n(), .groups = "drop") 
+#both in one dataframe
+check_date <- check_date_cats %>%
+  mutate(site = as.character(site)) %>%
+  left_join(
+    check_date_frass %>% mutate(site = as.character(site)),
+    by = c("site", "Year"))
+
+#keep dates in dataframe so I can see where point missing-------------------------------------
+#alter meanfrass function so I can keep Date.Collected original column and left join it with frass eventually
+meanfrass_altered = data %>%
+  filter(!is.na(Frass.mass..mg.)) %>%
+  filter(OK == 1) %>%
+  mutate(site = as.character(ifelse(Site=="Botanical Garden", 8892356, 117))) %>%
+  group_by(site, Date.Collected, Year, jday) %>%
+  summarize(
+    mass = mean(frass.mg.d, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    trap_area_cm2 = ifelse(Year <= 2018, 309.74, 197.71),
+    density_mg_cm2 = mass / trap_area_cm2,
+    density_mg_m2 = density_mg_cm2 * 10000
+  ) %>%
+  left_join(events[, c('date', 'site', 'reliability')],
+            by = c('Date.Collected' = 'date', 'site' = 'site')) %>%
+  mutate(jday_collected = yday(Date.Collected))
+#filter meanfrass_combinedweeks to have correct jdays
+meanfrass_filterdays <- meanfrass_altered %>%
+  filter(
+    (site == 117 & jday >= 142 & jday <= 200) |
+      (site == 8892356 & jday >= 154 & jday <= 198))
+#count same site year jday combos
+date_bugs <- all_surveys %>%
+  group_by(site, Year, jday) %>%
+  summarise(number_surveys_bugs = n(), .groups = "drop") 
+date_frass <- meanfrass_filterdays %>%
+  group_by(site, Year, jday_collected) %>%
+  summarise(number_surveys_frass = n(), .groups = "drop")%>%
+  rename(jday=jday_collected)
+#full join so we can see when frass and cat surveys were not completed
+date_frass_bugs <- date_bugs %>%
+  mutate(
+    site = as.character(site),
+    Year = as.integer(Year)) %>%
+  full_join(
+    date_frass %>%
+      mutate(
+        site = as.character(site),
+        Year = as.integer(Year)),
+    by = c("Year", "site", "jday")) %>%
+  mutate(number_surveys_bugs2 = if_else(number_surveys_bugs >= 10, 1, NA_real_))
+#save as pdf:
+pdf("Missing_dates.pdf", height = nrow(date_frass_bugs) / 3) 
+# Draw the table
+grid.table(date_frass_bugs)
+# Close the PDF device to save the file
+dev.off() 
+
+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   doing imputation to fill in missing date data
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+#filter dates so only cutoff and wanted years left
+date_frass_bugs_filtered <- date_frass_bugs %>%
+  filter(
+    (site == 117 & Year %in% c(2015, 2018, 2019, 2021, 2022)) |
+      (site == 8892356 & Year %in% c(2015, 2016, 2017, 2018, 2019, 2021, 2022, 2023, 2024, 2025)))%>%
+  filter(
+    (site == 117 & jday >= 142 & jday <= 200) |
+      (site == 8892356 & jday >= 154 & jday <= 198))
+#need full sheet of cat data with right days and full sheet of frass with right days, join them and then left join with date_frasscatsfiltered and then use avg of points on either side of missing ones and create estimates, then avg by juliann week and new values
+
+#cats----------------------------------------------
+#add julian week column to date_frass_bugs so can left join with caterpillar data
+date_frass_bugs_filtered <- date_frass_bugs_filtered%>%
+  mutate(julianweek = 7*floor(jday/7) + 4)
+#have meandensitybyweek aggregate caterpillar stuff by week for both ncbg and pr
+cats_only <- all_surveys %>%
+  group_by(Year, site) %>%
+  group_split() %>%
+  map_dfr(~ {
+    out <- meanDensityByWeek(  
+      surveyData = .x,
+      ordersToInclude = "caterpillar",
+      allDates = TRUE
+    )
+    out$Year <- unique(.x$Year)   # keep year
+    out$site <- unique(.x$site)   # keep site
+    out
+  })
+
+#join date_frass_bugs and cats only so we can see what dates missing
+imputation_cats <- date_frass_bugs_filtered %>%
+  mutate(site = as.numeric(site)) %>%  # convert to numeric
+  full_join( #full join so dont miss any dates
+    cats_only %>%
+      select(site, Year, meanBiomass, julianweek),
+    by = c("site", "Year", "julianweek")
+  ) %>%
+  select(-number_surveys_frass) %>%
+  filter(
+    (site == 117 & jday >= 142 & jday <= 200) |
+      (site == 8892356 & jday >= 154 & jday <= 198))
+#fill in NA values using dates above and below it and add back in 2021 day 117 and 186 at 8892356
+#add in missing values
+rows_to_add <- tibble::tibble(
+  site = c(117, 8892356),
+  Year = c(2021, 2021),
+  jday = c(183, 186))
+#add rows in 
+imputation_cats <- imputation_cats %>%
+  # left_join to add missing rows with NA for meanBiomass
+  full_join(rows_to_add, by = c("site", "Year", "jday")) %>%
+  arrange(site, Year, jday)
+#make sure to sort!!!
+imputation_cats <- imputation_cats %>%
+  arrange(site, Year, jday)
+#fill missing NA values
+imputation_cats_filled <- imputation_cats %>%
+  group_by(site, Year) %>% 
+  arrange(jday, .by_group = TRUE) %>%
+  mutate(
+    original_meanBiomass = meanBiomass,  # save original
+    
+    meanBiomass = if_else(is.na(number_surveys_bugs2), NA_real_, meanBiomass),
+    meanBiomass = na.approx(meanBiomass, x = jday, na.rm = FALSE, rule = 2, maxgap=2),
+    
+    imputed_biomass = if_else(
+      is.na(number_surveys_bugs2),
+      1, 0
+    )
+  ) %>%
+  select(-original_meanBiomass) %>%  
+  ungroup()
+
+fake_data= read.csv("fakedata.csv")
+names(fake_data)[1] <- "site"
+
+
+#frass---------------------------------------------------
+#change column names
+meanfrass_filterdays2 <-meanfrass_filterdays%>%
+  select(-jday)%>%
+  rename(jday = jday_collected)
+#now join
+imputation_frass <- date_frass_bugs %>%
+  mutate(
+    site = as.numeric(site),
+    Year = as.numeric(Year)
+  ) %>%
+  full_join(
+    meanfrass_filterdays2 %>%
+      mutate(
+        site = as.numeric(site),
+        Year = as.numeric(Year)
+      ) %>%
+      select(site, Year, mass, jday, density_mg_cm2),
+    by = c("site", "Year", "jday")
+  ) %>%
+  select(-number_surveys_bugs) %>%
+  filter(
+    (site == 117 & jday >= 142 & jday <= 200) |
+      (site == 8892356 & jday >= 154 & jday <= 198))%>%
+  filter(
+    (site == 117 & Year %in% c(2015, 2018, 2019, 2021, 2022)) |
+      (site == 8892356 & Year %in% c(2015, 2016, 2017, 2018, 2019, 2021, 2022, 2023, 2024, 2025)))
+
+#fill in NA values using dates above and below it and add back in 2021 day 117 and 186 at 8892356
+#add in missing values
+rows_to_add <- tibble::tibble(
+  site = c(117, 8892356),
+  Year = c(2021, 2021),
+  jday = c(183, 186))
+#add rows in 
+imputation_frass <- imputation_frass %>%
+  # left_join to add missing rows with NA for meanBiomass
+  full_join(rows_to_add, by = c("site", "Year", "jday")) %>%
+  arrange(site, Year, jday)
+#make sure to sort!!!
+imputation_frass <- imputation_frass %>%
+  arrange(site, Year, jday)
+#fill missing NA values
+imputation_frass_filled <- imputation_frass %>%
+  group_by(site, Year) %>%
+  group_modify(~{
+    df <- .x
+    current_site <- .y$site
+    
+    # save original values
+    df$original_mass <- df$mass
+    
+    # interpolate if there are at least 2 non-NA points
+    if(sum(!is.na(df$mass)) >= 2){
+      df$mass <- approx(
+        x = df$jday[!is.na(df$mass)],
+        y = df$mass[!is.na(df$mass)],
+        xout = df$jday,
+        rule = 2
+      )$y
+    }
+    
+    # fill in fixed start/end values by site AFTER interpolation 
+    if(current_site == 117){
+      if(is.na(df$number_surveys_frass[1])){
+        df$mass[1] <- 0.55774289
+      }
+      if(is.na(df$number_surveys_frass[nrow(df)])){
+        df$mass[nrow(df)] <- 1.89158712
+      }
+    }
+    
+    if(current_site == 8892356){
+      if(is.na(df$number_surveys_frass[1])){
+        df$mass[1] <- 0.246465433
+      }
+      if(is.na(df$number_surveys_frass[nrow(df)])){
+        df$mass[nrow(df)] <- 1.57714732
+      }
+    }
+    # flag imputed values
+    df$imputed_frass <- ifelse(
+      is.na(df$original_mass) & !is.na(df$mass),
+      1, 0
+    )
+    
+    # remove helper column
+    df$original_mass <- NULL
+    
+    df
+  }) %>%
+  ungroup()
+#--------------------------------------------------------
+#join imputation for both, calculate frass and biomass per unit area variables
+imputation_totals <- imputation_cats_filled %>%
+  full_join(imputation_frass_filled %>%
+              select(Year, site, jday, mass, imputed_frass),
+            by = c("site", "Year", "jday")) %>%
+  filter(
+    (site == 117 & Year %in% c(2015, 2018, 2019, 2021, 2022)) |
+      (site == 8892356 & Year %in% c(2015, 2016, 2017, 2018, 2019, 2021, 2022, 2023, 2024, 2025)))%>%
+  select(-number_surveys_bugs, -number_surveys_bugs2) %>%
+  mutate(
+    julianweek = if_else(
+      is.na(julianweek),
+      7 * floor(jday / 7) + 4,
+      julianweek
+    )
+  )
+#now add up total surveys done for frass and cats per site per year
+check_impute_dates <- imputation_totals %>%
+  group_by(site, Year) %>%
+  summarise(
+    number_surveys_frass = sum(!is.na(mass)),
+    number_surveys_biomass = sum(!is.na(meanBiomass)),
+    .groups = "drop") #WERE GOOD!!!
+
+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   Total season estimations for frass and biomass for imputated data
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+#collapse duplicate julian weeks into one week with one mean value and get rid of jday column, compute per area calculations
+imputation_totals2 <- imputation_totals %>%
+  group_by(site, Year, julianweek) %>%
+  summarise(
+    meanBiomass = mean(meanBiomass, na.rm = TRUE),
+    mass        = mean(mass, na.rm = TRUE),
+    imputed_frass     = max(imputed_frass, na.rm = TRUE),
+    imputed_biomass     = max(imputed_biomass, na.rm = TRUE),
+    .groups = "drop") %>%
+  mutate(biomass_density = meanBiomass/(ifelse(Year <= 2018, 309.74, 197.71))) %>% #dividing by 209 for years 2018 and before, and 197 for years after
+  mutate(frass_density = mass/ (ifelse(Year <= 2018, 309.74, 197.71)))
+
+#calculate seasonal totals by site year
+season_totals_impute <- imputation_totals2 %>%
+  group_by(site, Year) %>%
+  mutate(total_frass = sum(frass_density), #sums from density
+         total_actualbiomass = sum(biomass_density))%>% #total biomass seems super low since its been divided by survey.... idk what to do about that
+  select(site, Year, total_frass, total_actualbiomass, imputed_frass, imputed_biomass)%>%
+  distinct()%>%
+  left_join(check_impute_dates, by = c("Year", "site"))%>% #divide the totals by the correct number of surveys and stuff from check_date 
+  mutate(
+    total_frass_divided = total_frass/number_surveys_frass,
+    total_actualbiomass_divided = total_actualbiomass/number_surveys_biomass)
+#plot new estimations
+plot_seasonal_estimates <- function(data, site_name){
+  # Filter data for the chosen site
+  site_data <- data[data$site == site_name, ]
+  # First plot (left axis)
+  plot(site_data$Year,
+       site_data$total_frass_divided,
+       type="b",
+       col="sienna",
+       ylab="Frass Density Totals",
+       xlab="Year",
+       main=paste("Site:", site_name))
+  
+  # Allow second plot on same figure
+  par(new=TRUE)
+  # Second plot (right axis)
+  plot(site_data$Year,
+       site_data$total_actualbiomass_divided,
+       type="b",
+       col="forestgreen",
+       axes=FALSE,
+       xlab="",
+       ylab="")
+  axis(4)
+  mtext("Biomass Density Totals", side=4, line=3)
+  
+  legend("topleft",
+         legend=c("Frass","Biomass"),
+         col=c("sienna","forestgreen"),
+         lty=1,
+         pch=1, cex=0.8)}
+plot_seasonal_estimates(season_totals_impute, 8892356)
+
+#plot on linecharts with centroid dates
+density_plotting_impute <- function(data, year_choice, site_choice) {
+  
+  df <- data %>%
+    filter(Year == year_choice, site == site_choice)
+  
+  if (nrow(df) == 0 ||
+      all(is.na(df$julianweek)) ||
+      all(is.na(df$frass_density))) {
+    
+    plot.new()
+    text(0.5, 0.5,
+         paste("No data for", site_choice, year_choice),
+         cex = 1.2)
+    return(invisible(NULL))
+  }
+  
+  ## ---- Centroids ----
+  frass_density_centroid <- weighted.mean(
+    df$julianweek, df$frass_density, na.rm = TRUE
+  )
+  
+  biomass_centroid <- weighted.mean(
+    df$julianweek, df$biomass_density, na.rm = TRUE
+  )
+  
+  ## ---- Plot ----
+  par(mar = c(5, 4, 4, 6))  # space for one right axis
+  
+  # LEFT AXIS — FRASS
+  plot(
+    df$julianweek, df$frass_density,
+    type = "l",
+    col = "sienna",
+    lwd = 2,
+    xlab = "Julian week",
+    ylab = "Frass density",
+    main = paste(site_choice, year_choice)
+  )
+  
+  if (is.finite(frass_density_centroid)) {
+    abline(v = frass_density_centroid, col = "sienna", lty = 2, lwd = 2)
+  }
+  
+  ## ---- RIGHT AXIS — BIOMASS (NOT TEMP CORRECTED) ----
+  par(new = TRUE)
+  
+  plot(
+    df$julianweek, df$biomass_density,
+    type = "l",
+    col = "forestgreen",
+    lwd = 2,
+    axes = FALSE,
+    xlab = "",
+    ylab = "",
+    ylim = range(df$biomass_density, na.rm = TRUE)
+  )
+  
+  axis(side = 4, col.axis = "forestgreen")
+  mtext("Actual Caterpillar Biomass Density",
+        side = 4, line = 2.0, col = "forestgreen", cex=0.8)
+  
+  if (is.finite(biomass_centroid)) {
+    abline(v = biomass_centroid, col = "forestgreen", lty = 2, lwd = 2)
+  }
+  
+  ## ---- Legend ----
+  legend(
+    "topleft",
+    legend = c(
+      "Frass Mass density",
+      "Frass centroid",
+      "Actual Caterpillar Biomass density",
+      "Biomass centroid"
+    ),
+    col = c(
+      "sienna", "sienna",
+      "forestgreen", "forestgreen"
+    ),
+    lwd = 2,
+    lty = c(1, 2, 1, 2),
+    bty = "n",
+    cex = 0.8
+  )
+  
+  invisible(df)
+}
+density_plotting_impute(imputation_totals2, 2017, 8892356)
+#saving as a pdf------------------------ ^^^^^
+# Years for each site
+years_PR   <- c(2015, 2018, 2019, 2021, 2022)
+years_NCBG <- setdiff(2015:2025, 2020)   
+setwd("C:/Z_School/HurlbertLab/graphs")
+#set up pdf
+pdf(
+  file = "imputation_plotting.pdf",
+  width = 8,
+  height = 8)
+#layout for pdf
+par(
+  mfrow = c(3, 2),
+  mar = c(4, 4, 3, 6),  
+  oma = c(0, 0, 2, 0))
+#loops over each sites
+for (yr in years_NCBG) {
+  try(
+    density_plotting_impute(
+      data = imputation_totals_week,
+      year_choice = yr,
+      site_choice = 8892356  
+    ),
+    silent = TRUE)}
+for (yr in years_PR) {
+  try(
+    density_plotting_impute(
+      data = imputation_totals_week,
+      year_choice = yr,
+      site_choice = 117   
+    ),
+    silent = TRUE)}
+dev.off()
+#getting centroid dates for imputated values
+imputation_centroid <- imputation_totals_week %>%
+  group_by(site, Year) %>%
+  summarise(
+    frass_centroid_D =
+      sum(julianweek * frass_density, na.rm = TRUE) /
+      sum(frass_density, na.rm = TRUE),
+    
+    biomass_centroid_D =
+      sum(julianweek * biomass_density, na.rm = TRUE) /
+      sum(biomass_density, na.rm = TRUE),
+    
+    .groups = "drop")
+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   Re-Doing centroid anomolies on new imputation data
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+#calculate mean of frass and actual caterpillar biomass centroids
+mean_imputation_centroids <- imputation_centroid %>%
+  group_by(site)%>%
+  mutate(mean_frass =mean(frass_centroid_D),
+         mean_actualbiomass = mean(biomass_centroid_D))%>%
+  ungroup()%>%
+  mutate(
+    actualBiomass_diff = biomass_centroid_D - mean_actualbiomass,
+    frass_diff = frass_centroid_D - mean_frass) %>%
+  select(Year, site, frass_centroid_D, mean_frass, frass_diff, biomass_centroid_D, mean_actualbiomass, actualBiomass_diff)
+##plot on 1:1 line so we can see if same years come before and after---------------------------------
+shared_years <- c(2015, 2018, 2019, 2021, 2022)
+plot_data <- mean_imputation_centroids[mean_imputation_centroids$Year %in% shared_years, ]
+years <- sort(unique(plot_data$Year))
+cols <- colorRampPalette(c("red","goldenrod1", "springgreen3","dodgerblue", "purple"))(length(years)) #color ramp
+year_cols <- cols[match(plot_data$Year, years)]
+site_pch <- ifelse(plot_data$site == 117, 8, 17) #symbols
+#plot
+plot(plot_data$frass_diff,
+     plot_data$actualBiomass_diff,
+     col = year_cols,
+     pch = site_pch,
+     cex = 1.5,
+     xlab = "Frass centroid difference",
+     ylab = "Actual biomass centroid difference")
+abline(h = 0, lty = 2)  # horizontal line at y = 0
+abline(v = 0, lty = 2)  # vertical line at x = 0
+#legend
+legend("topleft",
+       legend = c("117", "8892356"),
+       pch = c(17,8),
+       title = "Site",
+       bty = "n")
+legend("bottomright",
+       legend = years,
+       col = cols,
+       pch = 16,
+       title = "Year",
+       bty = "n")
+#Plot anomaly of cat centroid at given year and site and anomaly of frass centroid at given year and given site and find r^2 and p value
+plot_site_correlation <- function(data, site_name){
+  
+  # Filter site
+  site_data <- data[data$site == site_name, ]
+  
+  # Spearman correlation
+  cor_test <- cor.test(site_data$frass_centroid_D,
+                       site_data$biomass_centroid_D,
+                       method = "spearman")
+  
+  rho <- cor_test$estimate
+  r2 <- rho^2
+  
+  # Scatter plot
+  plot(site_data$frass_centroid_D,
+       site_data$biomass_centroid_D,
+       pch = 19,
+       col = "black",
+       xlab = "Frass Density",
+       ylab = "Actual Biomass Density",
+       main = paste("Site:", site_name))
+  
+  # Add regression line
+  model <- lm(biomass_centroid_D ~ frass_centroid_D, data = site_data)
+  abline(model, col = "blue", lwd = 2)
+  
+  # Add Spearman R² text
+  legend("topleft",
+         legend = paste("Spearman rho =", round(rho, 3)),
+         bty = "n")}
+
+plot_site_correlation(mean_imputation_centroids, "117")
+
+
+
+
+
 
