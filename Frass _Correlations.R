@@ -254,15 +254,13 @@ meanDensityByWeek = function(surveyData, # merged dataframe of Survey and arthro
 }
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
-#   Combing meanfrass, temp, and fulldataset into one data sheet:
+#   Creating dataframe with caterpillar meanbiomass and frass values: (raw values)
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
-#correcting functions so can combine properly----------------------------
+#make sure frass has correct columns--------------------------------------
 #having mean Frass data sorted by julian week
 meanfrass <- meanfrass %>%
-  mutate(julianweek = 7 * floor(jday / 7) + 4)
-#make sure year is a integar
-meanfrass <- meanfrass %>%
-  mutate(Year = as.integer(Year))
+  mutate(julianweek = 7 * floor(jday / 7) + 4)%>% #this is using jday calculated from 'data' where it uses day and time set to alter jday
+  mutate(Year = as.integer(Year)) #make sure integer
 #combine and average meanfrass data that comes from same week (2015-2023 this happened), is mean frass per day
 meanfrass_combinedweeks <- meanfrass %>%
   group_by(site, Year, julianweek) %>%
@@ -275,14 +273,9 @@ meanfrass_combinedweeks <- meanfrass %>%
     jday = mean(jday, na.rm = TRUE),
     reliability = first(reliability),
     
-    .groups = "drop"
-  )
-#filter meanfrass by NCBG
-meanfrass_NCBG <- meanfrass_combinedweeks %>%
-  filter(site %in% c("8892356"))
-#filter meanfrass by PR
-meanfrass_PR <- meanfrass_combinedweeks %>%
-  filter(site %in% c("117"))
+    .groups = "drop")
+
+#Caterpillar Count data---------------------------------------------------
 #NCBG site filter fulldataset for all years
 NCBG <- fullDataset %>%
   filter(Name %in% c("NC Botanical Garden"),
@@ -303,7 +296,8 @@ cats_NCBG <- NCBG %>%
     )
     out$Year <- unique(.x$Year)      # add Year back
     out
-  })
+  })%>%
+  mutate(site=8892356)
 #have meandensitybyweek aggregate caterpillar stuff by week for PR
 cats_PR <- PR %>%
   group_by(Year) %>%
@@ -316,21 +310,141 @@ cats_PR <- PR %>%
     )
     out$Year <- unique(.x$Year)      # add Year back
     out
-  })
-#left join fulldataset and meanfrass by julianweek
-cats_NCBG <- meanfrass_NCBG %>%
-  left_join(cats_NCBG, by = c("julianweek", "Year"))
-cats_PR <- meanfrass_PR %>%
-  left_join(cats_PR, by = c("julianweek", "Year"))  
-#rename columns to make sense:
-cats_NCBG <- rename(cats_NCBG, frass_mass=mass)
-cats_NCBG <- rename(cats_NCBG, frass_density=density)
-cats_NCBG <- rename(cats_NCBG, frass_reliability=reliability)
-cats_PR <- rename(cats_PR, frass_mass=mass)
-cats_PR <- rename(cats_PR, frass_density=density)
-cats_PR <- rename(cats_PR, frass_reliability=reliability)
+  })%>%
+  mutate(site=117)
+#all caterpillar data together
+cats_all <- rbind(cats_NCBG, cats_PR)
 
-# Temp stuff--------------------------------------
+#combine into one df
+all_data <- cats_all %>%
+  mutate(site = as.character(site)) %>% #make sure same type to join
+  full_join(meanfrass_combinedweeks, by = c("julianweek", "Year", "site")) #shows where missing frass data is? is full join appropriate here?
+
+#filter by cutoff days and correct years for both sites
+all_data <- all_data %>%
+  filter(
+    (site == 117 & Year %in% c(2015, 2018, 2019, 2021, 2022) & julianweek %in% 142:200) |
+      (site == 8892356 & Year %in% c(2015:2019, 2021:2025) & julianweek %in% 154:198)
+  ) #ok kinda shows weeks where no frass data compared to CC but doesnt address issues of individual days where no data
+
+#clean all data so only have columns I want and divide by trap area 
+all_data_clean <- all_data %>%
+  select(site, Year, jday, julianweek, meanBiomass, date, mass, nSurveys) %>% #make sure no duplicate weeks
+  group_by(site, Year, julianweek) %>%
+  summarise(
+    meanBiomass = mean(meanBiomass, na.rm = TRUE),
+    mass        = mean(mass, na.rm = TRUE),
+    nSurveys    = sum(nSurveys, na.rm = TRUE),  
+    .groups = "drop") %>%
+  mutate(biomass_density = meanBiomass/(ifelse(Year <= 2018, 309.74, 197.71))) %>% #dividing by 209 for years 2018 and before, and 197 for years after
+  mutate(frass_density = mass/ (ifelse(Year <= 2018, 309.74, 197.71)))
+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   centroid dates for RAW values for all frass and biomass
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+#temp corrected centroids for both sites (what day), and create bins of 3 day periods (starting at 154 NCBG and 142 PR) and see what years go in each
+all_centroids_raw <- all_data_clean %>%
+  group_by(Year, site) %>%
+  summarise(
+    centroid_frass = weighted.mean(julianweek[!is.na(mass)], 
+                                   mass[!is.na(mass)]),
+    centroid_actualbiomass = weighted.mean(julianweek[!is.na(meanBiomass)], 
+                                           meanBiomass[!is.na(meanBiomass)]),
+    .groups = "drop"
+  ) %>%
+  mutate(diff = centroid_actualbiomass - centroid_frass)
+
+
+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   Doing imputation by julianweek, only if whole week missing will we impute data
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+#imputation function
+impute_biomass_data <- function(data, site_mass_defaults) {
+  
+  # --- Precompute first/last julianweek reference values across years ---
+  first_jweek_refs <- data %>%
+    group_by(site, Year) %>%
+    slice_min(julianweek, n = 1) %>%
+    ungroup() %>%
+    group_by(site) %>%
+    summarise(
+      ref_first_meanBiomass = mean(meanBiomass, na.rm = TRUE),
+      ref_first_mass        = mean(mass, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  last_jweek_refs <- data %>%
+    group_by(site, Year) %>%
+    slice_max(julianweek, n = 1) %>%
+    ungroup() %>%
+    group_by(site) %>%
+    summarise(
+      ref_last_meanBiomass = mean(meanBiomass, na.rm = TRUE),
+      ref_last_mass        = mean(mass, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  data %>%
+    left_join(first_jweek_refs, by = "site") %>%
+    left_join(last_jweek_refs,  by = "site") %>%
+    group_by(site, Year) %>%
+    arrange(julianweek, .by_group = TRUE) %>%
+    mutate(
+      # --- save originals before imputation ---
+      orig_meanBiomass = meanBiomass,
+      orig_mass        = mass,
+      
+      # --- fill first julianweek NA with cross-year average for that site ---
+      meanBiomass = if_else(
+        is.na(meanBiomass) & julianweek == first(julianweek),
+        ref_first_meanBiomass,
+        meanBiomass
+      ),
+      mass = if_else(
+        is.na(mass) & julianweek == first(julianweek),
+        coalesce(site_mass_defaults[as.character(site)], ref_first_mass),
+        mass
+      ),
+      
+      # --- fill last julianweek NA with cross-year average for that site ---
+      meanBiomass = if_else(
+        is.na(meanBiomass) & julianweek == last(julianweek),
+        ref_last_meanBiomass,
+        meanBiomass
+      ),
+      mass = if_else(
+        is.na(mass) & julianweek == last(julianweek),
+        ref_last_mass,
+        mass
+      ),
+      
+      # --- interpolate interior NAs ---
+      meanBiomass = na.approx(meanBiomass, x = julianweek, na.rm = FALSE, rule = 2, maxgap = 2),
+      mass        = na.approx(mass,        x = julianweek, na.rm = FALSE, rule = 2, maxgap = 2),
+      
+      # --- flag imputed rows ---
+      imputed_biomass = as.integer(is.na(orig_meanBiomass) & !is.na(meanBiomass)),
+      imputed_mass    = as.integer(is.na(orig_mass)        & !is.na(mass)),
+      
+      # --- drop helper columns ---
+      orig_meanBiomass      = NULL,
+      orig_mass             = NULL,
+      ref_first_meanBiomass = NULL,
+      ref_first_mass        = NULL,
+      ref_last_meanBiomass  = NULL,
+      ref_last_mass         = NULL
+    ) %>%
+    ungroup()
+}
+#run function
+imputation_data <- impute_biomass_data(all_data_clean, site_mass_defaults = c() )
+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   Creating dataframe that combines temp data and computes tinbergen estimates for comparison:
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+
+#Temp stuff--------------------------------------
 #rename site names so match other dataframes, also rename to can be joined properly with meanfrass data
 AllTemp <- AllTemp %>%
   mutate(site = case_when(
@@ -347,37 +461,14 @@ AllTemp_weekly <- AllTemp %>%
   group_by(Year, site, julianweek) %>%
   summarise(weeklytemp = mean(avgtemp, na.rm = TRUE),
             .groups = "drop")
-#combining temp data and frass data into one dataset
-Temp_with_frass <- meanfrass_combinedweeks %>%
+#combining temp data and all_data_clean into one dataset so all info in one place 
+all_temp_data <- imputation_data %>%
   left_join(AllTemp_weekly, by = c("julianweek", "Year", "site"))
-#first biomass estimate (using tinbergen2024 HV)
-Tinbergen_biomass <- Temp_with_frass %>%
-  mutate(Tin_biomass = mass * exp(3.8 - 0.10 * weeklytemp))
 
-# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
-#   combining caterpillar data with tinbergen data set so all in one df
-# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
-#create nontemp corrected biomass dataframe:
-cats_all <- bind_rows(cats_NCBG, cats_PR)
-#combine tinbergen biomass with nontemp corrected dataframe by jweek, site, year
-cats_tinbergen_biomass <- Tinbergen_biomass %>%
-  left_join(
-    cats_all %>%
-      select(julianweek, site, Year, meanBiomass, nSurveys), #meanBiomass is NOT temp corrected
-    by = c("julianweek", "site", "Year")
-  )
-#cutoff dates that are not shared between all years
-cats_tinbergen_biomass_cutoff <- cats_tinbergen_biomass %>%
-  filter(
-    (site == 117 & between(jday, 142, 200)) |
-      (site == 8892356 & between(jday, 154, 198)) |
-      !(site %in% c(117, 8892356))
-  )
-#density values
-cats_tinbergen_biomass_density <- cats_tinbergen_biomass_cutoff %>%
-  mutate(Tin_biomass_density = Tin_biomass/(ifelse(Year <= 2018, 309.74, 197.71))) %>% #dividing by 209 for years 2018 and before, and 197 for years after
-  mutate(biomass_density = meanBiomass/ (ifelse(Year <= 2018, 309.74, 197.71)))
-
+#Tinbergen estimate-----------------------------------------------
+#using tinbergen2024 HV equation, estimate caterpillar biomass estimates in the canopy
+Tinbergen_biomass <- all_temp_data %>%
+  mutate(Tin_biomass = mass * exp(3.8 - 0.10 * weeklytemp)/nSurveys) #need to divide the biomass by number of surveys so matches other meanBiomass
 
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
