@@ -248,15 +248,13 @@ meanDensityByWeek = function(surveyData, # merged dataframe of Survey and arthro
 }
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
-#   Combing meanfrass, temp, and fulldataset into one data sheet:
+#   Creating dataframe with caterpillar meanbiomass and frass values:
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
-#correcting functions so can combine properly----------------------------
+#make sure frass has correct columns--------------------------------------
 #having mean Frass data sorted by julian week
 meanfrass <- meanfrass %>%
-  mutate(julianweek = 7 * floor(jday / 7) + 4)
-#make sure year is a integar
-meanfrass <- meanfrass %>%
-  mutate(Year = as.integer(Year))
+  mutate(julianweek = 7 * floor(jday / 7) + 4)%>% #this is using jday calculated from 'data' where it uses day and time set to alter jday
+  mutate(Year = as.integer(Year)) #make sure integer
 #combine and average meanfrass data that comes from same week (2015-2023 this happened), is mean frass per day
 meanfrass_combinedweeks <- meanfrass %>%
   group_by(site, Year, julianweek) %>%
@@ -269,14 +267,9 @@ meanfrass_combinedweeks <- meanfrass %>%
     jday = mean(jday, na.rm = TRUE),
     reliability = first(reliability),
     
-    .groups = "drop"
-  )
-#filter meanfrass by NCBG
-meanfrass_NCBG <- meanfrass_combinedweeks %>%
-  filter(site %in% c("8892356"))
-#filter meanfrass by PR
-meanfrass_PR <- meanfrass_combinedweeks %>%
-  filter(site %in% c("117"))
+    .groups = "drop")
+
+#Caterpillar Count data---------------------------------------------------
 #NCBG site filter fulldataset for all years
 NCBG <- fullDataset %>%
   filter(Name %in% c("NC Botanical Garden"),
@@ -297,7 +290,8 @@ cats_NCBG <- NCBG %>%
     )
     out$Year <- unique(.x$Year)      # add Year back
     out
-  })
+  })%>%
+  mutate(site=8892356)
 #have meandensitybyweek aggregate caterpillar stuff by week for PR
 cats_PR <- PR %>%
   group_by(Year) %>%
@@ -310,20 +304,38 @@ cats_PR <- PR %>%
     )
     out$Year <- unique(.x$Year)      # add Year back
     out
-  })
-#left join fulldataset and meanfrass by julianweek
-cats_NCBG <- meanfrass_NCBG %>%
-  left_join(cats_NCBG, by = c("julianweek", "Year"))
-cats_PR <- meanfrass_PR %>%
-  left_join(cats_PR, by = c("julianweek", "Year"))  
-#rename columns to make sense:
-cats_NCBG <- rename(cats_NCBG, frass_mass=mass)
-cats_NCBG <- rename(cats_NCBG, frass_density=density)
-cats_NCBG <- rename(cats_NCBG, frass_reliability=reliability)
-cats_PR <- rename(cats_PR, frass_mass=mass)
-cats_PR <- rename(cats_PR, frass_density=density)
-cats_PR <- rename(cats_PR, frass_reliability=reliability)
+  })%>%
+  mutate(site=117)
+#all caterpillar data together
+cats_all <- rbind(cats_NCBG, cats_PR)
 
+#combine into one df
+all_data <- cats_all %>%
+  mutate(site = as.character(site)) %>% #make sure same type to join
+  full_join(meanfrass_combinedweeks, by = c("julianweek", "Year", "site")) #shows where missing frass data is? is full join appropriate here?
+
+#filter by cutoff days and correct years for both sites
+all_data <- all_data %>%
+  filter(
+    (site == 117 & Year %in% c(2015, 2018, 2019, 2021, 2022) & julianweek %in% 142:200) |
+      (site == 8892356 & Year %in% c(2015:2019, 2021:2025) & julianweek %in% 154:198)
+  ) #ok kinda shows weeks where no frass data compared to CC but doesnt address issues of individual days where no data
+
+#clean all data so only have columns I want and divide by trap area (main df!!!)
+all_data_clean <- all_data %>%
+  select(site, Year, jday, julianweek, meanBiomass, date, mass) %>% #make sure no duplicate weeks
+  group_by(site, Year, julianweek) %>%
+  summarise(
+    meanBiomass = mean(meanBiomass, na.rm = TRUE),
+    mass        = mean(mass, na.rm = TRUE),
+    .groups = "drop") %>%
+  mutate(biomass_density = meanBiomass/(ifelse(Year <= 2018, 309.74, 197.71))) %>% #dividing by 209 for years 2018 and before, and 197 for years after
+  mutate(frass_density = mass/ (ifelse(Year <= 2018, 309.74, 197.71)))
+
+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   Creating dataframe that combines temp data and computes tinbergen estimates for comparison:
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 # Temp stuff--------------------------------------
 #rename site names so match other dataframes, also rename to can be joined properly with meanfrass data
 AllTemp <- AllTemp %>%
