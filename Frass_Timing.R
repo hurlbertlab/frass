@@ -321,22 +321,107 @@ all_data <- all_data %>%
       (site == 8892356 & Year %in% c(2015:2019, 2021:2025) & julianweek %in% 154:198)
   ) #ok kinda shows weeks where no frass data compared to CC but doesnt address issues of individual days where no data
 
-#clean all data so only have columns I want and divide by trap area (main df!!!)
+#clean all data so only have columns I want and divide by trap area 
 all_data_clean <- all_data %>%
-  select(site, Year, jday, julianweek, meanBiomass, date, mass) %>% #make sure no duplicate weeks
+  select(site, Year, jday, julianweek, meanBiomass, date, mass, nSurveys) %>% #make sure no duplicate weeks
   group_by(site, Year, julianweek) %>%
   summarise(
     meanBiomass = mean(meanBiomass, na.rm = TRUE),
     mass        = mean(mass, na.rm = TRUE),
+    nSurveys    = sum(nSurveys, na.rm = TRUE),  
     .groups = "drop") %>%
   mutate(biomass_density = meanBiomass/(ifelse(Year <= 2018, 309.74, 197.71))) %>% #dividing by 209 for years 2018 and before, and 197 for years after
   mutate(frass_density = mass/ (ifelse(Year <= 2018, 309.74, 197.71)))
 
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   Doing imputation by julianweek, only if whole week missing will we impute data
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+#imputation function
+impute_biomass_data <- function(data, site_mass_defaults) {
+  
+  # --- Precompute first/last julianweek reference values across years ---
+  first_jweek_refs <- data %>%
+    group_by(site, Year) %>%
+    slice_min(julianweek, n = 1) %>%
+    ungroup() %>%
+    group_by(site) %>%
+    summarise(
+      ref_first_meanBiomass = mean(meanBiomass, na.rm = TRUE),
+      ref_first_mass        = mean(mass, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  last_jweek_refs <- data %>%
+    group_by(site, Year) %>%
+    slice_max(julianweek, n = 1) %>%
+    ungroup() %>%
+    group_by(site) %>%
+    summarise(
+      ref_last_meanBiomass = mean(meanBiomass, na.rm = TRUE),
+      ref_last_mass        = mean(mass, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  data %>%
+    left_join(first_jweek_refs, by = "site") %>%
+    left_join(last_jweek_refs,  by = "site") %>%
+    group_by(site, Year) %>%
+    arrange(julianweek, .by_group = TRUE) %>%
+    mutate(
+      # --- save originals before imputation ---
+      orig_meanBiomass = meanBiomass,
+      orig_mass        = mass,
+      
+      # --- fill first julianweek NA with cross-year average for that site ---
+      meanBiomass = if_else(
+        is.na(meanBiomass) & julianweek == first(julianweek),
+        ref_first_meanBiomass,
+        meanBiomass
+      ),
+      mass = if_else(
+        is.na(mass) & julianweek == first(julianweek),
+        coalesce(site_mass_defaults[as.character(site)], ref_first_mass),
+        mass
+      ),
+      
+      # --- fill last julianweek NA with cross-year average for that site ---
+      meanBiomass = if_else(
+        is.na(meanBiomass) & julianweek == last(julianweek),
+        ref_last_meanBiomass,
+        meanBiomass
+      ),
+      mass = if_else(
+        is.na(mass) & julianweek == last(julianweek),
+        ref_last_mass,
+        mass
+      ),
+      
+      # --- interpolate interior NAs ---
+      meanBiomass = na.approx(meanBiomass, x = julianweek, na.rm = FALSE, rule = 2, maxgap = 2),
+      mass        = na.approx(mass,        x = julianweek, na.rm = FALSE, rule = 2, maxgap = 2),
+      
+      # --- flag imputed rows ---
+      imputed_biomass = as.integer(is.na(orig_meanBiomass) & !is.na(meanBiomass)),
+      imputed_mass    = as.integer(is.na(orig_mass)        & !is.na(mass)),
+      
+      # --- drop helper columns ---
+      orig_meanBiomass      = NULL,
+      orig_mass             = NULL,
+      ref_first_meanBiomass = NULL,
+      ref_first_mass        = NULL,
+      ref_last_meanBiomass  = NULL,
+      ref_last_mass         = NULL
+    ) %>%
+    ungroup()
+}
+#run function
+imputation_data <- impute_biomass_data(all_data_clean, site_mass_defaults = c() )
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   Creating dataframe that combines temp data and computes tinbergen estimates for comparison:
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
-# Temp stuff--------------------------------------
+
+#Temp stuff--------------------------------------
 #rename site names so match other dataframes, also rename to can be joined properly with meanfrass data
 AllTemp <- AllTemp %>%
   mutate(site = case_when(
@@ -353,539 +438,21 @@ AllTemp_weekly <- AllTemp %>%
   group_by(Year, site, julianweek) %>%
   summarise(weeklytemp = mean(avgtemp, na.rm = TRUE),
             .groups = "drop")
-#combining temp data and frass data into one dataset
-Temp_with_frass <- meanfrass_combinedweeks %>%
+#combining temp data and all_data_clean into one dataset so all info in one place 
+all_temp_data <- imputation_data %>%
   left_join(AllTemp_weekly, by = c("julianweek", "Year", "site"))
-#first biomass estimate (using tinbergen2024 HV)
-Tinbergen_biomass <- Temp_with_frass %>%
-  mutate(Tin_biomass = mass * exp(3.8 - 0.10 * weeklytemp))
 
-# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
-#   Doing centroid comparisons on years (with corrected biomass, not corrected biomass, frass)
-# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
-#create nontemp corrected biomass dataframe:
-cats_all <- bind_rows(cats_NCBG, cats_PR)
-#combine tinbergen biomass with nontemp corrected dataframe by jweek, site, year
-cats_tinbergen_biomass <- Tinbergen_biomass %>%
-  left_join(
-    cats_all %>%
-      select(julianweek, site, Year, meanBiomass, nSurveys), #meanBiomass is NOT temp corrected
-    by = c("julianweek", "site", "Year")
-  )
-#cutoff dates that are not shared between all years
-cats_tinbergen_biomass_cutoff <- cats_tinbergen_biomass %>%
-  filter(
-    (site == 117 & between(jday, 142, 200)) |
-      (site == 8892356 & between(jday, 154, 198)) |
-      !(site %in% c(117, 8892356))
-  )
+#Tinbergen estimate-----------------------------------------------
+#using tinbergen2024 HV equation, estimate caterpillar biomass estimates in the canopy
+Tinbergen_biomass <- all_temp_data %>%
+  mutate(Tin_biomass = mass * exp(3.8 - 0.10 * weeklytemp)/nSurveys) #need to divide the biomass by number of surveys so matches other meanBiomass
 
-#plot all 3 function
-biomass_plotting <- function(data, year_choice, site_choice) {
-  
-  df <- data %>%
-    filter(Year == year_choice, site == site_choice)
-  
-  if(nrow(df) == 0) stop("No data for that year/site")
-  
-  # ---- Centroids ----
-  frass_centroid  <- weighted.mean(df$julianweek, df$mass, na.rm = TRUE)
-  notemp_centroid <- weighted.mean(df$julianweek, df$meanBiomass, na.rm = TRUE)
-  temp_centroid   <- weighted.mean(df$julianweek, df$Tin_biomass, na.rm = TRUE)
-  
-  par(mar = c(5, 4, 4, 10))  # extra space for 2nd right axis
-    #  LEFT AXIS — FRASS
-  plot(df$julianweek, df$mass,
-       type = "l",
-       col = "sienna",
-       lwd = 2,
-       xlab = "Julian week",
-       ylab = "Frass mass",
-       main = paste(site_choice, year_choice))
-  
-  abline(v = frass_centroid, col = "sienna", lty = 2, lwd = 2)
-  
-    # RIGHT AXIS (INNER) — NOT TEMP BIOMASS (blue)
-  par(new = TRUE)
-  
-  plot(df$julianweek, df$meanBiomass,
-       type = "l",
-       col = "forestgreen",
-       lwd = 2,
-       axes = FALSE,
-       xlab = "",
-       ylab = "",
-       ylim = range(df$meanBiomass, na.rm = TRUE))
-  
-  axis(side = 4, col.axis = "forestgreen")  # inner right axis
-  mtext("Actual Cat Biomass", side = 4, line = 2, col='forestgreen', cex=0.8)
-  
-  abline(v = notemp_centroid, col = "forestgreen", lty = 2, lwd = 2)
-  
-  # RIGHT AXIS (OUTER) — TEMP BIOMASS (GREEN)
-  par(new = TRUE)
-  
-  plot(df$julianweek, df$Tin_biomass,
-       type = "l",
-       col = "deepskyblue3",
-       lwd = 2,
-       axes = FALSE,
-       xlab = "",
-       ylab = "",
-       ylim = range(df$Tin_biomass, na.rm = TRUE))
-  
-  axis(side = 4, line = 4, col = "deepskyblue3", col.axis = "deepskyblue3")
-  mtext("Predicted Cat Biomass",
-        side = 4,
-        line = 6,
-        col = "deepskyblue3", cex=0.8)
-  
-  abline(v = temp_centroid, col = "deepskyblue3", lty = 2, lwd = 2)
-    # LEGEND
-  legend("topleft",
-         legend = c("Frass mass",
-                    "Frass centroid",
-                    "Actual cat biomass",
-                    "Actual centroid",
-                    "predicted biomass",
-                    "predicted centroid"),
-         col = c("sienna","sienna",
-                 "forestgreen","forestgreen",
-                 "deepskyblue3","deepskyblue3"),
-         lwd = 2,
-         lty = c(1,2,1,2,1,2),
-         bty = "n",
-         cex = 0.65)
-}
-
-#---------------------------------------------------------------------
-biomass_plotting(cats_tinbergen_biomass, 2022, 117)
-#SAVING TO A PDF
-#Years for each site
-years_NCBG <- c(2015, 2016, 2017, 2018, 2019, 2021, 2022,2023, 2024)
-years_PR   <- c(2015, 2018, 2019, 2021, 2022)
-setwd("C:/Z_School/HurlbertLab/graphs")
-#set pdf size
-pdf(file = "Biomass_plotting_all3.pdf",
-    width = 11,
-    height = 8)
-#set up how many plots per page
-par(mfrow = c(3, 2),     
-    mar = c(3, 4, 3, 4), 
-    oma = c(0, 0, 2, 0)) 
-#loop through all plots and years
-# NCBG plots
-for (yr in years_NCBG) {
-  try(
-    biomass_plotting(
-      data = cats_tinbergen_biomass,
-      year_choice = yr,
-      site_choice = 8892356
-    ),
-    silent = TRUE)}
-# PR plots
-for (yr in years_PR) {
-  try(
-    biomass_plotting(
-      data = cats_tinbergen_biomass,
-      year_choice = yr,
-      site_choice = 117
-    ),
-    silent = TRUE)}
-dev.off()
-#------------------------------------------------------------------------
-biomass_plotting(cats_tinbergen_biomass_cutoff, 2022, 8892356)
-#SAVING TO A PDF
-#Years for each site
-years_NCBG <- c(2015, 2016, 2017, 2018, 2019, 2021, 2022,2023, 2024)
-years_PR   <- c(2015, 2018, 2019, 2021, 2022)
-setwd("C:/Z_School/HurlbertLab/graphs")
-#set pdf size
-pdf(file = "Biomass_plotting_all3_CUTOFFS.pdf",
-    width = 11,
-    height = 8)
-#set up how many plots per page
-par(mfrow = c(3, 2),     
-    mar = c(3, 4, 3, 4), 
-    oma = c(0, 0, 2, 0)) 
-#loop through all plots and years
-# NCBG plots
-for (yr in years_NCBG) {
-  try(
-    biomass_plotting(
-      data = cats_tinbergen_biomass_cutoff,
-      year_choice = yr,
-      site_choice = 8892356
-    ),
-    silent = TRUE)}
-# PR plots
-for (yr in years_PR) {
-  try(
-    biomass_plotting(
-      data = cats_tinbergen_biomass_cutoff,
-      year_choice = yr,
-      site_choice = 117
-    ),
-    silent = TRUE)}
-dev.off()
 
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
-#   Doing centroid comparisons on years (WITH temp correction)
+#   plotting Line Chart with centroids (mass density and biomass density; aka divided by trap area)
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
-#plotting temp corrected biomass estimates with frass, with centroids shown
-plot_tinbergen <- function(data, year_choice, site_choice) {
-  
-  # ---- Filter by year and site ----
-  df <- data %>%
-    filter(Year == year_choice, site == site_choice)
-  
-  if(nrow(df) == 0) {
-    stop("No data for the specified year and site.")
-  }
-  
-  # ---- Weighted centroids ----
-  mass_x_centroid <- weighted.mean(df$julianweek, df$mass, na.rm = TRUE)
-  biomass_x_centroid <- weighted.mean(df$julianweek, df$Tin_biomass, na.rm = TRUE)
-  
-  # ---- Plot ----
-  par(mar = c(5, 4, 4, 4) + 0.1)
-  
-  # Mass line (left y-axis)
-  plot(
-    df$julianweek,
-    df$mass,
-    type = "l",
-    col = "sienna",
-    lwd = 2,
-    xlab = "Julian week",
-    ylab = "frass Mass",
-    main = paste(site_choice, year_choice)
-  )
-  
-  # Weighted centroid for mass
-  abline(v = mass_x_centroid, col = "sienna", lty = 2, lwd = 2)
-  
-  # Biomass line (right y-axis)
-  par(new = TRUE)
-  plot(
-    df$julianweek,
-    df$Tin_biomass,
-    type = "l",
-    col = "forestgreen",
-    lwd = 2,
-    axes = FALSE,
-    xlab = "",
-    ylab = ""
-  )
-  
-  axis(side = 4)
-  mtext("Tinbergen Biomass", side = 4, line = 2)
-  
-  # Weighted centroid for biomass
-  abline(v = biomass_x_centroid, col = "forestgreen", lty = 2, lwd = 2)
-  
-  # Legend
-  legend(
-    "topleft",
-    legend = c(
-      "frass Mass",
-      "frass centroid",
-      "Tinbergen biomass",
-      "Biomass centroid"
-    ),
-    col = c("sienna", "sienna", "forestgreen", "forestgreen"),
-    lwd = c(2, 2, 2, 2),
-    lty = c(1, 2, 1, 2),
-    bty = "n"
-  )
-  
-  invisible(df)
-}
-#example
-plot_tinbergen(Tinbergen_biomass, year_choice = 2019, site_choice = "8892356")
-#saving as a pdf------------------------
-# Years for each site
-years_NCBG <- c(2015, 2016, 2017, 2018, 2019, 2021, 2022,2023, 2024)
-years_PR   <- c(2015, 2018, 2019, 2021, 2022)
-setwd("C:/Z_School/HurlbertLab/graphs")
-#set pdf size
-pdf(file = "frass_vs_caterpillar_tinbergenbiomass_centorids.pdf",
-  width = 8,
-  height = 8)
-#set up how many plots per page
-par(mfrow = c(3, 2),     
-    mar = c(4, 4, 3, 4), 
-    oma = c(0, 0, 2, 0)) 
-#loop through all plots and years
-# NCBG plots
-for (yr in years_NCBG) {
-  try(
-    plot_tinbergen(
-      data = Tinbergen_biomass,
-      year_choice = yr,
-      site_choice = 8892356
-    ),
-    silent = TRUE)}
-# PR plots
-for (yr in years_PR) {
-  try(
-    plot_tinbergen(
-      data = Tinbergen_biomass,
-      year_choice = yr,
-      site_choice = 117
-    ),
-    silent = TRUE)}
-dev.off()
-
-
-# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
-#   Doing centroid comparisons on years (no temp correction)
-# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
-#visualize each year with centroid placed
-Plot_frass_catbiomass_centroid <- function(site, year,
-                                                   frass_data = meanfrass_combinedweeks,
-                                                   survey_data = fullDataset) {
-  
-  ## ---- Site mapping ----
-  if (site == "NCBG") {
-    frass_site <- "8892356"
-    survey_site <- "NC Botanical Garden"
-  } else if (site == "PR") {
-    frass_site <- "117"
-    survey_site <- "Prairie Ridge Ecostation"
-  } else {
-    stop("site must be 'NCBG' or 'PR'")
-  }
-  
-  ## ---- Frass data ----
-  frass <- frass_data %>%
-    mutate(
-      julianweek = 7 * floor(jday / 7) + 4,
-      Year = as.integer(Year)
-    ) %>%
-    filter(site == frass_site, Year == year) %>%
-    rename(frass_mass = mass)
-  
-  ## ---- Caterpillar data ----
-  cats <- survey_data %>%
-    filter(Name == survey_site, Year == year) %>%
-    group_by(Year) %>%
-    group_split() %>%
-    purrr::map_dfr(~ {
-      out <- meanDensityByWeek(
-        surveyData = .x,
-        ordersToInclude = "caterpillar",
-        allDates = TRUE
-      )
-      out$Year <- unique(.x$Year)
-      out
-    })
-  
-  ## ---- Join ----
-  dat <- frass %>%
-    left_join(cats, by = c("julianweek", "Year"))
-  
-  ## ---- Weighted x-centroids (phenology) ----
-  frass_x_centroid <- weighted.mean(
-    dat$julianweek,
-    dat$frass_mass,
-    na.rm = TRUE
-  )
-  
-  biomass_x_centroid <- weighted.mean(
-    dat$julianweek,
-    dat$meanBiomass,
-    na.rm = TRUE
-  )
-  
-  ## ---- Plot ----
-  par(mar = c(5, 4, 4, 4) + 0.1)
-  
-  plot(
-    dat$julianweek,
-    dat$frass_mass,
-    type = "l",
-    col = "sienna",
-    lwd = 2,
-    xlab = "Julian week",
-    ylab = "Frass mass",
-    main = paste(year, survey_site)
-  )
-  
-  ## ---- Frass weighted centroid (vertical line) ----
-  abline(v = frass_x_centroid, col = "sienna", lwd = 2, lty = 2)
-  
-  par(new = TRUE)
-  
-  plot(
-    dat$julianweek,
-    dat$meanBiomass,
-    type = "l",
-    col = "forestgreen",
-    lwd = 2,
-    axes = FALSE,
-    xlab = "",
-    ylab = ""
-  )
-  
-  axis(side = 4, cex.axis = 0.8)
-  mtext("Mean Caterpillar Biomass", side = 4, line = 2)
-  
-  ## ---- Biomass weighted centroid ----
-  abline(v = biomass_x_centroid, col = "forestgreen", lwd = 2, lty = 2)
-  
-  ## ---- Legend ----
-  legend(
-    "topleft",
-    legend = c(
-      "Frass mass",
-      "Frass timing centroid",
-      "Mean cat biomass",
-      "Biomass timing centroid"
-    ),
-    col = c("sienna", "sienna", "forestgreen", "forestgreen"),
-    lwd = c(2, 2, 2, 2),
-    lty = c(1, 2, 1, 2),
-    bty = "n",
-    cex = 0.8
-  )
-  
-  invisible(dat)
-}
-
-#example
-Plot_frass_catbiomass_centroid(site = "PR", year = 2022)
-#saving as a pdf------------------------
-# Years for each site
-years_NCBG <- c(2015, 2016, 2017, 2018, 2019, 2021, 2022,2023, 2024, 2025)
-years_PR   <- c(2015, 2018, 2019, 2021, 2022)
-setwd("C:/Z_School/HurlbertLab/graphs")
-#set pdf size
-pdf(
-  file = "frass_vs_caterpillar_biomass_centorids.pdf",
-  width = 8,
-  height = 8
-)
-#set up how many plots per page
-par(mfrow = c(3, 2),     # 3 rows, 2 columns
-    mar = c(4, 4, 3, 4), # margins per plot
-    oma = c(0, 0, 2, 0)) 
-#loop through all plots and years
-  # NCBG plots
-for (yr in years_NCBG) {
-  Plot_frass_catbiomass_centroid("NCBG", yr)}
-  # PR plots
-for (yr in years_PR) {
-  Plot_frass_catbiomass_centroid("PR", yr)
-}
-dev.off()
-
-# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
-#   analyzing timing shifts across years
-# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
-#temp corrected centroids for both sites (what day), and create bins of 3 day periods (starting at 154 NCBG and 142 PR) and see what years go in each
-all_centroids <- cats_tinbergen_biomass_cutoff %>%
-  group_by(Year, site) %>%
-  summarise(centroid_frass = weighted.mean(jday, mass, na.rm = TRUE),
-            centroid_tempbiomass =weighted.mean(jday, Tin_biomass, na.rm = TRUE),
-            centroid_NOtempbiomass =weighted.mean(jday, meanBiomass, na.rm = TRUE))%>%
-  mutate(diff_centroid = centroid_tempbiomass - centroid_NOtempbiomass) %>%
-  mutate(start_day = case_when(
-  site == 8892356 ~ 154,
-  site == 117 ~ 142)) %>%
-  mutate(bin_frass = floor((centroid_frass - start_day) / 3) + 1) %>%
-  mutate(bin_tempbiomass = floor((centroid_tempbiomass - start_day) / 3) + 1) %>%
-  mutate(bin_NOtempbiomass = floor((centroid_NOtempbiomass - start_day) / 3) + 1)
-
-# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
-#   create linechart of frass density vs biomass density (so both corrected for size of frass trap)
-# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
-#creating biomass density colummn
-cats_tinbergen_biomass_density <- cats_tinbergen_biomass_cutoff %>%
-  mutate(Tin_biomass_density = Tin_biomass/(ifelse(Year <= 2018, 309.74, 197.71))) %>% #dividing by 209 for years 2018 and before, and 197 for years after
-  mutate(biomass_density = meanBiomass/ (ifelse(Year <= 2018, 309.74, 197.71)))
-
-#plotting temp corrected biomass density estimates, NON temp corrected biomass desnity, and frass density, with centroids shown
-all_density_plotting <- function(data, year_choice, site_choice) {
-  
-  df <- data %>%
-    filter(Year == year_choice, site == site_choice)
-  
-  if(nrow(df) == 0) stop("No data for that year/site")
-  
-  # ---- Centroids ----
-  frass_density_centroid  <- weighted.mean(df$julianweek, df$density, na.rm = TRUE)
-  notemp_centroid <- weighted.mean(df$julianweek, df$biomass_density, na.rm = TRUE)
-  temp_centroid   <- weighted.mean(df$julianweek, df$Tin_biomass_density, na.rm = TRUE)
-  
-  par(mar = c(5, 4, 4, 10))  # extra space for 2nd right axis
-  #  LEFT AXIS — FRASS
-  plot(df$julianweek, df$density,
-       type = "l",
-       col = "sienna",
-       lwd = 2,
-       xlab = "Julian week",
-       ylab = "Frass density",
-       main = paste(site_choice, year_choice))
-  
-  abline(v = frass_density_centroid, col = "sienna", lty = 2, lwd = 2)
-  
-  # RIGHT AXIS (INNER) — NOT TEMP BIOMASS (PURPLE)
-  par(new = TRUE)
-  
-  plot(df$julianweek, df$biomass_density,
-       type = "l",
-       col = "deepskyblue3",
-       lwd = 2,
-       axes = FALSE,
-       xlab = "",
-       ylab = "",
-       ylim = range(df$biomass_density, na.rm = TRUE))
-  
-  axis(side = 4, col.axis = "deepskyblue3")  # inner right axis
-  mtext("Not Temp Corrected Biomass Density", side = 4, line = 2, col='deepskyblue3')
-  
-  abline(v = notemp_centroid, col = "deepskyblue3", lty = 2, lwd = 2)
-  
-  # RIGHT AXIS (OUTER) — TEMP BIOMASS (GREEN)
-  par(new = TRUE)
-  
-  plot(df$julianweek, df$Tin_biomass_density,
-       type = "l",
-       col = "forestgreen",
-       lwd = 2,
-       axes = FALSE,
-       xlab = "",
-       ylab = "",
-       ylim = range(df$Tin_biomass_density, na.rm = TRUE))
-  
-  axis(side = 4, line = 4, col = "forestgreen", col.axis = "forestgreen")
-  mtext("Temp Corrected Biomass Density",
-        side = 4,
-        line = 6,
-        col = "forestgreen")
-  
-  abline(v = temp_centroid, col = "forestgreen", lty = 2, lwd = 2)
-  # LEGEND
-  legend("topleft",
-         legend = c("Frass density",
-                    "Frass centroid",
-                    "Not temp biomass density",
-                    "Not temp centroid",
-                    "Temp biomass density",
-                    "Temp centroid"),
-         col = c("sienna","sienna",
-                 "deepskyblue3","deepskyblue3",
-                 "forestgreen","forestgreen"),
-         lwd = 2,
-         lty = c(1,2,1,2,1,2),
-         bty = "n",
-         cex = 0.8)
-}
-all_density_plotting(cats_tinbergen_biomass_density, 2022, 117)
-
-#plotting frass density vs meanBiomass density with centroids
+#plot on linecharts with centroid dates
 density_plotting <- function(data, year_choice, site_choice) {
   
   df <- data %>%
@@ -893,7 +460,7 @@ density_plotting <- function(data, year_choice, site_choice) {
   
   if (nrow(df) == 0 ||
       all(is.na(df$julianweek)) ||
-      all(is.na(df$density))) {
+      all(is.na(df$frass_density))) {
     
     plot.new()
     text(0.5, 0.5,
@@ -904,7 +471,7 @@ density_plotting <- function(data, year_choice, site_choice) {
   
   ## ---- Centroids ----
   frass_density_centroid <- weighted.mean(
-    df$julianweek, df$density, na.rm = TRUE
+    df$julianweek, df$frass_density, na.rm = TRUE
   )
   
   biomass_centroid <- weighted.mean(
@@ -916,7 +483,7 @@ density_plotting <- function(data, year_choice, site_choice) {
   
   # LEFT AXIS — FRASS
   plot(
-    df$julianweek, df$density,
+    df$julianweek, df$frass_density,
     type = "l",
     col = "sienna",
     lwd = 2,
@@ -972,7 +539,7 @@ density_plotting <- function(data, year_choice, site_choice) {
   
   invisible(df)
 }
-density_plotting(cats_tinbergen_biomass_density, 2022, 117)
+density_plotting(all_data_clean, 2016, 8892356)
 #saving as a pdf------------------------ ^^^^^
 # Years for each site
 years_PR   <- c(2015, 2018, 2019, 2021, 2022)
@@ -980,7 +547,7 @@ years_NCBG <- setdiff(2015:2025, 2020)
 setwd("C:/Z_School/HurlbertLab/graphs")
 #set up pdf
 pdf(
-  file = "density_centroid_plots_PR_NCBG.pdf",
+  file = "insertnamehere.pdf",
   width = 8,
   height = 8)
 #layout for pdf
@@ -992,7 +559,7 @@ par(
 for (yr in years_NCBG) {
   try(
     density_plotting(
-      data = cats_tinbergen_biomass_density,
+      data = all_data_clean,
       year_choice = yr,
       site_choice = 8892356  
     ),
@@ -1000,12 +567,146 @@ for (yr in years_NCBG) {
 for (yr in years_PR) {
   try(
     density_plotting(
-      data = cats_tinbergen_biomass_density,
+      data = all_data_clean,
       year_choice = yr,
       site_choice = 117   
     ),
     silent = TRUE)}
 dev.off()
+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   Plotting all 3 variables at once (mass biomass Tin_biomass)
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+biomass_plotting <- function(data, year_choice, site_choice) {
+  
+  df <- data %>%
+    filter(Year == year_choice, site == site_choice)
+  
+  if(nrow(df) == 0) stop("No data for that year/site")
+  
+  # ---- Centroids ----
+  frass_centroid  <- weighted.mean(df$julianweek, df$mass, na.rm = TRUE)
+  notemp_centroid <- weighted.mean(df$julianweek, df$meanBiomass, na.rm = TRUE)
+  temp_centroid   <- weighted.mean(df$julianweek, df$Tin_biomass, na.rm = TRUE)
+  
+  par(mar = c(5, 4, 4, 10))  # extra space for 2nd right axis
+  #  LEFT AXIS — FRASS
+  plot(df$julianweek, df$mass,
+       type = "l",
+       col = "sienna",
+       lwd = 2,
+       xlab = "Julian week",
+       ylab = "Frass mass",
+       main = paste(site_choice, year_choice))
+  
+  abline(v = frass_centroid, col = "sienna", lty = 2, lwd = 2)
+  
+  # RIGHT AXIS (INNER) — NOT TEMP BIOMASS (blue)
+  par(new = TRUE)
+  
+  plot(df$julianweek, df$meanBiomass,
+       type = "l",
+       col = "forestgreen",
+       lwd = 2,
+       axes = FALSE,
+       xlab = "",
+       ylab = "",
+       ylim = range(df$meanBiomass, na.rm = TRUE))
+  
+  axis(side = 4, col.axis = "forestgreen")  # inner right axis
+  mtext("Actual Cat Biomass", side = 4, line = 2, col='forestgreen', cex=0.8)
+  
+  abline(v = notemp_centroid, col = "forestgreen", lty = 2, lwd = 2)
+  
+  # RIGHT AXIS (OUTER) — TEMP BIOMASS (GREEN)
+  par(new = TRUE)
+  
+  plot(df$julianweek, df$Tin_biomass,
+       type = "l",
+       col = "deepskyblue3",
+       lwd = 2,
+       axes = FALSE,
+       xlab = "",
+       ylab = "",
+       ylim = range(df$Tin_biomass, na.rm = TRUE))
+  
+  axis(side = 4, line = 4, col = "deepskyblue3", col.axis = "deepskyblue3")
+  mtext("Predicted Cat Biomass",
+        side = 4,
+        line = 6,
+        col = "deepskyblue3", cex=0.8)
+  
+  abline(v = temp_centroid, col = "deepskyblue3", lty = 2, lwd = 2)
+  # LEGEND
+  legend("topleft",
+         legend = c("Frass mass",
+                    "Frass centroid",
+                    "Actual cat biomass",
+                    "Actual centroid",
+                    "predicted biomass",
+                    "predicted centroid"),
+         col = c("sienna","sienna",
+                 "forestgreen","forestgreen",
+                 "deepskyblue3","deepskyblue3"),
+         lwd = 2,
+         lty = c(1,2,1,2,1,2),
+         bty = "n",
+         cex = 0.65)
+}
+#---------------------------------------------------------------------
+biomass_plotting(Tinbergen_biomass, 2015, 117)
+#SAVING TO A PDF
+#Years for each site
+years_NCBG <- c(2015, 2016, 2017, 2018, 2019, 2021, 2022,2023, 2024)
+years_PR   <- c(2015, 2018, 2019, 2021, 2022)
+setwd("C:/Z_School/HurlbertLab/graphs")
+#set pdf size
+pdf(file = "Biomass_plotting_all3.pdf",
+    width = 11,
+    height = 8)
+#set up how many plots per page
+par(mfrow = c(3, 2),     
+    mar = c(3, 4, 3, 4), 
+    oma = c(0, 0, 2, 0)) 
+#loop through all plots and years
+# NCBG plots
+for (yr in years_NCBG) {
+  try(
+    biomass_plotting(
+      data = Tinbergen_biomass,
+      year_choice = yr,
+      site_choice = 8892356
+    ),
+    silent = TRUE)}
+# PR plots
+for (yr in years_PR) {
+  try(
+    biomass_plotting(
+      data = Tinbergen_biomass,
+      year_choice = yr,
+      site_choice = 117
+    ),
+    silent = TRUE)}
+dev.off()
+
+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   centroid dates for imputed values for all 3 variables (mass, biomass, tin_biomass)
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+#temp corrected centroids for both sites (what day), and create bins of 3 day periods (starting at 154 NCBG and 142 PR) and see what years go in each
+all_centroids <- Tinbergen_biomass %>%
+  group_by(Year, site) %>%
+  summarise(centroid_frass = weighted.mean(jday, mass, na.rm = TRUE),
+            centroid_tempbiomass =weighted.mean(jday, Tin_biomass, na.rm = TRUE),
+            centroid_NOtempbiomass =weighted.mean(jday, meanBiomass, na.rm = TRUE))%>%
+  mutate(diff_centroid = centroid_tempbiomass - centroid_NOtempbiomass) %>%
+  mutate(start_day = case_when(
+  site == 8892356 ~ 154,
+  site == 117 ~ 142)) %>%
+  mutate(bin_frass = floor((centroid_frass - start_day) / 3) + 1) %>%
+  mutate(bin_tempbiomass = floor((centroid_tempbiomass - start_day) / 3) + 1) %>%
+  mutate(bin_NOtempbiomass = floor((centroid_NOtempbiomass - start_day) / 3) + 1)
+
 
 
 
