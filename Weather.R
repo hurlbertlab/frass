@@ -244,5 +244,18 @@ for (yr in years_PR) {
     silent = TRUE)}
 dev.off()
 
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   find when anomalies are significantly different then mean average temp for that week 
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+#significant_diff <- temp_anomolies %>%
+  group_by(site, Year, julianweek) %>%
+  summarise(
+    cor_test = cor.test(week_avg, weeklytemp)$p.value,
+    .groups = "drop"
+  )
+
+
+
+
 
 

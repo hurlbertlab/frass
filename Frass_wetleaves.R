@@ -65,24 +65,54 @@ AllTemp= bind_rows(TempAnomalyData_clean) #this is the file we want (has all NCB
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   adding up wet leaf vs dry leaf totals for each arthropod group (all sites merged and all years merged)
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
-raw_totals <- fullDataset %>%
+raw_totals <- fullDataset %>% 
+  distinct(ID, .keep_all = TRUE)%>% #only keeps first instance of ID, make sure all unique
   group_by(Group) %>% #fixed group with inaturalists?
   summarise(
     sum_all_dry = sum(WetLeaves == 0),
-    sum_all_wet = sum(WetLeaves == 1))
+    sum_all_wet = sum(WetLeaves == 1),
+    sum_all = sum(sum_all_dry, sum_all_wet)) %>%
+  mutate(dry_ratio = sum_all_dry/sum_all,
+         wet_ratio = sum_all_wet/sum_all)
 
 raw_totals2 <- fullDataset %>%
   group_by(OriginalGroup) %>% #original bug group
   summarise(
     sum_all_dry2 = sum(WetLeaves == 0),
     sum_all_wet2 = sum(WetLeaves == 1))
-raw_totals <- left_join(raw_totals, raw_totals2, by = c("Group" = "OriginalGroup"))
+raw_totals_both <- left_join(raw_totals, raw_totals2, by = c("Group" = "OriginalGroup"))
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   adding up wet leaf vs dry leaf totals for each arthropod group by site (NCBG and PR) and year
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
-leaf_data_ncbg_pr <- fullDataset %>%
-  filter(Name %in% c("NC Botanical Garden", "Prairie Ridge Ecostation"))
+#botanical garden
+raw_totals_ncbg <- fullDataset %>%
+  filter(Name == "NC Botanical Garden") %>%
+  distinct(ID, .keep_all = TRUE)%>% #only keeps first instance of ID, make sure all unique
+  group_by(Group, Year) %>% #fixed group with inaturalists?
+  summarise(
+    sum_all_dry = sum(WetLeaves == 0),
+    sum_all_wet = sum(WetLeaves == 1),
+    sum_all = sum(sum_all_dry, sum_all_wet)) %>%
+  mutate(dry_ratio = sum_all_dry/sum_all,
+         wet_ratio = sum_all_wet/sum_all) %>%
+  mutate(site = "8892356")
+#prairie ridge
+raw_totals_pr <- fullDataset %>%
+  filter(Name == "Prairie Ridge Ecostation") %>%
+  distinct(ID, .keep_all = TRUE)%>% #only keeps first instance of ID, make sure all unique
+  group_by(Group, Year) %>% #fixed group with inaturalists?
+  summarise(
+    sum_all_dry = sum(WetLeaves == 0),
+    sum_all_wet = sum(WetLeaves == 1),
+    sum_all = sum(sum_all_dry, sum_all_wet)) %>%
+  mutate(dry_ratio = sum_all_dry/sum_all,
+         wet_ratio = sum_all_wet/sum_all) %>%
+  mutate(site = "117")
+#combine by rows 
+raw_totals_frass_sites <- rbind(raw_totals_ncbg, raw_totals_pr)
+
+
 
 
 
