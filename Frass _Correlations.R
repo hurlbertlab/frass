@@ -18,6 +18,7 @@ library(tidyverse)
 library(jsonlite)
 library(daymetr)
 library(lme4)
+library(zoo)
 
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
@@ -439,12 +440,15 @@ impute_biomass_data <- function(data, site_mass_defaults) {
 }
 #run function
 imputation_data <- impute_biomass_data(all_data_clean, site_mass_defaults = c() )
+imputation_data <- imputation_data %>%
+  mutate(biomass_density = meanBiomass/(ifelse(Year <= 2018, 309.74, 197.71))) %>% #dividing by 209 for years 2018 and before, and 197 for years after
+  mutate(frass_density = mass/ (ifelse(Year <= 2018, 309.74, 197.71)))
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   Creating dataframe that combines temp data and computes tinbergen estimates for comparison:
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 
-#Temp stuff--------------------------------------
+#Temp stuff and precp--------------------------------------
 #rename site names so match other dataframes, also rename to can be joined properly with meanfrass data
 AllTemp <- AllTemp %>%
   mutate(site = case_when(
@@ -454,12 +458,13 @@ AllTemp <- rename(AllTemp, jday=yday)
 AllTemp<- rename(AllTemp, Year=year)
 #add average temp column to alltemp data
 AllTemp <- AllTemp %>%
-  mutate(avgtemp = (tmax..deg.c. + tmin..deg.c.) / 2)  #avg max and min temps
+  mutate(avgtemp = (tmax..deg.c. + tmin..deg.c.) / 2) #avg max and min temps
 #adding average weekly temp column to alltemp data, and averaging temp for all days with same jweek value
 AllTemp_weekly <- AllTemp %>%
   mutate(julianweek = 7 * floor(jday / 7) + 4) %>%
   group_by(Year, site, julianweek) %>%
   summarise(weeklytemp = mean(avgtemp, na.rm = TRUE),
+            weeklyprecp = mean(prcp..mm.day., na.rm = TRUE), 
             .groups = "drop")
 #combining temp data and all_data_clean into one dataset so all info in one place 
 all_temp_data <- imputation_data %>%
@@ -475,47 +480,97 @@ Tinbergen_biomass <- all_temp_data %>%
 #   testing if width / height of tinbergen biomass density AND non temp corrected peaks different significantly from year to year
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
 #make sure all_centroid is this one:
-all_centroids <- cats_tinbergen_biomass_density %>%
+all_centroids <- Tinbergen_biomass %>%
   group_by(Year, site) %>%
-  summarise(centroid_frass_density = weighted.mean(jday, density, na.rm = TRUE),
-            centroid_TinbergenBiomass_density =weighted.mean(jday, Tin_biomass_density, na.rm = TRUE),
-            centroid_ActualBiomass_density =weighted.mean(jday, biomass_density, na.rm = TRUE))%>%
-  mutate(diff_centroid = centroid_TinbergenBiomass_density - centroid_ActualBiomass_density) %>%
+  summarise(centroid_frass = weighted.mean(julianweek, mass, na.rm = TRUE),
+            centroid_actualbiomass =weighted.mean(julianweek, meanBiomass, na.rm = TRUE),
+            centroid_TinbergenBiomass =weighted.mean(julianweek, Tin_biomass, na.rm = TRUE))%>%
+  mutate(diff_biomass_variables = centroid_actualbiomass - centroid_TinbergenBiomass) %>%
+  mutate(diff_actualbiomass_frass = centroid_actualbiomass-centroid_frass)%>%
   mutate(start_day = case_when(
     site == 8892356 ~ 154,
     site == 117 ~ 142)) %>%
-  mutate(bin_frass_density = floor((centroid_frass_density - start_day) / 3) + 1) %>%
-  mutate(bin_tinbergenbiomass_density = floor((centroid_TinbergenBiomass_density - start_day) / 3) + 1) %>%
-  mutate(bin_Actualbiomass = floor((centroid_ActualBiomass_density - start_day) / 3) + 1) 
+  mutate(bin_frass = floor((centroid_frass - start_day) / 3) + 1) %>%
+  mutate(bin_TinbergenBiomass = floor((centroid_TinbergenBiomass - start_day) / 3) + 1) %>%
+  mutate(bin_NOtempbiomass = floor((centroid_actualbiomass - start_day) / 3) + 1)
+
 #Is centroid timing shifting earlier or later over time? Now the Year coefficient tells you: Positive slope → peak happening later. Negative slope → peak happening earlier
-#tinbergen biomass-------------------------
+# biomass-------------------------
 all_centroids$Year_c <- all_centroids$Year - mean(all_centroids$Year) #center year so easier to interpret data
-model1 <- lm(centroid_ActualBiomass_density ~ Year_c * factor(site),
+model1 <- lm(centroid_actualbiomass ~ Year_c * factor(site),
              data = all_centroids)
 summary(model1) #centroid∼Yearc​×site
 #frass density-------------------------------
 all_centroids$Year_c <- all_centroids$Year - mean(all_centroids$Year) #center year so easier to interpret data
-model2 <- lm(centroid_frass_density ~ Year_c * factor(site),
+model2 <- lm(centroid_frass ~ Year_c * factor(site),
              data = all_centroids)
 summary(model2) #centroid∼Yearc​×site
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   Plotting within sites: correlation between frass density and actual biomass density at each site (looking at cutoffs)
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
-#calculating spearmans
+#calculating spearmans on frass vs biomass density
 spearmans <- function(dataset) {
   dataset %>%
     group_by(site, Year) %>%
     filter(
       n() >= 2,
-      !all(is.na(density)),
+      !all(is.na(frass_density)),
       !all(is.na(biomass_density))) %>%
     summarise(
-      rho = cor(density, biomass_density, method = "spearman"),
-      p_value = cor.test(density, biomass_density, method = "spearman")$p.value,
+      test = list(cor.test(frass_density, biomass_density, method = "spearman")),
+      rho = test[[1]]$estimate,
+      p_value = test[[1]]$p.value,
       n = n(),
-      .groups = "drop")}
-spearmans_results <- spearmans(cats_tinbergen_biomass_density)
+      .groups = "drop") %>%
+    select(-test)}
+spearmans_results <- spearmans(Tinbergen_biomass)
+
+#spearman's  for correlations:
+spearmans_centroids <- function(dataset) {
+  dataset %>%
+    group_by(site) %>%
+    summarise(
+      test = list(cor.test(
+        centroid_frass,
+        centroid_actualbiomass,
+        method = "spearman"
+      )),
+      rho = test[[1]]$estimate,
+      p_value = test[[1]]$p.value,
+      n = n(),
+      .groups = "drop"
+    ) %>%
+    select(-test)
+}
+spearmans_results <- spearmans_centroids(all_centroids)
+
+#CCf correlation, frass will be lagged one
+ccf_results <- Tinbergen_biomass %>%
+  group_by(site, Year) %>%
+  arrange(julianweek) %>%
+  summarise(
+    ccf_obj = list(ccf(frass_density, biomass_density, plot = FALSE)),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    data = map(ccf_obj, ~{
+      tibble(
+        lag = as.numeric(.x$lag),
+        ccf = as.numeric(.x$acf)
+      )
+    })
+  ) %>%
+  unnest(data)
+#hi
+ccf_summary <- ccf_results %>%
+  group_by(site, Year) %>%
+  slice_max(abs(ccf), n = 1) %>%
+  ungroup() 
+#plotting all of them
+ggplot(ccf_results, aes(lag, ccf)) +
+  geom_line() +
+  facet_grid(site ~ Year) 
 
 #plot results for individual site
 plot_site_correlation <- function(data, site_name){
@@ -524,7 +579,7 @@ plot_site_correlation <- function(data, site_name){
     site_data <- data[data$site == site_name, ]
     
     # Spearman correlation
-    cor_test <- cor.test(site_data$density,
+    cor_test <- cor.test(site_data$frass_density,
                          site_data$biomass_density,
                          method = "spearman")
     
@@ -532,24 +587,23 @@ plot_site_correlation <- function(data, site_name){
     r2 <- rho^2
     
     # Scatter plot
-    plot(site_data$density,
+    plot(site_data$frass_density,
          site_data$biomass_density,
          pch = 19,
          col = "black",
-         xlab = "Density",
+         xlab = "frass Density",
          ylab = "Biomass Density",
          main = paste("Site:", site_name))
     
     # Add regression line
-    model <- lm(biomass_density ~ density, data = site_data)
+    model <- lm(biomass_density ~ frass_density, data = site_data)
     abline(model, col = "blue", lwd = 2)
     
     # Add Spearman R² text
     legend("topleft",
-           legend = paste("Spearman R² =", round(r2, 3)),
+           legend = paste("Spearman rho =", round(rho, 3)),
            bty = "n")}
-
-plot_site_correlation(cats_tinbergen_biomass_density, "8892356")
+plot_site_correlation(Tinbergen_biomass, "117")
   
 #plot results, Here filled circles = p < 0.05, open circles = not significant
 plot(
@@ -630,56 +684,72 @@ summary(model1)
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   Plotting between sites: adding in temp and precipitation data
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
-#modify AllTemp to include precipitation average up for the week 
-AllTemp_weekly_prcp <- AllTemp %>%
-  mutate(julianweek = 7 * floor(jday / 7) + 4) %>%
-  group_by(Year, site, julianweek) %>%
-  summarise(
-    weeklytemp = mean(avgtemp, na.rm = TRUE),
-    avg_prcp   = mean(prcp..mm.day., na.rm = TRUE),
-    .groups = "drop"
-  )
-#combined new precipation data to shared_data so has all weather stuff
-shared_data_new <- shared_data %>%
-  left_join(
-    AllTemp_weekly_prcp %>%
-      select(Year, site, julianweek, avg_prcp),
-    by = c("Year", "site", "julianweek"))
-#center data
-shared_data_new <- shared_data_new %>%
-  mutate(
-    density_c = scale(density, scale = FALSE),
-    prcp_c = scale(avg_prcp, scale = FALSE),
-    temp_c = scale(weeklytemp, scale = FALSE)
-  )
 ##Add an actual climate variable---------------------------------------
-model_mixed <- lmer(biomass_density ~ density_c + prcp_c + temp_c +
+model_mixed <- lmer(biomass_density ~ frass_density + weeklyprecp + weeklytemp +
                       (1 | site) + (1 | Year),
-                    data = shared_data_new)
+                    data = Tinbergen_biomass)
 summary(model_mixed)
 #plotting
-plot(fitted(model_mixed), resid(model_mixed))
+plot(fitted(model_mixed3), resid(model_mixed3))
 abline(h = 0, col = "red")
 #checking qqplots
-qqnorm(resid(model_mixed))
-qqline(resid(model_mixed)) #indicating right skewed as some large frass measurements are not captured by line
+qqnorm(resid(model_mixed3))
+qqline(resid(model_mixed3)) #indicating right skewed as some large frass measurements are not captured by line
 ranef(model_mixed)
 
 #adding log transformation to account for skew ---------------------------------
 model_log <- lmer(
-  log(biomass_density) ~ density_c + prcp_c + temp_c +
+  log(biomass_density) ~ frass_density + weeklyprecp + weeklytemp +
     (1 | site) + (1 | Year),
-  data = shared_data_new)
+  data = Tinbergen_biomass)
 summary(model_log)
 #plot
 plot(model_log)
 qqnorm(resid(model_log))
 qqline(resid(model_log))
 
+#seeing if dropping temp fixes model
+model_mixed2 <- lmer(biomass_density ~ frass_density + weeklyprecp +
+                      (1 | site) + (1 | Year),
+                    data = Tinbergen_biomass)
+summary(model_mixed2)
+#dropping precp too
+model_mixed3 <- lmer(biomass_density ~ frass_density +
+                       (1 | site) + (1 | Year),
+                     data = Tinbergen_biomass)
+summary(model_mixed3)
+AIC(model_mixed, model_mixed2, model_mixed3)
+Anova(model_mixed3)  
+#adding log to fix data
+model_log <- lmer(
+log(biomass_density) ~ frass_density +
+  (1 | site) + (1 | Year),
+data = Tinbergen_biomass)
+summary(model_log)
+Anova(model_log)
+#plot
+plot(model_log)
+qqnorm(resid(model_log))
+qqline(resid(model_log))
 
-
-
-
+#testing correlation of temp and biomass
+Tinbergen_biomass %>%
+  group_by(site) %>%
+  summarise(
+    rho = cor.test(biomass_density, weeklytemp, method = "spearman")$estimate,
+    p_value = cor.test(biomass_density, weeklytemp, method = "spearman")$p.value,
+    n = n()
+  )
+Tinbergen_biomass %>%
+  filter(Year != 2025) %>%
+  group_by(site, Year) %>%
+  filter(n() >= 2) %>%
+  summarise(
+    rho = cor.test(biomass_density, weeklytemp, method = "spearman")$estimate,
+    p_value = cor.test(biomass_density, weeklytemp, method = "spearman")$p.value,
+    n = n(),
+    .groups = "drop"
+  )
 
 
 
