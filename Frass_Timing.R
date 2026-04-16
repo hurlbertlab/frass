@@ -901,9 +901,6 @@ legend("bottomright",
        bty = "n",
        ncol = 2)  
 
-
-
-
 #Plot anomaly of cat centroid at given year and site and anomaly of frass centroid at given year and given site and find r^2 and p value
 plot_site_correlation <- function(data, site_name){
   
@@ -937,6 +934,133 @@ plot_site_correlation <- function(data, site_name){
          bty = "n")}
 
 plot_site_correlation(mean_centroids, "117")
+
+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   doing temp anomaly vs frass or biomass anomaly scatterplot graphs with linear regression abline
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+#Get all temp centroids for cutoff weeks in sumer for each site
+temp_centroids <- AllTemp_weekly %>%
+  filter(
+  (site == 117 & Year %in% c(2015, 2018, 2019, 2021, 2022) & julianweek %in% 142:200) |
+    (site == 8892356 & Year %in% c(2015:2019, 2021:2025) & julianweek %in% 154:198)) %>%
+  group_by(Year, site) %>%
+  summarise(centroid_temp = weighted.mean(julianweek, weeklytemp, na.rm = TRUE)) %>%
+  ungroup()%>%
+  group_by(site)%>%
+  mutate(mean_temp =mean(centroid_temp))%>%
+  ungroup()%>%
+  mutate(temp_diff = centroid_temp - mean_temp)
+
+#left join the temp_anomolies df table with mean_centroids
+all_anomolies <- mean_centroids %>%
+  left_join(temp_centroids, by = c("site", "Year"))
+
+#plotting centroid date of biomass or frass vs temp centroid and calulating rho value
+plot_site_correlation <- function(data, x_var, site_name) {
+  
+  # Filter site
+  site_data <- data[data$site == site_name, ]
+  
+  # Spearman correlation
+  cor_test <- cor.test(site_data$centroid_temp,
+                       site_data[[x_var]],
+                       method = "spearman")
+  
+  rho <- cor_test$estimate
+  r2 <- rho^2
+  
+  # Scatter plot
+  plot(site_data$centroid_temp,
+       site_data[[x_var]],
+       pch = 19,
+       col = "black",
+       xlab = "Temperature Centroid",
+       ylab = paste(x_var, "Centroid"),
+       main = paste("Site:", site_name))
+  
+  # Add regression line
+  model <- lm(as.formula(paste(x_var, "~ centroid_temp")), data = site_data)
+  abline(model, col = "blue", lwd = 2)
+  
+  # Add Spearman R² text
+  legend("topleft",
+         legend = paste("Spearman R² =", round(r2, 3)),
+         bty = "n")
+}
+
+# Call the function
+plot_site_correlation(all_anomolies, "centroid_frass", 117)
+plot_site_correlation(all_anomolies, "centroid_actualbiomass", 117)
+plot_site_correlation(all_anomolies, "centroid_frass", 8892356)
+plot_site_correlation(all_anomolies, "centroid_actualbiomass", 8892356)
+
+#centroid agreement plot
+# remove rows with missing centroids
+df_plot <- all_anomolies[complete.cases(
+  all_anomolies[, c("centroid_temp",
+                    "centroid_frass",
+                    "centroid_actualbiomass")]), ]
+#color gradient
+yr_pal <- colorRampPalette(c("lightblue", "blue4"))
+year_levels <- sort(unique(df_plot$Year))
+year_cols <- yr_pal(length(year_levels))
+col_vals <- year_cols[match(df_plot$Year, year_levels)]
+#site symbols
+site_levels <- sort(unique(df_plot$site))
+site_pch <- c(16, 17)
+pch_vals <- site_pch[match(df_plot$site, site_levels)]
+
+#shared plot limits
+lims <- range(
+  c(df_plot$centroid_temp),
+  na.rm = TRUE)
+#plot frass vs caterpillar densities
+par(mfrow = c(1, 2), mar = c(5, 5, 4, 2))
+
+## --- frass ---
+plot(df_plot$centroid_temp,
+     df_plot$centroid_frass,
+     xlim = lims,
+     ylim = range(df_plot$centroid_frass),
+     pch = pch_vals,
+     col = col_vals,
+     cex=1.2,
+     xlab = "Temperature Centroid",
+     ylab = "Frass Centroid",
+     main = "")
+
+abline(0, 1, lty = 2, lwd = 2)
+#site legend
+legend("topleft",
+       legend = site_levels,
+       pch = site_pch,
+       cex = 1.2,
+       title = "Site",
+       bty = "n")
+## --- biomass ---
+plot(df_plot$centroid_temp,
+     df_plot$centroid_actualbiomass,
+     xlim = lims,
+     ylim = range(df_plot$centroid_actualbiomass),
+     cex=1.7,
+     pch = pch_vals,
+     col = col_vals,
+     xlab = "Temperature Centroid",
+     ylab = "Biomass Centroid",
+     main = "")
+
+abline(0, 1, lty = 2, lwd = 2)
+par(mfrow = c(1, 1))
+# year legend (gradient)
+legend("bottomright",
+       legend = c(min(df_plot$Year), max(df_plot$Year)),
+       col = yr_pal(2),
+       pch = 16,
+       cex = 1.2,
+       title = "Year",
+       bty = "n")
+
 
 
 
