@@ -750,11 +750,26 @@ Tinbergen_biomass %>%
     n = n(),
     .groups = "drop"
   )
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   Doing regression models for 2026 Spring Paper
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+ 
+#Figure 3: Plot of frass vs biomass centroid graph: Fcentroid ~ catcentorid + site + (catsentroid+site)
+figure3 <- lm(centroid_frass ~ centroid_actualbiomass + site + (centroid_actualbiomass * site), data=all_centroids)
+summary(figure3)
 
-
-
-
-
+#calculate anomolies:
+mean_centroids <- all_centroids %>%
+  group_by(site)%>%
+  mutate(mean_frass =mean(centroid_frass),
+         mean_actualbiomass = mean(centroid_actualbiomass))%>%
+  ungroup()%>%
+  mutate(
+    actualBiomass_diff = centroid_actualbiomass - mean_actualbiomass,
+    frass_diff = centroid_frass - mean_frass) %>%
+  select(Year, site, centroid_frass, mean_frass, frass_diff, centroid_actualbiomass, mean_actualbiomass, actualBiomass_diff)
+#figure4: plot of all anomolies for frass and biomass: Frasscentoridanomoly ~catcentroidanomoly +site +catcentoidanomoly*site
+figure4 <- lm(frass_diff ~ actualBiomass_diff + site + (actualBiomass_diff*site), data=mean_centroids)
+summary(figure4)
 
 
 
