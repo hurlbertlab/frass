@@ -433,6 +433,9 @@ impute_biomass_data <- function(data, site_mass_defaults) {
 }
 #run function
 imputation_data <- impute_biomass_data(all_data_clean, site_mass_defaults = c() )
+imputation_data <- imputation_data %>%
+  mutate(biomass_density = meanBiomass/(ifelse(Year <= 2018, 309.74, 197.71))) %>% #dividing by 209 for years 2018 and before, and 197 for years after
+  mutate(frass_density = mass/ (ifelse(Year <= 2018, 309.74, 197.71)))
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   Creating dataframe that combines temp data and computes tinbergen estimates for comparison:
@@ -496,7 +499,7 @@ density_plotting <- function(data, year_choice, site_choice) {
   )
   
   ## ---- Plot ----
-  par(mar = c(5, 4, 4, 6))  # space for one right axis
+  par(mar = c(5, 6, 4, 6))  # space for one right axis
   
   # LEFT AXIS — FRASS
   plot(
@@ -505,7 +508,7 @@ density_plotting <- function(data, year_choice, site_choice) {
     col = "sienna",
     lwd = 2,
     xlab = "Julian week",
-    ylab = "Frass density",
+    ylab = (expression(paste("Frass mg/cm"^2))),
     main = paste(site_choice, year_choice)
   )
   
@@ -528,8 +531,8 @@ density_plotting <- function(data, year_choice, site_choice) {
   )
   
   axis(side = 4, col.axis = "forestgreen")
-  mtext("Actual Caterpillar Biomass Density",
-        side = 4, line = 2.0, col = "forestgreen", cex=0.8)
+  mtext(expression(paste("Caterpillar Biomass per cm"^2)),
+        side = 4, line = 3.0, col = "forestgreen", cex=1)
   
   if (is.finite(biomass_centroid)) {
     abline(v = biomass_centroid, col = "forestgreen", lty = 2, lwd = 2)
@@ -538,11 +541,11 @@ density_plotting <- function(data, year_choice, site_choice) {
   ## ---- Legend ----
   legend(
     "topleft",
-    legend = c(
-      "Frass Mass density",
-      "Frass centroid",
-      "Actual Caterpillar Biomass density",
-      "Biomass centroid"
+    legend = expression(
+      paste("Frass mg/cm"^2),
+      paste("Frass centroid"),
+      paste("Caterpillar Biomass per cm"^2),
+      paste("Biomass centroid")
     ),
     col = c(
       "sienna", "sienna",
@@ -556,7 +559,7 @@ density_plotting <- function(data, year_choice, site_choice) {
   
   invisible(df)
 }
-density_plotting(all_data_clean, 2016, 8892356)
+density_plotting(Tinbergen_biomass, 2025, 8892356)
 #saving as a pdf------------------------ ^^^^^
 # Years for each site
 years_PR   <- c(2015, 2018, 2019, 2021, 2022)
@@ -827,6 +830,7 @@ abline(0, 1, lty = 2, lwd = 2)
 legend("topleft",
        legend = site_levels,
        pch = site_pch,
+       cex = 1.2,
        title = "Site",
        bty = "n")
 ## --- Non temp-corrected ---
@@ -834,12 +838,12 @@ plot(df_plot$centroid_actualbiomass,
      df_plot$centroid_frass,
      xlim = lims,
      ylim = lims,
-     cex=1.2,
+     cex=1.7,
      pch = pch_vals,
      col = col_vals,
-     xlab = "Actual Caterpillar centroid",
-     ylab = "Frass centroid",
-     main = "Actual Caterpillar Centroid")
+     xlab = "Biomass Centroid",
+     ylab = "Frass Centroid",
+     main = "")
 
 abline(0, 1, lty = 2, lwd = 2)
 par(mfrow = c(1, 1))
@@ -848,6 +852,7 @@ legend("bottomright",
        legend = c(min(df_plot$Year), max(df_plot$Year)),
        col = yr_pal(2),
        pch = 16,
+       cex = 1.2,
        title = "Year",
        bty = "n")
 
@@ -866,26 +871,26 @@ mean_centroids <- all_centroids %>%
          frass_diff = centroid_frass - mean_frass) %>%
   select(Year, site, centroid_frass, mean_frass, frass_diff, centroid_actualbiomass, mean_actualbiomass, actualBiomass_diff)
 ##plot on 1:1 line so we can see if same years come before and after---------------------------------
-shared_years <- c(2015, 2018, 2019, 2021, 2022)
+shared_years <- c(2015, 2016, 2017, 2018, 2019, 2021, 2022, 2023, 2024 ,2025)
 plot_data <- mean_centroids[mean_centroids$Year %in% shared_years, ]
 years <- sort(unique(plot_data$Year))
-cols <- colorRampPalette(c("red","goldenrod1", "springgreen3","dodgerblue", "purple"))(length(years)) #color ramp
+cols <- colorRampPalette(c("yellow3","orange", "tomato1","magenta4", "purple4"))(length(years)) #color ramp
 year_cols <- cols[match(plot_data$Year, years)]
-site_pch <- ifelse(plot_data$site == 117, 8, 17) #symbols
+site_pch <- ifelse(plot_data$site == 117, 16, 17) #symbols
 #plot
-plot(plot_data$frass_diff,
-plot_data$actualBiomass_diff,
+plot(plot_data$actualBiomass_diff,
+plot_data$frass_diff,
 col = year_cols,
 pch = site_pch,
 cex = 1.5,
-xlab = "Frass centroid difference",
-ylab = "Actual biomass centroid difference")
+ylab = "Frass Centroid Anomaly",
+xlab = "Biomass Centroid Anomaly")
 abline(h = 0, lty = 2)  # horizontal line at y = 0
 abline(v = 0, lty = 2)  # vertical line at x = 0
 #legend
 legend("topleft",
        legend = c("117", "8892356"),
-       pch = c(17,8),
+       pch = c(16,17),
        title = "Site",
        bty = "n")
 legend("bottomright",
@@ -893,7 +898,9 @@ legend("bottomright",
        col = cols,
        pch = 16,
        title = "Year",
-       bty = "n")
+       bty = "n",
+       ncol = 2)  
+
 
 
 
