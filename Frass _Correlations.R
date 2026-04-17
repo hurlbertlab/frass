@@ -771,6 +771,26 @@ mean_centroids <- all_centroids %>%
 figure4 <- lm(frass_diff ~ actualBiomass_diff + site + (actualBiomass_diff*site), data=mean_centroids)
 summary(figure4)
 
+#Get all temp centroids for cutoff weeks in sumer for each site
+temp_centroids <- AllTemp_weekly %>%
+  filter(
+    (site == 117 & Year %in% c(2015, 2018, 2019, 2021, 2022) & julianweek %in% 142:200) |
+      (site == 8892356 & Year %in% c(2015:2019, 2021:2025) & julianweek %in% 154:198)) %>%
+  group_by(Year, site) %>%
+  summarise(centroid_temp = weighted.mean(julianweek, weeklytemp, na.rm = TRUE)) %>%
+  ungroup()%>%
+  group_by(site)%>%
+  mutate(mean_temp =mean(centroid_temp))%>%
+  ungroup()%>%
+  mutate(temp_diff = centroid_temp - mean_temp)
 
+#left join the temp_anomolies df table with mean_centroids
+all_anomolies <- mean_centroids %>%
+  left_join(temp_centroids, by = c("site", "Year"))
+#figure5: temp anomolies vs frass/biomass:
+figure5a <- lm(frass_diff ~temp_diff + site + (temp_diff * site), data = all_anomolies)
+summary(figure5a)
+figure5b <- lm(actualBiomass_diff ~temp_diff + site + (temp_diff * site), data = all_anomolies)
+summary(figure5b)
 
 
