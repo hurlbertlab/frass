@@ -273,11 +273,11 @@ meanfrass_combinedweeks <- meanfrass %>%
 #NCBG site filter fulldataset for all years
 NCBG <- fullDataset %>%
   filter(Name %in% c("NC Botanical Garden"),
-         Year %in% 2015:2025)
+         Year %in% 2015:2026)
 #PR site filter fulldataset for all years
 PR <- fullDataset %>%
   filter(Name %in% c("Prairie Ridge Ecostation"),
-         Year %in% 2015:2025)
+         Year %in% 2015:2026)
 #have meandensitybyweek aggregate caterpillar stuff by week for NCBG
 cats_NCBG <- NCBG %>%
   group_by(Year) %>%
@@ -318,7 +318,7 @@ all_data <- cats_all %>%
 all_data <- all_data %>%
   filter(
     (site == 117 & Year %in% c(2015, 2018, 2019, 2021, 2022) & julianweek %in% 142:200) |
-      (site == 8892356 & Year %in% c(2015:2019, 2021:2025) & julianweek %in% 154:198)
+      (site == 8892356 & Year %in% c(2015:2019, 2021:2026) & julianweek %in% 154:198)
   ) #ok kinda shows weeks where no frass data compared to CC but doesnt address issues of individual days where no data
 
 #clean all data so only have columns I want and divide by trap area 
@@ -330,7 +330,7 @@ all_data_clean <- all_data %>%
     mass        = mean(mass, na.rm = TRUE),
     nSurveys    = sum(nSurveys, na.rm = TRUE),  
     .groups = "drop") %>%
-  mutate(biomass_density = meanBiomass/(ifelse(Year <= 2018, 309.74, 197.71))) %>% #dividing by 209 for years 2018 and before, and 197 for years after
+  mutate(biomass_density = meanBiomass/(ifelse(Year <= 2018, 309.74, 197.71))) %>% #dividing by 309 for years 2018 and before, and 197 for years after (trap area)
   mutate(frass_density = mass/ (ifelse(Year <= 2018, 309.74, 197.71)))
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
@@ -559,11 +559,11 @@ density_plotting <- function(data, year_choice, site_choice) {
   
   invisible(df)
 }
-density_plotting(Tinbergen_biomass, 2025, 8892356)
+density_plotting(Tinbergen_biomass, 2026, 8892356)
 #saving as a pdf------------------------ ^^^^^
 # Years for each site
 years_PR   <- c(2015, 2018, 2019, 2021, 2022)
-years_NCBG <- setdiff(2015:2025, 2020)   
+years_NCBG <- setdiff(2015:2026, 2020)   
 setwd("C:/Z_School/HurlbertLab/graphs")
 #set up pdf
 pdf(
@@ -943,7 +943,7 @@ plot_site_correlation(mean_centroids, "117")
 temp_centroids <- AllTemp_weekly %>%
   filter(
   (site == 117 & Year %in% c(2015, 2018, 2019, 2021, 2022) & julianweek %in% 142:200) |
-    (site == 8892356 & Year %in% c(2015:2019, 2021:2025) & julianweek %in% 154:198)) %>%
+    (site == 8892356 & Year %in% c(2015:2019, 2021:2026) & julianweek %in% 154:198)) %>%
   group_by(Year, site) %>%
   summarise(centroid_temp = weighted.mean(julianweek, weeklytemp, na.rm = TRUE)) %>%
   ungroup()%>%
