@@ -182,7 +182,7 @@ frassplot = function(frassdata, inputSite, year, color = 'black', new = T,
   }
 }
 #general frassplot example to alter
-frassplot(meanfrass, inputSite = 117, 2022, 'red', new = T, var = 'mass', xlim = c(138,205),
+frassplot(meanfrass, inputSite = 8892356, 2026, 'red', new = T, var = 'mass', xlim = c(138,205),
           ylim = c(0, 10.5), lwd = 2, minReliability = 2, xlab = "Julian Day", ylab = "Frass (mg./day)", lty = 'solid', main = 'NCBG Frass')
 
 #+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+
@@ -435,7 +435,7 @@ plot_frass_vs_cats <- function(site, year,
     dat$julianweek,
     dat$frass_mass,
     type = "l",
-    col = "forestgreen",
+    col = "sienna",
     lwd = 2,
     xlab = "Julian week",
     ylab = "Frass mass"
@@ -447,7 +447,7 @@ plot_frass_vs_cats <- function(site, year,
     dat$julianweek,
     dat$totalCount,
     type = "l",
-    col = "sienna",
+    col = "forestgreen",
     lwd = 2,
     axes = FALSE,
     xlab = "",
@@ -464,7 +464,7 @@ plot_frass_vs_cats <- function(site, year,
   legend(
     "topleft",
     legend = c("Frass mass", "Caterpillar abundance"),
-    col = c("forestgreen", "sienna"),
+    col = c("sienna", "forestgreen"),
     lwd = 1.5,
     cex =0.8,
     bty = "n"
@@ -473,7 +473,7 @@ plot_frass_vs_cats <- function(site, year,
   invisible(dat)
 }
 
-plot_frass_vs_cats("PR", 2022)
+plot_frass_vs_cats("NCBG", 2026)
 
 
 #+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+_+
