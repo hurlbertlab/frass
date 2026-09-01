@@ -242,8 +242,8 @@ occurance_frass_combined_weeks <- occurance_frass %>%
     .groups = "drop")%>%
   mutate(Year=as.integer(Year)) %>%
   mutate(Site = case_when(
-    Site == "Botanical Garden" ~ "117",
-    Site == "Prairie Ridge" ~ "8892356"  )) 
+    Site == "Botanical Garden" ~ "8892356",
+    Site == "Prairie Ridge" ~ "117"  )) 
 
 #--------------------------------------------------------------------------------
 
@@ -254,14 +254,138 @@ occurance_frass_combined_weeks <- occurance_frass %>%
 all_occurance_data <- left_join(occurance_frass_combined_weeks, select(cat_data_byweek, Site, Year, julianweek, fracSurveys), by=c("Site", "Year", "julianweek"))
 
 #do I want all years to be standardized? (same dates across all years!)
-
+#filter by cutoff days and correct years for both sites
+all_occurance_data_standardized <- all_occurance_data %>%
+  filter(
+    (Site == 117 & Year %in% c(2015, 2018, 2019, 2021, 2022) & julianweek %in% 142:200) |
+      (Site == 8892356 & Year %in% c(2015:2019, 2021:2026) & julianweek %in% 154:198)
+  )
 
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   plot them as line graphs over time with centroid date:
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+occurance_timing_plotted <- function(data, year_choice, site_choice) {
+  
+  df <- data %>%
+    filter(Year == year_choice, Site == site_choice)
+  
+  if (nrow(df) == 0 ||
+      all(is.na(df$julianweek)) ||
+      all(is.na(df$trap_occurance_percent))) {
+    
+    plot.new()
+    text(0.5, 0.5,
+         paste("No data for", site_choice, year_choice),
+         cex = 1.2)
+    return(invisible(NULL))
+  }
+  
+  ## ---- Centroids ----
+  frass_occurance_centroid <- weighted.mean(
+    df$julianweek, df$trap_occurance_percent, na.rm = TRUE
+  )
+  
+  caterpillar_centroid <- weighted.mean(
+    df$julianweek, df$fracSurveys, na.rm = TRUE
+  )
+  
+  ## ---- Plot ----
+  par(mar = c(5, 6, 4, 6))  # space for one right axis
+  
+  # LEFT AXIS — FRASS
+  plot(
+    df$julianweek, df$trap_occurance_percent,
+    type = "l",
+    col = "sienna",
+    lwd = 2,
+    xlab = "Julian week",
+    ylab = (expression(paste("Frass Percent"))),
+    main = paste(site_choice, year_choice)
+  )
+  
+  if (is.finite(frass_occurance_centroid)) {
+    abline(v = frass_occurance_centroid, col = "sienna", lty = 2, lwd = 2)
+  }
+  
+  ## ---- RIGHT AXIS — BIOMASS (NOT TEMP CORRECTED) ----
+  par(new = TRUE)
+  
+  plot(
+    df$julianweek, df$fracSurveys,
+    type = "l",
+    col = "forestgreen",
+    lwd = 2,
+    axes = FALSE,
+    xlab = "",
+    ylab = "",
+    ylim = range(df$fracSurveys, na.rm = TRUE)
+  )
+  
+  axis(side = 4, col.axis = "forestgreen")
+  mtext(expression(paste("Caterpillar Occurance")),
+        side = 4, line = 3.0, col = "forestgreen", cex=1)
+  
+  if (is.finite(caterpillar_centroid)) {
+    abline(v = caterpillar_centroid, col = "forestgreen", lty = 2, lwd = 2)
+  }
+  
+  ## ---- Legend ----
+  legend(
+    "topleft",
+    legend = expression(
+      paste("Frass Occurance"),
+      paste("Frass centroid"),
+      paste("Caterpillar Occurance"),
+      paste("Caterpillar centroid")
+    ),
+    col = c(
+      "sienna", "sienna",
+      "forestgreen", "forestgreen"
+    ),
+    lwd = 2,
+    lty = c(1, 2, 1, 2),
+    bty = "n",
+    cex = 0.8
+  )
+  
+  invisible(df)
+}
+occurance_timing_plotted(all_occurance_data_standardized, 2026, 8892356)
 
-
+##saving as a pdf------------------------ ^^^^^
+# Years for each site
+years_PR   <- c(2015, 2018, 2019, 2021, 2022)
+years_NCBG <- setdiff(2015:2026, 2020)   
+setwd("C:/Z_School/school/HurlbertLab/graphs")
+#set up pdf
+pdf(
+  file = "occurancetrends.pdf",
+  width = 8,
+  height = 8)
+#layout for pdf
+par(
+  mfrow = c(3, 2),
+  mar = c(4, 4, 3, 6),  
+  oma = c(0, 0, 2, 0))
+#loops over each sites
+for (yr in years_NCBG) {
+  try(
+    occurance_timing_plotted(
+      data = all_occurance_data_standardized,
+      year_choice = yr,
+      site_choice = 8892356  
+    ),
+    silent = TRUE)}
+for (yr in years_PR) {
+  try(
+    occurance_timing_plotted(
+      data = all_occurance_data_standardized,
+      year_choice = yr,
+      site_choice = 117   
+    ),
+    silent = TRUE)}
+dev.off()
 
 
 
