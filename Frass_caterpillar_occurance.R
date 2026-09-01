@@ -26,6 +26,7 @@ latest_file <- dataset_file[1]
 github_raw <- "https://raw.githubusercontent.com/hurlbertlab/caterpillars-analysis-public/master/data/"
 fullDataset <- read.csv(paste0(github_raw, latest_file))
 
+#-------------------------------------------------------------------------------
 
 
 
@@ -104,43 +105,31 @@ data = frassData(open = T) %>%
 #-----------------------------------------------------------------------------------------------
 #filter data so only reliable rows are left then filter frass.mg.d so that only traps with total mass >0.1 are left
 filtered_mass <- data %>%
-  filter(OK==1)%>%
-  filter(Frass.mass..mg. > 0.1) #question: to filter by frass.mg.d or frass.mass..mg? also > or >=?
+  filter(OK==1)%>% #only days deemed reliable left
+  mutate(included_in_trap_count = if_else(Frass.mass..mg. > 0.1,1,0)) %>%
+  mutate(julianweek = 7 * floor(jday / 7) + 4)
 
-
+ #question: to filter by frass.mg.d or frass.mass..mg? also > or >=? filter(Frass.mass..mg. > 0.1)
 
 
 #-----------------------------------------------------------------------------------------------
-# using data to find mean frass per day for reliable frass only 
-#read in proper url, change dates and label events for below meanfrass
-url = "https://docs.google.com/spreadsheets/d/1RwXzwhHUbP0m5gKSOVhnKZbS1C_NrbdfHLglIVCzyFc/edit#gid=1611171427"
-events = gsheet2tbl(url)
-events$date = as.Date(events$date, format = "%m/%d/%Y")
+#now need to count number of traps with same julian day  
+occurance_frass <- filtered_mass %>%
+  group_by(Site, Year, julianweek)%>%
+  mutate(trap_occurance_percent = mean(included_in_trap_count == 1, na.rm=TRUE)) #mean here calculates the proportion along the length of the groupby columns
 
-meanfrass = data %>%
-  filter(!is.na(Frass.mass..mg.)) %>%
-  filter(OK == 1) %>% #keeps reliable frass row
-  mutate(site = as.character(ifelse(Site=="Botanical Garden", 8892356, 117))) %>%
-  group_by(site, Date.Collected, Year, jday) %>%
-  summarize(
-    mass = mean(frass.mg.d, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  mutate( #altering the density based on size of the trap
-    trap_area_cm2 = ifelse(Year <= 2018, 309.74, 197.71), #before 2018 use 309cm^2 after use 197cm^2 
-    density_mg_cm2 = mass / trap_area_cm2, #trap adjusted
-    density_mg_m2 = density_mg_cm2 * 10000   # optional but recommended
-  ) %>%
-  left_join(events[, c('date', 'site', 'reliability')],
-            by = c('Date.Collected' = 'date', 'site' = 'site')) %>%
-  rename(date = Date.Collected)
-
+  
+#issue that in 2015-2023 sites sampled twice a week, so still percentage works since dividing by total seen???
+occurance_frass_combined_weeks <- occurance_frass %>%
+  group_by(Site, Year, julianweek) %>%
+  summarise(
+    # average frass measurements
+    trap_occurance_percent = mean(trap_occurance_percent, na.rm = TRUE),
+    # keep representative values for the rest
+    jday = min(jday, na.rm = TRUE),
+    .groups = "drop")
 #--------------------------------------------------------------------------------
-#make sure frass has correct columns:
-#having mean Frass data sorted by julian week
-meanfrass <- meanfrass %>%
-  mutate(julianweek = 7 * floor(jday / 7) + 4)%>% #this is using jday calculated from 'data' where it uses day and time set to alter jday
-  mutate(Year = as.integer(Year)) #make sure integer
+
 
 #combine and average meanfrass data that comes from same week (2015-2023 this happened), is mean frass per day
 meanfrass_combinedweeks <- meanfrass %>%
