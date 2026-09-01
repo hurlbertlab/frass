@@ -360,7 +360,7 @@ years_NCBG <- setdiff(2015:2026, 2020)
 setwd("C:/Z_School/school/HurlbertLab/graphs")
 #set up pdf
 pdf(
-  file = "occurancetrends.pdf",
+  file = "occurancetrends_alldata.pdf",
   width = 8,
   height = 8)
 #layout for pdf
@@ -372,7 +372,7 @@ par(
 for (yr in years_NCBG) {
   try(
     occurance_timing_plotted(
-      data = all_occurance_data_standardized,
+      data = all_occurance_data,
       year_choice = yr,
       site_choice = 8892356  
     ),
@@ -380,7 +380,7 @@ for (yr in years_NCBG) {
 for (yr in years_PR) {
   try(
     occurance_timing_plotted(
-      data = all_occurance_data_standardized,
+      data = all_occurance_data,
       year_choice = yr,
       site_choice = 117   
     ),
