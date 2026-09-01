@@ -27,136 +27,6 @@ github_raw <- "https://raw.githubusercontent.com/hurlbertlab/caterpillars-analys
 fullDataset <- read.csv(paste0(github_raw, latest_file))
 
 #-------------------------------------------------------------------------------
-
-
-
-
-
-
-
-
-
-
-
-
-# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
-#   reading in frass and altering it per julian week :
-# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
-
-# Function for reading in frass data from GoogleDoc
-# *if aim is to backup GoogleDoc and write to disk only, then open =F and write = T
-# *if aim is to use data without writing to disk, then open = T and write = F
-frassData = function(open = T, write = F) {
-  require(gsheet)
-  url = "https://docs.google.com/spreadsheets/d/1RwXzwhHUbP0m5gKSOVhnKZbS1C_NrbdfHLglIVCzyFc/edit#gid=1479231778"
-  data = gsheet2tbl(url)
-  
-  if (write) {
-    # Write a copy
-    write.csv(data, paste('data/frass_', Sys.Date(), '.csv', sep = ''),
-              row.names = F)
-  }
-  if (open) { return (data) }
-}
-#----------------------------------------------------------------------------------
-#Function for fixing time format and downloading corrected csv
-TimeCleaning = function() {
-  read_in_data <- gsheet2tbl('https://docs.google.com/spreadsheets/d/1RwXzwhHUbP0m5gKSOVhnKZbS1C_NrbdfHLglIVCzyFc/edit#gid=1479231778')
-  
-  remove_NAs <- read_in_data %>%
-    filter(!is.na(Time.Set) & !is.na(Time.Collected))
-  
-  write.csv(remove_NAs %>% 
-              mutate(Time.Set = ifelse(test = grepl(":", remove_NAs$Time.Set), 
-                                       yes = remove_NAs$Time.Set, 
-                                       no = paste(substr(remove_NAs$Time.Set, 1, nchar(remove_NAs$Time.Set)-2), ":", substr(remove_NAs$Time.Set, 3, 4), sep = "")), 
-                     Time.Collected = ifelse(test = grepl(":", remove_NAs$Time.Collected), 
-                                             yes = remove_NAs$Time.Collected, 
-                                             no = paste(substr(remove_NAs$Time.Collected, 1, nchar(remove_NAs$Time.Collected)-2), ":", substr(remove_NAs$Time.Collected, 3, 4), sep = ""))), 
-            paste('data/frass_', Sys.Date(), '.csv', sep = ''), row.names = F)
-}
-#----------------------------------------------------------------------------------
-# Function that takes a date field (formatted as %m/%d/%Y) and a time field (hh:mm in 24h time), converts the date to julian day and adds the fractional
-julianDayTime = function(date, hour_min) {
-  require(lubridate)
-  jday = yday(date)
-  temp = sapply(strsplit(hour_min, ":"), function(x) { #(day represented by the hours and minutes)
-    x = as.numeric(x)
-    x[1] + x[2]/60
-  })
-  output = jday + temp/24
-  return(output)
-}
-#-----------------------------------------------------------------------------------------------
-# altering frassdata so that times and days are corrected
-data = frassData(open = T) %>%
-  filter(!is.na(Time.Set) & !is.na(Time.Collected)) %>%
-  mutate(Date.Set = as.Date(Date.Set, format = "%m/%d/%Y"),
-         Time.Set = as.character(Time.Set),
-         Time.Collected = as.character(Time.Collected),
-         Date.Collected = as.Date(Date.Collected, format = "%m/%d/%Y"),
-         Year = format(Date.Collected, "%Y"),
-         jday.Set = julianDayTime(Date.Set, Time.Set),
-         jday.Collected = julianDayTime(Date.Collected, Time.Collected),
-         frass.mg.d = Frass.mass..mg./(jday.Collected - jday.Set),
-         frass.no.d = Frass.number/(jday.Collected - jday.Set),
-         jday = (floor(jday.Collected) + floor(jday.Set))/2)
-
-#-----------------------------------------------------------------------------------------------
-#filter data so only reliable rows are left then filter frass.mg.d so that only traps with total mass >0.1 are left
-filtered_mass <- data %>%
-  filter(OK==1)%>% #only days deemed reliable left
-  mutate(included_in_trap_count = if_else(Frass.mass..mg. > 0.1,1,0)) %>%
-  mutate(julianweek = 7 * floor(jday / 7) + 4)
-
- #question: to filter by frass.mg.d or frass.mass..mg? also > or >=? filter(Frass.mass..mg. > 0.1)
-
-
-#-----------------------------------------------------------------------------------------------
-#now need to count number of traps with same julian day  
-occurance_frass <- filtered_mass %>%
-  group_by(Site, Year, julianweek)%>%
-  mutate(trap_occurance_percent = mean(included_in_trap_count == 1, na.rm=TRUE)) #mean here calculates the proportion along the length of the groupby columns
-
-  
-#issue that in 2015-2023 sites sampled twice a week, so still percentage works since dividing by total seen???
-occurance_frass_combined_weeks <- occurance_frass %>%
-  group_by(Site, Year, julianweek) %>%
-  summarise(
-    # average frass measurements
-    trap_occurance_percent = mean(trap_occurance_percent, na.rm = TRUE),
-    # keep representative values for the rest
-    jday = min(jday, na.rm = TRUE),
-    .groups = "drop")
-#--------------------------------------------------------------------------------
-
-
-#combine and average meanfrass data that comes from same week (2015-2023 this happened), is mean frass per day
-meanfrass_combinedweeks <- meanfrass %>%
-  group_by(site, Year, julianweek) %>%
-  summarise(
-    # average frass measurements
-    mass = mean(mass, na.rm = TRUE),
-    trap_corrected_mass = mean(density_mg_cm2, na.rm = TRUE),
-    # keep representative values for the rest
-    date = min(date, na.rm = TRUE),   # or first(date)
-    jday = mean(jday, na.rm = TRUE),
-    reliability = first(reliability),
-    .groups = "drop")
-
-
-
-
-
-
-
-
-
-
-
-
-
-#--------------------------------------------------------------------------------------------------------------------------------
 #Meandensitybyweek function for caterpillar data
 # Function for calculating the mode of a series of values
 # --in this particular use case, if there multiple modes, we want the largest value
@@ -254,3 +124,149 @@ meanDensityByWeek = function(surveyData, # merged dataframe of Survey and arthro
   }
   return(arthCount)
 }
+
+#-------------------------------------------------------------------------------
+#site filter fulldataset for all years
+cat_data_all_years <-fullDataset %>%
+  filter(Name %in% c("NC Botanical Garden", "Prairie Ridge Ecostation"),
+         Year %in% 2015:2026) 
+
+#have meandensitybyweek aggregate caterpillar stuff by week 
+cat_data_byweek <- cat_data_all_years %>%
+  group_by(Year, Name) %>%
+  group_split() %>%                 # split into a list, one dataframe per year
+  map_dfr(~ {
+    out <- meanDensityByWeek(
+      surveyData = .x,
+      ordersToInclude = "caterpillar",
+      allDates = TRUE
+    )
+    out$Year <- unique(.x$Year)      # add Year back
+    out$Name <- unique(.x$Name)
+    out
+  })%>%
+  rename(Site=Name)%>%
+  mutate(Site = case_when(
+    Site == "NC Botanical Garden" ~ "117",
+    Site == "Prairie Ridge Ecostation" ~ "8892356"  )) 
+
+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   reading in frass and altering it per julian week :
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+
+# Function for reading in frass data from GoogleDoc
+# *if aim is to backup GoogleDoc and write to disk only, then open =F and write = T
+# *if aim is to use data without writing to disk, then open = T and write = F
+frassData = function(open = T, write = F) {
+  require(gsheet)
+  url = "https://docs.google.com/spreadsheets/d/1RwXzwhHUbP0m5gKSOVhnKZbS1C_NrbdfHLglIVCzyFc/edit#gid=1479231778"
+  data = gsheet2tbl(url)
+  
+  if (write) {
+    # Write a copy
+    write.csv(data, paste('data/frass_', Sys.Date(), '.csv', sep = ''),
+              row.names = F)
+  }
+  if (open) { return (data) }
+}
+#----------------------------------------------------------------------------------
+#Function for fixing time format and downloading corrected csv
+TimeCleaning = function() {
+  read_in_data <- gsheet2tbl('https://docs.google.com/spreadsheets/d/1RwXzwhHUbP0m5gKSOVhnKZbS1C_NrbdfHLglIVCzyFc/edit#gid=1479231778')
+  
+  remove_NAs <- read_in_data %>%
+    filter(!is.na(Time.Set) & !is.na(Time.Collected))
+  
+  write.csv(remove_NAs %>% 
+              mutate(Time.Set = ifelse(test = grepl(":", remove_NAs$Time.Set), 
+                                       yes = remove_NAs$Time.Set, 
+                                       no = paste(substr(remove_NAs$Time.Set, 1, nchar(remove_NAs$Time.Set)-2), ":", substr(remove_NAs$Time.Set, 3, 4), sep = "")), 
+                     Time.Collected = ifelse(test = grepl(":", remove_NAs$Time.Collected), 
+                                             yes = remove_NAs$Time.Collected, 
+                                             no = paste(substr(remove_NAs$Time.Collected, 1, nchar(remove_NAs$Time.Collected)-2), ":", substr(remove_NAs$Time.Collected, 3, 4), sep = ""))), 
+            paste('data/frass_', Sys.Date(), '.csv', sep = ''), row.names = F)
+}
+#----------------------------------------------------------------------------------
+# Function that takes a date field (formatted as %m/%d/%Y) and a time field (hh:mm in 24h time), converts the date to julian day and adds the fractional
+julianDayTime = function(date, hour_min) {
+  require(lubridate)
+  jday = yday(date)
+  temp = sapply(strsplit(hour_min, ":"), function(x) { #(day represented by the hours and minutes)
+    x = as.numeric(x)
+    x[1] + x[2]/60
+  })
+  output = jday + temp/24
+  return(output)
+}
+#-----------------------------------------------------------------------------------------------
+# altering frassdata so that times and days are corrected
+data = frassData(open = T) %>%
+  filter(!is.na(Time.Set) & !is.na(Time.Collected)) %>%
+  mutate(Date.Set = as.Date(Date.Set, format = "%m/%d/%Y"),
+         Time.Set = as.character(Time.Set),
+         Time.Collected = as.character(Time.Collected),
+         Date.Collected = as.Date(Date.Collected, format = "%m/%d/%Y"),
+         Year = format(Date.Collected, "%Y"),
+         jday.Set = julianDayTime(Date.Set, Time.Set),
+         jday.Collected = julianDayTime(Date.Collected, Time.Collected),
+         frass.mg.d = Frass.mass..mg./(jday.Collected - jday.Set),
+         frass.no.d = Frass.number/(jday.Collected - jday.Set),
+         jday = (floor(jday.Collected) + floor(jday.Set))/2)
+
+#-----------------------------------------------------------------------------------------------
+#filter data so only reliable rows are left then filter frass.mg.d so that only traps with total mass >0.1 are left
+filtered_mass <- data %>%
+  filter(OK==1)%>% #only days deemed reliable left
+  mutate(included_in_trap_count = if_else(Frass.mass..mg. > 0.1,1,0)) %>%
+  mutate(julianweek = 7 * floor(jday / 7) + 4)
+
+ #question: to filter by frass.mg.d or frass.mass..mg? also > or >=? filter(Frass.mass..mg. > 0.1)
+
+
+#-----------------------------------------------------------------------------------------------
+#now need to count number of traps with same julian day  
+occurance_frass <- filtered_mass %>%
+  group_by(Site, Year, julianweek)%>%
+  mutate(trap_occurance_percent = mean(included_in_trap_count == 1, na.rm=TRUE)) #mean here calculates the proportion along the length of the groupby columns
+
+  
+#issue that in 2015-2023 sites sampled twice a week, so still percentage works since dividing by total seen???
+occurance_frass_combined_weeks <- occurance_frass %>%
+  group_by(Site, Year, julianweek) %>%
+  summarise(
+    # average frass measurements
+    trap_occurance_percent = mean(trap_occurance_percent, na.rm = TRUE),
+    # keep representative values for the rest
+    jday = min(jday, na.rm = TRUE),
+    .groups = "drop")%>%
+  mutate(Year=as.integer(Year)) %>%
+  mutate(Site = case_when(
+    Site == "Botanical Garden" ~ "117",
+    Site == "Prairie Ridge" ~ "8892356"  )) 
+
+#--------------------------------------------------------------------------------
+
+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   combining frass and caterpillar occurance into one dataframe :
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+all_occurance_data <- left_join(occurance_frass_combined_weeks, select(cat_data_byweek, Site, Year, julianweek, fracSurveys), by=c("Site", "Year", "julianweek"))
+
+#do I want all years to be standardized? (same dates across all years!)
+
+
+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   plot them as line graphs over time with centroid date:
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+
+
+
+
+
+
+
+
+
+
