@@ -218,7 +218,7 @@ data = frassData(open = T) %>%
 #filter data so only reliable rows are left then filter frass.mg.d so that only traps with total mass >0.1 are left
 filtered_mass <- data %>%
   filter(OK==1)%>% #only days deemed reliable left
-  mutate(included_in_trap_count = if_else(Frass.mass..mg. > 0.1,1,0)) %>%
+  mutate(included_in_trap_count = if_else(Frass.mass..mg. > 4,1,0)) %>% #CHANGE THRESHOLD HERE
   mutate(julianweek = 7 * floor(jday / 7) + 4)
 
  #question: to filter by frass.mg.d or frass.mass..mg? also > or >=? filter(Frass.mass..mg. > 0.1)
@@ -360,7 +360,7 @@ years_NCBG <- setdiff(2015:2026, 2020)
 setwd("C:/Z_School/school/HurlbertLab/graphs")
 #set up pdf
 pdf(
-  file = "occurancetrends_alldata.pdf",
+  file = "occurancetrends_4threshold.pdf",
   width = 8,
   height = 8)
 #layout for pdf
@@ -372,7 +372,7 @@ par(
 for (yr in years_NCBG) {
   try(
     occurance_timing_plotted(
-      data = all_occurance_data,
+      data = all_occurance_data_standardized,
       year_choice = yr,
       site_choice = 8892356  
     ),
@@ -380,7 +380,7 @@ for (yr in years_NCBG) {
 for (yr in years_PR) {
   try(
     occurance_timing_plotted(
-      data = all_occurance_data,
+      data = all_occurance_data_standardized,
       year_choice = yr,
       site_choice = 117   
     ),
