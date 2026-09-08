@@ -11,6 +11,8 @@ library(rstatix)
 library(tidyverse)
 library(jsonlite)
 library(daymetr)
+library(corrplot)
+
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   reading in CC and altering it per julian week :
@@ -458,14 +460,111 @@ imputation_data <- imputation_data %>%
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   combining frass mass/occurrence and caterpillar occurrence,biomass, and density into one dataframe: 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
-all_five_variables_dataframe <- left_join(cat_data_byweek, select(occurance_frass_combined_weeks, Site, Year, julianweek, trap_occurance_percent), by=c("Site", "Year", "julianweek"))
-
-#do I want all years to be standardized? (same dates across all years!)
-#filter by cutoff days and correct years for both sites
-all_occurance_data_standardized <- all_occurance_data %>%
-  filter(
-    (Site == 117 & Year %in% c(2015, 2018, 2019, 2021, 2022) & julianweek %in% 142:200) |
-      (Site == 8892356 & Year %in% c(2015:2019, 2021:2026) & julianweek %in% 154:198)
-  )
+all_five_variables_dataframe <- cat_data_byweek %>%
+  select(Site, Year, julianweek, fracSurveys, meanDensity)%>%
+  left_join(occurance_frass_combined_weeks, by=c("Site", "Year", "julianweek")) %>%
+    left_join(imputation_data %>% select(Site, Year, julianweek, meanBiomass, mass), by=c("Site", "Year", "julianweek")) %>%
+  rename(frass_mass = mass) #all years previous standardized (same jday range before joining)
 
 
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   running correlations between site/year/julianweek for all 5 variables to see which ones best correlated
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+vars_of_interest <- c("fracSurveys", "meanBiomass", "meanDensity", "trap_occurance_percent", "frass_mass")
+
+#nest data by Site x Year combo
+nested_data_pearson <- all_five_variables_dataframe %>%
+  select(Site, Year, all_of(vars_of_interest)) %>%
+  group_by(Site, Year) %>%
+  nest()%>%
+  mutate(cor_matrix = map(data, ~ cor_mat(.x, vars = vars_of_interest, method ="pearson", use ="pairwise.complete.obs"))) #run correlation, does pearson feel right?
+
+#nest data by Site x Year combo
+nested_data_spearmans <- all_five_variables_dataframe %>%
+  select(Site, Year, all_of(vars_of_interest)) %>%
+  group_by(Site, Year) %>%
+  nest()%>%
+  mutate(cor_matrix = map(data, ~ cor_mat(.x, vars = vars_of_interest, method ="spearman", use ="pairwise.complete.obs"))) #run correlation, does pearson feel right?
+
+#look at a group
+nested_data_spearmans$cor_matrix[[1]]
+
+#---------------------------------------------------------------------------
+#visualizations- may have to do for loop
+correlation_plotting <- function(data, year_choice, site_choice) {
+  df <- data %>%
+    filter(Year == year_choice, Site == site_choice)
+  #pull the cor_matrix out of the list-column
+  cor_df <- df$cor_matrix[[1]]
+  
+  #convert rstatix cor_mat() output (has a rowname/var column) into a real matrix
+  cor_matrix <- cor_df %>%
+    column_to_rownames(var = colnames(cor_df)[1]) %>%
+    as.matrix()
+  ## plot:
+  corrplot(cor_matrix, 
+           type = "upper", 
+           title = paste(site_choice, year_choice),
+           mar = c(0, 0, 2, 0),
+           method = "shade", 
+           order = "original", #original,hclust, alphabet
+           tl.col = "black", 
+           tl.srt = 45,
+           cl.align.text="l",
+           cl.offset = .5,
+           addgrid.col = "black",
+           col = colorRampPalette(c("firebrick2", "white", "dodgerblue3"))(200))
+  
+  invisible(cor_matrix)
+}
+correlation_plotting(nested_data_spearmans, 2025, 8892356)  
+
+##saving as a pdf------------------------ ^^^^^
+# Years for each site
+years_PR   <- c(2015, 2018, 2019, 2021, 2022)
+years_NCBG <- setdiff(2015:2026, 2020)   
+setwd("C:/Z_School/school/HurlbertLab/graphs")
+#set up pdf
+pdf(
+  file = "correlation_plotting_pearson.pdf",
+  width = 8,
+  height = 8)
+#layout for pdf
+par(
+  mfrow = c(3, 2),
+  mar = c(4, 4, 3, 6),  
+  oma = c(0, 0, 2, 0))
+#loops over each sites
+for (yr in years_NCBG) {
+  try(
+    correlation_plotting(
+      data = nested_data_pearson,
+      year_choice = yr,
+      site_choice = 8892356  
+    ),
+    silent = TRUE)}
+for (yr in years_PR) {
+  try(
+    correlation_plotting(
+      data = nested_data_pearson,
+      year_choice = yr,
+      site_choice = 117   
+    ),
+    silent = TRUE)}
+dev.off()
+
+#---------------------------------------------------------------------------
+#make new column where we keep only significant values from correlation matrix
+nested_data_pearson <- nested_data_pearson %>%
+  mutate(cor_signif = map(cor_matrix, cor_mark_significant))
+#filter out significant pairs each matrix
+signif_pairs <- nested_data_pearson %>%
+  mutate(signif_long = map(cor_matrix, ~ cor_gather(.x) %>% filter(p < 0.05))) %>%
+  select(Year, Site, signif_long) %>%
+  unnest(signif_long)
+
+signif_pairs
+  
+  
+  
+  
