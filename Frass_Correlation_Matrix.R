@@ -157,7 +157,7 @@ cat_data_byweek <- cat_data_all_years %>%
 cat_data_byweek <- cat_data_byweek %>%
   filter(
     (Site == 117 & Year %in% c(2015, 2018, 2019, 2021, 2022) & julianweek %in% 142:200) |
-      (Site == 8892356 & Year %in% c(2015:2019, 2021:2025) & julianweek %in% 154:198))
+      (Site == 8892356 & Year %in% c(2015:2019, 2021:2026) & julianweek %in% 154:198))
 
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
@@ -255,7 +255,7 @@ occurance_frass_combined_weeks <- occurance_frass %>%
     Site == "Prairie Ridge" ~ "117"  )) %>%
   filter(
     (Site == 117 & Year %in% c(2015, 2018, 2019, 2021, 2022) & julianweek %in% 142:200) |
-      (Site == 8892356 & Year %in% c(2015:2019, 2021:2025) & julianweek %in% 154:198))
+      (Site == 8892356 & Year %in% c(2015:2019, 2021:2026) & julianweek %in% 154:198))
 
 
 
@@ -310,11 +310,11 @@ meanfrass_combinedweeks <- meanfrass %>%
 #NCBG site filter fulldataset for all years
 NCBG <- fullDataset %>%
   filter(Name %in% c("NC Botanical Garden"),
-         Year %in% 2015:2025)
+         Year %in% 2015:2026)
 #PR site filter fulldataset for all years
 PR <- fullDataset %>%
   filter(Name %in% c("Prairie Ridge Ecostation"),
-         Year %in% 2015:2025)
+         Year %in% 2015:2026)
 #have meandensitybyweek aggregate caterpillar stuff by week for NCBG
 cats_NCBG <- NCBG %>%
   group_by(Year) %>%
@@ -355,7 +355,7 @@ all_data <- cats_all %>%
 all_data <- all_data %>%
   filter(
     (site == 117 & Year %in% c(2015, 2018, 2019, 2021, 2022) & julianweek %in% 142:200) |
-      (site == 8892356 & Year %in% c(2015:2019, 2021:2025) & julianweek %in% 154:198)
+      (site == 8892356 & Year %in% c(2015:2019, 2021:2026) & julianweek %in% 154:198)
   ) #ok kinda shows weeks where no frass data compared to CC but doesnt address issues of individual days where no data
 
 #clean all data so only have columns I want and divide by trap area
@@ -517,7 +517,7 @@ correlation_plotting <- function(data, year_choice, site_choice) {
   
   invisible(cor_matrix)
 }
-correlation_plotting(nested_data_spearmans, 2025, 8892356)  
+correlation_plotting(nested_data_spearmans, 2026, 8892356)  
 
 ##saving as a pdf------------------------ ^^^^^
 # Years for each site
@@ -526,7 +526,7 @@ years_NCBG <- setdiff(2015:2026, 2020)
 setwd("C:/Z_School/school/HurlbertLab/graphs")
 #set up pdf
 pdf(
-  file = "correlation_plotting_pearson.pdf",
+  file = "correlation_plotting_pearson_OG_upper.pdf",
   width = 8,
   height = 8)
 #layout for pdf
