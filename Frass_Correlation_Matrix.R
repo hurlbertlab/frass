@@ -512,12 +512,14 @@ correlation_plotting <- function(data, year_choice, site_choice) {
            tl.srt = 45,
            cl.align.text="l",
            cl.offset = .5,
+           addCoef.col = "black",   
+           number.cex = 0.8,
            addgrid.col = "black",
            col = colorRampPalette(c("firebrick2", "white", "dodgerblue3"))(200))
   
   invisible(cor_matrix)
 }
-correlation_plotting(nested_data_spearmans, 2026, 8892356)  
+correlation_plotting(nested_data_spearmans, 2025, 8892356)  
 
 ##saving as a pdf------------------------ ^^^^^
 # Years for each site
@@ -526,7 +528,7 @@ years_NCBG <- setdiff(2015:2026, 2020)
 setwd("C:/Z_School/school/HurlbertLab/graphs")
 #set up pdf
 pdf(
-  file = "correlation_plotting_pearson_OG_upper.pdf",
+  file = "correlation_spearman_pearson_OG_upper.pdf",
   width = 8,
   height = 8)
 #layout for pdf
@@ -538,7 +540,7 @@ par(
 for (yr in years_NCBG) {
   try(
     correlation_plotting(
-      data = nested_data_pearson,
+      data = nested_data_spearmans,
       year_choice = yr,
       site_choice = 8892356  
     ),
@@ -546,7 +548,7 @@ for (yr in years_NCBG) {
 for (yr in years_PR) {
   try(
     correlation_plotting(
-      data = nested_data_pearson,
+      data = nested_data_spearmans,
       year_choice = yr,
       site_choice = 117   
     ),
