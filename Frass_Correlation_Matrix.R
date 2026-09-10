@@ -567,6 +567,39 @@ signif_pairs <- nested_data_pearson %>%
 
 signif_pairs
   
-  
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#     Do mean of correlation values when we stack them for every square 
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#Create an array that have every one of these as a different layer and then apply a function so 
+array_cormatrix <- abind(nested_data_spearmans$cor_matrix, along = 3)
+
+#grab the row labels from the first slice (assumes same order across slices)
+row_labels <- array_cormatrix[, "rowname", 1]
+
+#drop the "rowname" column, keep only the numeric columns
+num_cols <- setdiff(colnames(array_cormatrix), "rowname")
+array_cormatrix_num <- array(
+  as.numeric(array_cormatrix[, num_cols, ]),
+  dim = c(nrow(array_cormatrix), length(num_cols), dim(array_cormatrix)[3]),
+  dimnames = list(row_labels, num_cols, dimnames(array_cormatrix)[[3]])
+)
+#calculate the mean for each square:
+mean_cormatrix <- apply(array_cormatrix_num, c(1,2), mean, na.rm= TRUE)
+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#     visualize all of the 5 variables on one line chart graph 
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+
+
+
+
+
+
+
+
+
+
+
+
   
   
