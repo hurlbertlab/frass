@@ -589,12 +589,196 @@ mean_cormatrix <- apply(array_cormatrix_num, c(1,2), mean, na.rm= TRUE)
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #     visualize all of the 5 variables on one line chart graph 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+all_variables_plotting <- function(data, year_choice, site_choice) {
+  
+  df <- data %>%
+    filter(Year == year_choice, Site == site_choice)
+  
+  ## ---- Plot ----
+  par(mar = c(5, 6, 4, 6))  # space for one right axis
+  
+  # Caterpillar fracSurveys
+  plot(
+    df$julianweek, df$fracSurveys,
+    type = "l",
+    col = "forestgreen",
+    lty = "solid",
+    lwd = 2,
+    xlab = "Julian week",
+    ylab = "",
+    ylim = range(df$fracSurveys, na.rm = TRUE),
+    main = paste(site_choice, year_choice)
+  )
+  
+  #Caterpillar meanDensity
+  par(new = TRUE)
+  
+  plot(
+    df$julianweek, df$meanDensity,
+    type = "l",
+    col = "forestgreen",
+    lty="dashed",
+    lwd = 2,
+    axes = FALSE,
+    xlab = "",
+    ylab = "",
+    ylim = range(df$meanDensity, na.rm = TRUE)
+  )
+  #Caterpillar meanBiomass
+  par(new = TRUE)
+  
+  plot(
+    df$julianweek, df$meanBiomass,
+    type = "l",
+    col = "forestgreen",
+    lty="dotted",
+    lwd = 2,
+    axes = FALSE,
+    xlab = "",
+    ylab = "",
+    ylim = range(df$meanBiomass, na.rm = TRUE)
+  ) 
+  #Frass Occurence 
+  par(new = TRUE)
+  
+  plot(
+    df$julianweek, df$trap_occurance_percent,
+    type = "l",
+    col = "sienna",
+    lty="solid",
+    lwd = 2,
+    axes = FALSE,
+    xlab = "",
+    ylab = "",
+    ylim = range(df$trap_occurance_percent, na.rm = TRUE)
+  )
+  #Frass Occurence 
+  par(new = TRUE)
+  
+  plot(
+    df$julianweek, df$frass_mass,
+    type = "l",
+    col = "sienna",
+    lty="dashed",
+    lwd = 2,
+    axes = FALSE,
+    xlab = "",
+    ylab = "",
+    ylim = range(df$frass_mass, na.rm = TRUE)
+  )
+  
+  ## ---- Legend ----
+  legend(
+    "topleft",
+    legend = expression(
+      paste("Cat Occurrence"),
+      paste("Cat Density"),
+      paste("Cat Biomass"),
+      paste("Frass Occurrence"),
+      paste("Frass Mass")
+    ),
+    col = c(
+      "forestgreen", "forestgreen",
+      "forestgreen", "sienna", "sienna"
+    ),
+    lwd = 2,
+    lty = c(1, 2, 3, 1, 2),
+    bty = "n",
+    cex = 0.8
+  )
+  
+  invisible(df)
+}
+all_variables_plotting(all_five_variables_dataframe, 2026, 8892356)
 
+##saving as a pdf------------------------ ^^^^^
+# Years for each site
+years_PR   <- c(2015, 2018, 2019, 2021, 2022)
+years_NCBG <- setdiff(2015:2026, 2020)   
+setwd("C:/Z_School/school/HurlbertLab/graphs")
+#set up pdf
+pdf(
+  file = "all_5_variables_plot.pdf",
+  width = 8,
+  height = 8)
+#layout for pdf
+par(
+  mfrow = c(3, 2),
+  mar = c(4, 4, 3, 6),  
+  oma = c(0, 0, 2, 0))
+#loops over each sites
+for (yr in years_NCBG) {
+  try(
+    all_variables_plotting(
+      data = all_five_variables_dataframe,
+      year_choice = yr,
+      site_choice = 8892356  
+    ),
+    silent = TRUE)}
+for (yr in years_PR) {
+  try(
+    all_variables_plotting(
+      data = all_five_variables_dataframe,
+      year_choice = yr,
+      site_choice = 117   
+    ),
+    silent = TRUE)}
+dev.off()
 
+#---------------------------------------------------
+#figure out a way to make correlation graphs and line graphs on same document to view 
 
+##saving as a pdf------------------------ ^^^^^
+# Years for each site
+years_PR   <- c(2015, 2018, 2019, 2021, 2022)
+years_NCBG <- setdiff(2015:2026, 2020)   
+datasets <- c(all_five_variables_dataframe, nested_data_spearmans)
+num_datasets <- length(datasets)
+setwd("C:/Z_School/school/HurlbertLab/graphs")
+#set up pdf
+pdf(
+  file = "correlation_and_linecharts.pdf",
+  width = 8,
+  height = 8)
+#layout for pdf
+par(
+  mfrow = c(3, 2),
+  mar = c(4, 4, 3, 6),  
+  oma = c(0, 0, 2, 0))
+#loops over each sites
+for (yr in seq_along(years_NCBG)) {
+  x <- years_NCBG[yr] #loop and alternate
+  dataset_index <- ((yr -1)%% num_datasets) +1 #determine what dataset to use
+  current_dataet <- datasets[[dataset_index]]
+  try(
+    all_variables_plotting(
+      data = all_five_variables_dataframe,
+      year_choice = yr,
+      site_choice = 8892356  
+    ),
+    silent = TRUE)}
+for (yr in seq_along(years_PR)) {
+  try(
+    all_variables_plotting(
+      data = all_five_variables_dataframe,
+      year_choice = yr,
+      site_choice = 117   
+    ),
+    silent = TRUE)}
+dev.off()
 
-
-
+# 3. Loop and alternate
+for (i in seq_along(master_vector)) {
+  x <- master_vector[i]
+  
+  # Determine which dataset to use (1, 2, 1, 2...)
+  dataset_index <- ((i - 1) %% num_datasets) + 1
+  current_dataset <- datasets[[dataset_index]]
+  
+  # Your logic here
+  print(paste("Processing:", x, "using Dataset", dataset_index))
+  # print(head(current_dataset)) 
+}
 
 
 
