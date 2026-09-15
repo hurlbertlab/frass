@@ -14,6 +14,9 @@ library(daymetr)
 library(corrplot)
 library(zoo)
 library(abind)
+library(pastecs)
+library(StatMatch)
+library(MASS)
 
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
@@ -899,6 +902,57 @@ dev.off()
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   trying to calculate outliers for each variable and then see if outliers for certain weeks line up with negative correlations?
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+vars_of_interest <- c("fracSurveys", "meanBiomass", "meanDensity", "trap_occurance_percent", "frass_mass")
+
+#----------------------------------------------------------------------------
+#computing MAD:
+outliers_MAD <- all_five_variables_dataframe %>%
+  group_by(Site, Year)%>%
+  mutate(across(all_of(vars_of_interest),
+                ~ mad(.x, na.rm = TRUE), 
+                .names = "{.col}_MAD"))
+outliers_MAD_filtered1 <- outliers_MAD %>%
+  filter(frass_mass_MAD >= 3)%>%       #frass_mass has outliers
+  select(Year, Site, frass_mass_MAD)
+outliers_MAD_filtered2 <- outliers_MAD %>%
+  filter(meanBiomass_MAD >= 3)%>%       #meanBiomass_MAD has no outliers
+  select(Year, Site, frass_mass_MAD)
+outliers_MAD_filtered3 <- outliers_MAD %>%
+  filter(meanDensity_MAD >= 3)%>%       #meanDensity_MAD has no outliers
+  select(Year, Site, frass_mass_MAD)
+
+#--------------------------------------------------------------------------
+#Computing Mahalanobis Distance (from youtube video, using frass mass (x), and cat biomass (y))
+num_vars2 <- c("meanBiomass", "frass_mass")
+foo <- select(all_five_variables_dataframe, c(Site, Year, meanBiomass, frass_mass))
+foo <- foo %>%
+  group_by(Site, Year) %>%
+  mutate(MD = mahalanobis(pick(all_of(num_vars2)),
+                          colMeans(pick(all_of(num_vars2))),
+                          cov(pick(all_of(num_vars2))))) %>%
+  ungroup()
+stat.desc(foo$MD, basic=TRUE, norm=TRUE) %>% round(2)
+#plot density curve
+foo %>%
+  ggplot(aes(MD)) +geom_density()
+#create new column saying if value outlier from MD
+foo <- foo %>%
+  mutate(MD_outlier = MD > (median(MD) + (3 * sd(MD))))
+foo[foo$MD_outlier == TRUE] #no outliers???
+#-------------------------------------------------------------------------
+#trying Mahalanobis Distance on just one variable (meanBiomass of cat)
+foo_catmass <- select(all_five_variables_dataframe, c(Site, Year, meanBiomass))
+foo_catmass <- foo_catmass %>%
+  mutate(MD = mahalanobis.dist(meanBiomass, data.y = NULL, vc = NULL, rob.vc = FALSE)) #idk what this is doing honestly....
+
+#-------------------------------------------------------------------------
+foo_MVE <- dplyr::select(all_five_variables_dataframe, c(Site, Year, meanBiomass, frass_mass))
+#Looking into minimum volume estimator for outliers
+mve_result <- cov.mve(foo) #from mass package 
+
+# View robust center and covariance matrix
+mve_result$center
+mve_result$cov
 
 
 
@@ -912,5 +966,10 @@ dev.off()
 
 
 
-  
-  
+
+
+
+
+
+
+
