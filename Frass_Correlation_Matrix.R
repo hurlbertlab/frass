@@ -365,7 +365,7 @@ all_data <- all_data %>%
 
 #clean all data so only have columns I want and divide by trap area
 all_data_clean <- all_data %>%
-  select(site, Year, jday, julianweek, meanBiomass, date, mass) %>% #make sure no duplicate weeks
+  dplyr::select(site, Year, jday, julianweek, meanBiomass, date, mass) %>% #make sure no duplicate weeks
   group_by(site, Year, julianweek) %>%
   summarise(
     meanBiomass = mean(meanBiomass, na.rm = TRUE),
@@ -466,9 +466,9 @@ imputation_data <- imputation_data %>%
 #   combining frass mass/occurrence and caterpillar occurrence,biomass, and density into one dataframe: 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 all_five_variables_dataframe <- cat_data_byweek %>%
-  select(Site, Year, julianweek, fracSurveys, meanDensity)%>%
+  dplyr::select(Site, Year, julianweek, fracSurveys, meanDensity)%>%
   left_join(occurance_frass_combined_weeks, by=c("Site", "Year", "julianweek")) %>%
-    left_join(imputation_data %>% select(Site, Year, julianweek, meanBiomass, mass), by=c("Site", "Year", "julianweek")) %>%
+    left_join(imputation_data %>% dplyr::select(Site, Year, julianweek, meanBiomass, mass), by=c("Site", "Year", "julianweek")) %>%
   rename(frass_mass = mass) #all years previous standardized (same jday range before joining)
 
 
@@ -479,14 +479,14 @@ vars_of_interest <- c("fracSurveys", "meanBiomass", "meanDensity", "trap_occuran
 
 #nest data by Site x Year combo
 nested_data_pearson <- all_five_variables_dataframe %>%
-  select(Site, Year, all_of(vars_of_interest)) %>%
+  dplyr::select(Site, Year, all_of(vars_of_interest)) %>%
   group_by(Site, Year) %>%
   nest()%>%
   mutate(cor_matrix = map(data, ~ cor_mat(.x, vars = vars_of_interest, method ="pearson", use ="pairwise.complete.obs"))) #run correlation, does pearson feel right?
 
 #nest data by Site x Year combo
 nested_data_spearmans <- all_five_variables_dataframe %>%
-  select(Site, Year, all_of(vars_of_interest)) %>%
+  dplyr::select(Site, Year, all_of(vars_of_interest)) %>%
   group_by(Site, Year) %>%
   nest()%>%
   mutate(cor_matrix = map(data, ~ cor_mat(.x, vars = vars_of_interest, method ="spearman", use ="pairwise.complete.obs"))) #run correlation, does pearson feel right?
@@ -567,7 +567,7 @@ nested_data_pearson <- nested_data_pearson %>%
 #filter out significant pairs each matrix
 signif_pairs <- nested_data_pearson %>%
   mutate(signif_long = map(cor_matrix, ~ cor_gather(.x) %>% filter(p < 0.05))) %>%
-  select(Year, Site, signif_long) %>%
+  dplyr::select(Year, Site, signif_long) %>%
   unnest(signif_long)
 
 signif_pairs
@@ -577,7 +577,7 @@ signif_pairs
 #     Do mean of correlation values when we stack them for every square 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #Create an array that have every one of these as a different layer and then apply a function so 
-array_cormatrix <- abind(nested_data_spearmans$cor_matrix, along = 3)
+array_cormatrix <- abind(nested_data_pearson$cor_matrix, along = 3) #change data set here for either pearsons or spearmans
 
 #grab the row labels from the first slice (assumes same order across slices)
 row_labels <- array_cormatrix[, "rowname", 1]
@@ -913,48 +913,57 @@ outliers_MAD <- all_five_variables_dataframe %>%
                 .names = "{.col}_MAD"))
 outliers_MAD_filtered1 <- outliers_MAD %>%
   filter(frass_mass_MAD >= 3)%>%       #frass_mass has outliers
-  select(Year, Site, frass_mass_MAD)
+  dplyr::select(Year, Site, frass_mass_MAD)
 outliers_MAD_filtered2 <- outliers_MAD %>%
   filter(meanBiomass_MAD >= 3)%>%       #meanBiomass_MAD has no outliers
-  select(Year, Site, frass_mass_MAD)
+  dplyr::select(Year, Site, frass_mass_MAD)
 outliers_MAD_filtered3 <- outliers_MAD %>%
   filter(meanDensity_MAD >= 3)%>%       #meanDensity_MAD has no outliers
-  select(Year, Site, frass_mass_MAD)
+  dplyr::select(Year, Site, frass_mass_MAD)
 
 #--------------------------------------------------------------------------
 #Computing Mahalanobis Distance (from youtube video, using frass mass (x), and cat biomass (y))
 num_vars2 <- c("meanBiomass", "frass_mass")
-foo <- select(all_five_variables_dataframe, c(Site, Year, meanBiomass, frass_mass))
+foo <- dplyr::select(all_five_variables_dataframe, c(Site, Year, meanBiomass, frass_mass))
 foo <- foo %>%
   group_by(Site, Year) %>%
   mutate(MD = mahalanobis(pick(all_of(num_vars2)),
                           colMeans(pick(all_of(num_vars2))),
                           cov(pick(all_of(num_vars2))))) %>%
   ungroup()
-stat.desc(foo$MD, basic=TRUE, norm=TRUE) %>% round(2)
+stat.desc(foo$MD, basic=TRUE, norm=TRUE) %>% round(2) 
+#median = 1.38, sd=1.39 *3 = 3.9. so 3.9+1.38 = 5.3 and max value observed is 6.03 so may not have outliers because max value barely exceeds 3 sd away from median?
+
 #plot density curve
 foo %>%
   ggplot(aes(MD)) +geom_density()
 #create new column saying if value outlier from MD
 foo <- foo %>%
   mutate(MD_outlier = MD > (median(MD) + (3 * sd(MD))))
-foo[foo$MD_outlier == TRUE] #no outliers???
+foo[foo$MD_outlier == TRUE,] #only one outlier for 117 2021
 #-------------------------------------------------------------------------
-#trying Mahalanobis Distance on just one variable (meanBiomass of cat)
-foo_catmass <- select(all_five_variables_dataframe, c(Site, Year, meanBiomass))
-foo_catmass <- foo_catmass %>%
-  mutate(MD = mahalanobis.dist(meanBiomass, data.y = NULL, vc = NULL, rob.vc = FALSE)) #idk what this is doing honestly....
-
-#-------------------------------------------------------------------------
+#Computing Minimum Volume Estimator (MVE)
 foo_MVE <- dplyr::select(all_five_variables_dataframe, c(Site, Year, meanBiomass, frass_mass))
+
 #Looking into minimum volume estimator for outliers
-mve_result <- cov.mve(foo) #from mass package 
+mve_result <- foo_MVE %>%
+  group_by(Site, Year)%>%
+  mutate(MVE = cov.mve(foo_MVE, cor=  FALSE, quantile.used = floor((111 + 2 + 1)/2), method = 'mve', nsamp ='best', seed)) %>% #from mass package 
+  ungroup()
 
 # View robust center and covariance matrix
 mve_result$center
 mve_result$cov
 
 
+#trying RobStat version, a fail
+library(RobStatTM) 
+# matrix version of data
+foo_MVE_matrix = data.matrix(foo_MVE)
+#from robstattm package
+mve_result <- foo_MVE_matrix %>%
+  group_by(Site, Year) %>%
+  mutate(MVE = fastmve(foo_MVE_matrix, nsamp = 500)) #needs row based cases??? 
 
 
 
