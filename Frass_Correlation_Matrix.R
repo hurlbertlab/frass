@@ -894,9 +894,272 @@ for (yr in years_PR) {
 }
 dev.off()
 
+
+
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   running LAG correlations between site/year/julianweek for all 5 variables to see which ones best correlated when we shift frass variables back
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+library(data.table)
+#making it so the frass variables shift back one week so perhaps it aligns better with caterpillar variables?
+LAG_all_five_variables_dataframe <- all_five_variables_dataframe %>%
+  group_by(Site, Year) %>%
+  mutate(shifted_frass_mass = shift(frass_mass, n=1, type="lead")) %>%
+  mutate(shifted_frass_occurrence = shift(trap_occurance_percent, n=1, type="lead")) 
+
+#now do correlations with lagged data------------
+vars_of_interest_lag <- c("fracSurveys", "meanBiomass", "meanDensity", "shifted_frass_occurrence", "shifted_frass_mass")
+
+#nest data by Site x Year combo
+lag_nested_data_pearson <- LAG_all_five_variables_dataframe_lag %>%
+  dplyr::select(Site, Year, all_of(vars_of_interest_lag)) %>%
+  group_by(Site, Year) %>%
+  nest()%>%
+  mutate(cor_matrix = map(data, ~ cor_mat(.x, vars = vars_of_interest_lag, method ="pearson", use ="pairwise.complete.obs"))) #run correlation, does pearson feel right?
+
+#nest data by Site x Year combo
+lag_nested_data_spearmans <- LAG_all_five_variables_dataframe_lag %>%
+  dplyr::select(Site, Year, all_of(vars_of_interest_lag)) %>%
+  group_by(Site, Year) %>%
+  nest()%>%
+  mutate(cor_matrix = map(data, ~ cor_mat(.x, vars = vars_of_interest_lag, method ="spearman", use ="pairwise.complete.obs"))) #run correlation, does pearson feel right?
+
+#now visualizations:---------------------------------
+LAG_all_variables_plotting_altered <- function(data, year_choice, site_choice) {
+  
+  df <- data %>%
+    filter(Year == year_choice, Site == site_choice)
+  
+  ## ---- Plot ----
+  par(mar = c(5, 6, 4, 6))  # space for one right axis
+  
+  # Caterpillar fracSurveys
+  keep1 <- !is.na(df$julianweek) & !is.na(df$fracSurveys)
+  plot(
+    df$julianweek[keep1], df$fracSurveys[keep1],
+    type = "l",
+    col = "forestgreen",
+    lty = "solid",
+    lwd = 2,
+    xlab = "Julian week",
+    ylab = "",
+    xlim = range(df$julianweek, na.rm = TRUE),
+    ylim = range(df$fracSurveys, na.rm = TRUE),
+    main = paste(site_choice, year_choice)
+  )
+  
+  #Caterpillar meanDensity
+  par(new = TRUE)
+  
+  keep2 <- !is.na(df$julianweek) & !is.na(df$meanDensity)
+  plot(
+    df$julianweek[keep2], df$meanDensity[keep2],
+    type = "l",
+    col = "forestgreen",
+    lty = "dashed",
+    lwd = 2,
+    axes = FALSE,
+    xlab = "",
+    ylab = "",
+    xlim = range(df$julianweek, na.rm = TRUE),
+    ylim = range(df$meanDensity, na.rm = TRUE)
+  )
+  
+  #Caterpillar meanBiomass
+  par(new = TRUE)
+  
+  keep3 <- !is.na(df$julianweek) & !is.na(df$meanBiomass)
+  plot(
+    df$julianweek[keep3], df$meanBiomass[keep3],
+    type = "l",
+    col = "forestgreen",
+    lty = "dotted",
+    lwd = 2,
+    axes = FALSE,
+    xlab = "",
+    ylab = "",
+    xlim = range(df$julianweek, na.rm = TRUE),
+    ylim = range(df$meanBiomass, na.rm = TRUE)
+  )
+  
+  #Frass Occurrence
+  par(new = TRUE)
+  
+  keep4 <- !is.na(df$julianweek) & !is.na(df$shifted_frass_occurrence)
+  plot(
+    df$julianweek[keep4], df$shifted_frass_occurrence[keep4],
+    type = "l",
+    col = "sienna",
+    lty = "solid",
+    lwd = 2,
+    axes = FALSE,
+    xlab = "",
+    ylab = "",
+    xlim = range(df$julianweek, na.rm = TRUE),
+    ylim = range(df$shifted_frass_occurrence, na.rm = TRUE)
+  )
+  
+  #Frass Mass
+  par(new = TRUE)
+  
+  keep5 <- !is.na(df$julianweek) & !is.na(df$shifted_frass_mass)
+  plot(
+    df$julianweek[keep5], df$shifted_frass_mass[keep5],
+    type = "l",
+    col = "sienna",
+    lty = "dashed",
+    lwd = 2,
+    axes = FALSE,
+    xlab = "",
+    ylab = "",
+    xlim = range(df$julianweek, na.rm = TRUE),
+    ylim = range(df$shifted_frass_mass, na.rm = TRUE)
+  )
+  
+  ## ---- Legend ----
+  legend(
+    "topleft",
+    legend = expression(
+      paste("Cat Occurrence"),
+      paste("Cat Density"),
+      paste("Cat Biomass"),
+      paste("Lag Frass Occurrence"),
+      paste("Lag Frass Mass")
+    ),
+    col = c(
+      "forestgreen", "forestgreen",
+      "forestgreen", "sienna", "sienna"
+    ),
+    lwd = 2,
+    lty = c(1, 2, 3, 1, 2),
+    bty = "n",
+    cex = 0.8
+  )
+  
+  invisible(df)
+}
+
+LAG_correlation_plotting <- function(data, year_choice, site_choice) {
+  df <- data %>%
+    filter(Year == year_choice, Site == site_choice)
+  #pull the cor_matrix out of the list-column
+  cor_df <- df$cor_matrix[[1]]
+  
+  #convert rstatix cor_mat() output (has a rowname/var column) into a real matrix
+  cor_matrix <- cor_df %>%
+    column_to_rownames(var = colnames(cor_df)[1]) %>%
+    as.matrix()
+  ## plot:
+  corrplot(cor_matrix, 
+           type = "upper", 
+           title = paste(site_choice, year_choice),
+           mar = c(0, 0, 2, 0),
+           method = "shade", 
+           order = "original", #original,hclust, alphabet
+           tl.col = "black", 
+           tl.srt = 45,
+           cl.align.text="l",
+           cl.offset = .5,
+           addCoef.col = "black",   
+           number.cex = 0.8,
+           addgrid.col = "black",
+           col = colorRampPalette(c("firebrick2", "white", "dodgerblue3"))(200))
+  
+  invisible(cor_matrix)
+}
+
+#---------------------------------------------------
+#figure out a way to make correlation graphs and line graphs on same document to view 
+
+##saving as a pdf, trying to do correlations and line charts----------
+# Years for each site
+years_PR   <- c(2015, 2018, 2019, 2021, 2022)
+years_NCBG <- setdiff(2015:2026, 2020)   
+setwd("C:/Z_School/school/HurlbertLab/graphs")
+#set up pdf
+pdf(
+  file = "LAG_correlation_and_linecharts2.pdf",
+  width = 8,
+  height = 8)
+#layout for pdf
+par(
+  mfrow = c(3, 2),
+  mar = c(4, 4, 3, 6),  
+  oma = c(0, 0, 2, 0))
+#loops over each sites
+for (yr in years_NCBG) {
+  try(LAG_all_variables_plotting_altered(
+    data = all_five_variables_dataframe,
+    year_choice = yr,
+    site_choice = 8892356
+  ), silent = TRUE)
+  try(LAG_correlation_plotting(
+    data = lag_nested_data_spearmans,
+    year_choice = yr,
+    site_choice = 8892356
+  ), silent = TRUE)
+}
+for (yr in years_PR) {
+  try(LAG_all_variables_plotting_altered(
+    data = all_five_variables_dataframe,
+    year_choice = yr,
+    site_choice = 117
+  ), silent = TRUE)
+  try(LAG_correlation_plotting(
+    data = lag_nested_data_spearmans,
+    year_choice = yr,
+    site_choice = 117
+  ), silent = TRUE)
+}
+dev.off()
+#----------------------------------
+#just correlations
+#set up pdf
+pdf(
+  file = "lag_correlations_pearson.pdf",
+  width = 8,
+  height = 8)
+#layout for pdf
+par(
+  mfrow = c(3, 2),
+  mar = c(4, 4, 3, 6),  
+  oma = c(0, 0, 2, 0))
+#loops over each sites
+for (yr in years_NCBG) {
+  try(
+    LAG_correlation_plotting(
+      data = lag_nested_data_pearson,
+      year_choice = yr,
+      site_choice = 8892356  
+    ),
+    silent = TRUE)}
+for (yr in years_PR) {
+  try(
+    LAG_correlation_plotting(
+      data = lag_nested_data_pearson,
+      year_choice = yr,
+      site_choice = 117   
+    ),
+    silent = TRUE)}
+dev.off()
+#------------------------------------
+#conduct mean values for correlation
+#Create an array that have every one of these as a different layer and then apply a function so 
+array_cormatrix <- abind(lag_nested_data_spearmans$cor_matrix, along = 3) #change data set here for either pearsons or spearmans
+
+#grab the row labels from the first slice (assumes same order across slices)
+row_labels <- array_cormatrix[, "rowname", 1]
+
+#drop the "rowname" column, keep only the numeric columns
+num_cols <- setdiff(colnames(array_cormatrix), "rowname")
+array_cormatrix_num <- array(
+  as.numeric(array_cormatrix[, num_cols, ]),
+  dim = c(nrow(array_cormatrix), length(num_cols), dim(array_cormatrix)[3]),
+  dimnames = list(row_labels, num_cols, dimnames(array_cormatrix)[[3]])
+)
+#calculate the mean for each square:
+mean_cormatrix <- apply(array_cormatrix_num, c(1,2), mean, na.rm= TRUE)
+
+
 
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
