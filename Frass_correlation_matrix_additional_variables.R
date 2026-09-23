@@ -166,7 +166,7 @@ cat_data_byweek <- cat_data_byweek %>%
 
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
-#   reading in frass and altering it per julian week :
+#   Reading in Frass data + occurence 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 
 # Function for reading in frass data from GoogleDoc
@@ -229,7 +229,7 @@ data = frassData(open = T) %>%
          jday = (floor(jday.Collected) + floor(jday.Set))/2)
 
 #-----------------------------------------------------------------------------------------------
-#Filtering Data for Frass Occurence -> use occurance_frass_combined_weeks DF
+#Filtering Data for Frass OCCURRENCE -> use occurance_frass_combined_weeks DF
 #-----------------------------------------------------------------------------------------------
 #filter data so only reliable rows are left then filter frass.mg.d so that only traps with total mass >4mg are left
 filtered_mass <- data %>%
@@ -263,9 +263,17 @@ occurance_frass_combined_weeks <- occurance_frass %>%
       (Site == 8892356 & Year %in% c(2015:2019, 2021:2026) & julianweek %in% 154:198))
 
 
+#-----------------------------------------------------------------------------------------------
+#Filtering Data for Frass NUMBER of PELLETS 
+#-----------------------------------------------------------------------------------------------
+frass_pellet_number <- data %>%
+  filter(OK==1)%>% #only days deemed reliable left
+  mutate(julianweek = 7 * floor(jday / 7) + 4)%>%
+  mutate()
+
 
 #-----------------------------------------------------------------------------------------------
-#Filtering Data for Frass Mass and cateprillar biomass -> IMPUTATION use imputation_data DF
+#Filtering Data for Frass MASS and cateprillar biomass -> IMPUTATION use imputation_data DF
 #-----------------------------------------------------------------------------------------------
 # using data to find mean frass per day for reliable frass only 
 #read in proper url, change dates and label events for below meanfrass
@@ -469,9 +477,7 @@ yearsWithData = 2021:2026
 frassPath = "//ad.unc.edu/bio/HurlbertLab/Databases/CaterpillarsCount/Frass" #make sure this is open in computer files space (sign in)
 
 
-output = data.frame(Year = NULL, Site = NULL, Trap = NULL, Date = NULL, Particle = NULL, Area = NULL)
-
-
+frass_volume = data.frame(Year = NULL, Site = NULL, Trap = NULL, Date = NULL, Particle = NULL, Area = NULL)
 for (year in yearsWithData) {
   
   tmpPath = paste0(frassPath, "/", year, "/Results")
@@ -520,16 +526,27 @@ for (year in yearsWithData) {
     
     names(tmpdf)[1] = "Particle"
     
-    output = rbind(output, tmpdf)
+    frass_volume = rbind(frass_volume, tmpdf)
     
   } # end loop
   
   
 }
 
-output = output[, c("Year", "Site", "Trap", "Date", "Particle", "Area")]
-output$Date = as.Date(output$Date, format = "%Y-%m-%d")
-names(output)[names(output) == "Date"] <- "Date.Collected"
+frass_volume = frass_volume[, c("Year", "Site", "Trap", "Date", "Particle", "Area")]
+frass_volume$Date = as.Date(frass_volume$Date, format = "%Y-%m-%d")
+names(frass_volume)[names(frass_volume) == "Date"] <- "Date.Collected"
+
+#do corrections:
+frass_volume_corrections = frass_volume %>%
+  mutate(Date.Collected = as.Date(Date.Collected, format = "%m/%d/%Y"),
+         Year = format(Date.Collected, "%Y"),
+         jday = yday(Date.Collected),
+         Site = as.character(ifelse(Site== c("pr", "PR"), 117, 8892356))) %>%
+  group_by(Site, Year, jday) %>%
+  summarize(mean_area = mean(Area, na.rm = TRUE), .groups="drop") %>%
+  mutate(volume = (((4/3)*mean_area)*(sqrt(mean_area/pi))))
+
 
 
 
@@ -541,6 +558,8 @@ all_five_variables_dataframe <- cat_data_byweek %>%
   left_join(occurance_frass_combined_weeks, by=c("Site", "Year", "julianweek")) %>%
   left_join(imputation_data %>% dplyr::select(Site, Year, julianweek, meanBiomass, mass), by=c("Site", "Year", "julianweek")) %>%
   rename(frass_mass = mass) #all years previous standardized (same jday range before joining)
+
+#add frass_volume_corrections $ volume
 
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
