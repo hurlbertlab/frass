@@ -21,9 +21,9 @@ library(tidyverse)
 library(jsonlite)
 library(daymetr)
 
-# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
 #   Datasets needed:
-# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
 #reading in all folders with frass particle data and combining into one dataframe
 yearsWithData = 2021:2025
 
@@ -92,7 +92,7 @@ output = output[, c("Year", "Site", "Trap", "Date", "Particle", "Area")]
 output$Date = as.Date(output$Date, format = "%Y-%m-%d")
 names(output)[names(output) == "Date"] <- "Date.Collected"
 #saving this as file on computer for later
-write.csv(output, file = "C:/Z_School/HurlbertLab/output.csv", row.names = FALSE)
+#write.csv(output, file = "C:/Z_School/HurlbertLab/output.csv", row.names = FALSE)
 #output <- read.csv("C:/Z_School/HurlbertLab/output.csv")
 
 

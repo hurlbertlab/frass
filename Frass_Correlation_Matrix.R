@@ -1205,7 +1205,7 @@ foo <- foo %>%
   mutate(MD_outlier = MD > (median(MD) + (3 * sd(MD))))
 foo[foo$MD_outlier == TRUE,] #only one outlier for 117 2021
 #-------------------------------------------------------------------------
-#Computing Minimum Volume Estimator (MVE)
+#Computing Minimum Volume Estimator (MVE) DOESNT WORK!!!!!!!!!!!
 foo_MVE <- dplyr::select(all_five_variables_dataframe, c(Site, Year, meanBiomass, frass_mass))
 
 #Looking into minimum volume estimator for outliers
@@ -1228,10 +1228,20 @@ mve_result <- foo_MVE_matrix %>%
   group_by(Site, Year) %>%
   mutate(MVE = fastmve(foo_MVE_matrix, nsamp = 500)) #needs row based cases??? 
 
+#-------------------------------------------------------------------------
+#computing STL (Seasonal and Trend decomposition using Loess) on caterillar biomass
+only_catbiomass <- dplyr::select(all_five_variables_dataframe, c(Site, Year, meanBiomass))
 
+decomp_stl <- only_catbiomass %>%
+  group_by(Site, Year) %>%
+  mutate(cat_biomass_stl = stl(meanBiomass, s.window = "periodic"))
 
+stl(all_five_variables_dataframe$meanBiomass, s.window="periodic")
+plot(decomp)
 
-
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#   Bringing in frass number of pellets per week and frass volume data
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 
 
 
