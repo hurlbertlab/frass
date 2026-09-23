@@ -25,7 +25,7 @@ library(daymetr)
 #   Datasets needed:
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*
 #reading in all folders with frass particle data and combining into one dataframe
-yearsWithData = 2021:2025
+yearsWithData = 2021:2026
 
 frassPath = "//ad.unc.edu/bio/HurlbertLab/Databases/CaterpillarsCount/Frass"
 
