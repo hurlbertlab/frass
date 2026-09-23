@@ -269,7 +269,9 @@ occurance_frass_combined_weeks <- occurance_frass %>%
 frass_pellet_number <- data %>%
   filter(OK==1)%>% #only days deemed reliable left
   mutate(julianweek = 7 * floor(jday / 7) + 4)%>%
-  mutate()
+  group_by(julianweek, Site, Year) %>%
+  summarize(number_pellets = sum(Frass.number))
+frass_pellet_number$Year <- as.integer(frass_pellet_number$Year)
 
 
 #-----------------------------------------------------------------------------------------------
@@ -542,21 +544,24 @@ frass_volume_corrections = frass_volume %>%
   mutate(Date.Collected = as.Date(Date.Collected, format = "%m/%d/%Y"),
          Year = format(Date.Collected, "%Y"),
          jday = yday(Date.Collected),
-         Site = as.character(ifelse(Site== c("pr", "PR"), 117, 8892356))) %>%
-  group_by(Site, Year, jday) %>%
+         Site = as.character(ifelse(Site== c("pr", "PR"), 117, 8892356)),
+         julianweek = 7 * floor(jday / 7) + 4)%>%
+  group_by(Site, Year, julianweek) %>%
   summarize(mean_area = mean(Area, na.rm = TRUE), .groups="drop") %>%
   mutate(volume = (((4/3)*mean_area)*(sqrt(mean_area/pi))))
-
+frass_volume_corrections$Year <- as.integer(frass_volume_corrections$Year)
 
 
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   combining frass mass/occurrence and caterpillar occurrence,biomass, and density into one dataframe: 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
-all_five_variables_dataframe <- cat_data_byweek %>%
+all_seven_variables_dataframe <- cat_data_byweek %>%
   dplyr::select(Site, Year, julianweek, fracSurveys, meanDensity)%>%
   left_join(occurance_frass_combined_weeks, by=c("Site", "Year", "julianweek")) %>%
   left_join(imputation_data %>% dplyr::select(Site, Year, julianweek, meanBiomass, mass), by=c("Site", "Year", "julianweek")) %>%
+  left_join(frass_volume_corrections, dplyr::select(Site, Year, julianweek, volume), by=c("Site", "Year", "julianweek")) %>% 
+  left_join(frass_pellet_number, dplyr::select(Site, Year, julianweek, volume), by =c("Site", "Year", "julianweek")) %>%
   rename(frass_mass = mass) #all years previous standardized (same jday range before joining)
 
 #add frass_volume_corrections $ volume
