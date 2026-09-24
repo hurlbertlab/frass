@@ -585,8 +585,8 @@ safe_cor_mat <- possibly(
   otherwise = NULL
 )
 #pearsons
-nested_data_pearson <- all_seven_variables_dataframe %>% #change DF if needed
-  dplyr::select(Site, Year, all_of(vars_of_interest)) %>%
+nested_data_pearson <- all_six_variables_dataframe %>% #change DF if needed
+  dplyr::select(Site, Year, all_of(vars_of_interest2)) %>%
   group_by(Site, Year) %>%
   nest() %>%
   mutate(cor_matrix = map(data, safe_cor_mat))
@@ -597,8 +597,8 @@ safe_cor_mat_spearman <- possibly(
   otherwise = NULL
 )
 
-nested_data_spearman <- all_seven_variables_dataframe %>%
-  dplyr::select(Site, Year, all_of(vars_of_interest)) %>%
+nested_data_spearman <- all_six_variables_dataframe %>%
+  dplyr::select(Site, Year, all_of(vars_of_interest2)) %>%
   group_by(Site, Year) %>%
   nest() %>%
   mutate(cor_matrix = map(data, safe_cor_mat_spearman))
@@ -688,6 +688,185 @@ array_cormatrix_num <- array(
 )
 #calculate the mean for each square:
 mean_cormatrix <- apply(array_cormatrix_num, c(1,2), mean, na.rm= TRUE)
+
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+#     Finding way to plot correlation and line chars for 6 variables 
+# *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
+all_variables_plotting_altered <- function(data, year_choice, site_choice) {
+  
+  df <- data %>%
+    filter(Year == year_choice, Site == site_choice)
+  
+  ## ---- Plot ----
+  par(mar = c(5, 6, 4, 6))  # space for one right axis
+  
+  # Caterpillar fracSurveys
+  keep1 <- !is.na(df$julianweek) & !is.na(df$fracSurveys)
+  plot(
+    df$julianweek[keep1], df$fracSurveys[keep1],
+    type = "l",
+    col = "forestgreen",
+    lty = "solid",
+    lwd = 2,
+    xlab = "Julian week",
+    ylab = "",
+    xlim = range(df$julianweek, na.rm = TRUE),
+    ylim = range(df$fracSurveys, na.rm = TRUE),
+    main = paste(site_choice, year_choice)
+  )
+  
+  #Caterpillar meanDensity
+  par(new = TRUE)
+  
+  keep2 <- !is.na(df$julianweek) & !is.na(df$meanDensity)
+  plot(
+    df$julianweek[keep2], df$meanDensity[keep2],
+    type = "l",
+    col = "forestgreen",
+    lty = "dashed",
+    lwd = 2,
+    axes = FALSE,
+    xlab = "",
+    ylab = "",
+    xlim = range(df$julianweek, na.rm = TRUE),
+    ylim = range(df$meanDensity, na.rm = TRUE)
+  )
+  
+  #Caterpillar meanBiomass
+  par(new = TRUE)
+  
+  keep3 <- !is.na(df$julianweek) & !is.na(df$meanBiomass)
+  plot(
+    df$julianweek[keep3], df$meanBiomass[keep3],
+    type = "l",
+    col = "forestgreen",
+    lty = "dotted",
+    lwd = 2,
+    axes = FALSE,
+    xlab = "",
+    ylab = "",
+    xlim = range(df$julianweek, na.rm = TRUE),
+    ylim = range(df$meanBiomass, na.rm = TRUE)
+  )
+  
+  #Frass Occurrence
+  par(new = TRUE)
+  
+  keep4 <- !is.na(df$julianweek) & !is.na(df$trap_occurance_percent)
+  plot(
+    df$julianweek[keep4], df$trap_occurance_percent[keep4],
+    type = "l",
+    col = "sienna",
+    lty = "solid",
+    lwd = 2,
+    axes = FALSE,
+    xlab = "",
+    ylab = "",
+    xlim = range(df$julianweek, na.rm = TRUE),
+    ylim = range(df$trap_occurance_percent, na.rm = TRUE)
+  )
+  
+  #Frass Mass
+  par(new = TRUE)
+  
+  keep5 <- !is.na(df$julianweek) & !is.na(df$frass_mass)
+  plot(
+    df$julianweek[keep5], df$frass_mass[keep5],
+    type = "l",
+    col = "sienna",
+    lty = "dashed",
+    lwd = 2,
+    axes = FALSE,
+    xlab = "",
+    ylab = "",
+    xlim = range(df$julianweek, na.rm = TRUE),
+    ylim = range(df$frass_mass, na.rm = TRUE)
+  )
+  #Frass number pellets
+  par(new = TRUE)
+  
+  keep6 <- !is.na(df$julianweek) & !is.na(df$frass_mass)
+  plot(
+    df$julianweek[keep6], df$number_pellets[keep6],
+    type = "l",
+    col = "sienna",
+    lty = "dotted",
+    lwd = 2,
+    axes = FALSE,
+    xlab = "",
+    ylab = "",
+    xlim = range(df$julianweek, na.rm = TRUE),
+    ylim = range(df$number_pellets, na.rm = TRUE)
+  )
+  
+  ## ---- Legend ----
+  legend(
+    "topleft",
+    legend = expression(
+      paste("Cat Occurrence"),
+      paste("Cat Density"),
+      paste("Cat Biomass"),
+      paste("Frass Occurrence"),
+      paste("Frass Mass"),
+      paste("Number pellets")
+    ),
+    col = c(
+      "forestgreen", "forestgreen",
+      "forestgreen", "sienna", "sienna", "sienna"
+    ),
+    lwd = 2,
+    lty = c(1, 2, 3, 1, 2),
+    bty = "n",
+    cex = 0.8
+  )
+  
+  invisible(df)
+}
+
+##saving as a pdf------------------------ ^^^^^
+# Years for each site
+years_PR   <- c(2015, 2018, 2019, 2021, 2022)
+years_NCBG <- setdiff(2015:2026, 2020)   
+
+
+setwd("C:/Z_School/school/HurlbertLab/graphs")
+#set up pdf
+pdf(
+  file = "correlation_and_linecharts_6vars.pdf",
+  width = 8,
+  height = 8)
+#layout for pdf
+par(
+  mfrow = c(3, 2),
+  mar = c(4, 4, 3, 6),  
+  oma = c(0, 0, 2, 0))
+#loops over each sites
+for (yr in years_NCBG) {
+  try(all_variables_plotting_altered(
+    data = all_six_variables_dataframe,
+    year_choice = yr,
+    site_choice = 8892356
+  ), silent = TRUE)
+  try(correlation_plotting(
+    data = nested_data_spearman,
+    year_choice = yr,
+    site_choice = 8892356
+  ), silent = TRUE)
+}
+
+for (yr in years_PR) {
+  try(all_variables_plotting_altered(
+    data = all_six_variables_dataframe,
+    year_choice = yr,
+    site_choice = 117
+  ), silent = TRUE)
+  try(correlation_plotting(
+    data = nested_data_spearman,
+    year_choice = yr,
+    site_choice = 117
+  ), silent = TRUE)
+}
+dev.off()
 
 
 
