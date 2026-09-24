@@ -585,8 +585,8 @@ safe_cor_mat <- possibly(
   otherwise = NULL
 )
 #pearsons
-nested_data_pearson <- all_six_variables_dataframe %>% #change DF if needed
-  dplyr::select(Site, Year, all_of(vars_of_interest2)) %>%
+nested_data_pearson <- all_seven_variables_dataframe %>% #change DF if needed
+  dplyr::select(Site, Year, all_of(vars_of_interest)) %>%
   group_by(Site, Year) %>%
   nest() %>%
   mutate(cor_matrix = map(data, safe_cor_mat))
@@ -597,8 +597,8 @@ safe_cor_mat_spearman <- possibly(
   otherwise = NULL
 )
 
-nested_data_spearman <- all_six_variables_dataframe %>%
-  dplyr::select(Site, Year, all_of(vars_of_interest2)) %>%
+nested_data_spearman <- all_seven_variables_dataframe %>%
+  dplyr::select(Site, Year, all_of(vars_of_interest)) %>%
   group_by(Site, Year) %>%
   nest() %>%
   mutate(cor_matrix = map(data, safe_cor_mat_spearman))
@@ -642,7 +642,7 @@ years_NCBG <- setdiff(2015:2026, 2020)
 setwd("C:/Z_School/school/HurlbertLab/graphs")
 #set up pdf
 pdf(
-  file = "6vars_correlation_pearson.pdf",
+  file = "7vars_correlation_pearson.pdf",
   width = 8,
   height = 8)
 #layout for pdf
