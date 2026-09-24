@@ -270,7 +270,9 @@ frass_pellet_number <- data %>%
   filter(OK==1)%>% #only days deemed reliable left
   mutate(julianweek = 7 * floor(jday / 7) + 4)%>%
   group_by(julianweek, Site, Year) %>%
-  summarize(number_pellets = sum(Frass.number))
+  summarize(number_pellets = sum(Frass.number), .groups = "drop") %>%
+  mutate(Site = recode(Site, "Botanical Garden" = "8892356"))%>%
+  mutate(Site = recode(Site, "Prairie Ridge" = "117"))
 frass_pellet_number$Year <- as.integer(frass_pellet_number$Year)
 
 
@@ -560,34 +562,46 @@ all_seven_variables_dataframe <- cat_data_byweek %>%
   dplyr::select(Site, Year, julianweek, fracSurveys, meanDensity)%>%
   left_join(occurance_frass_combined_weeks, by=c("Site", "Year", "julianweek")) %>%
   left_join(imputation_data %>% dplyr::select(Site, Year, julianweek, meanBiomass, mass), by=c("Site", "Year", "julianweek")) %>%
-  left_join(frass_volume_corrections, dplyr::select(Site, Year, julianweek, volume), by=c("Site", "Year", "julianweek")) %>% 
-  left_join(frass_pellet_number, dplyr::select(Site, Year, julianweek, volume), by =c("Site", "Year", "julianweek")) %>%
+  left_join(frass_volume_corrections, dplyr::select(Site, Year, julianweek, volume), by=c("Site", "Year", "julianweek")) %>% #volume data missing 2021 for PR because data bad
+  left_join(frass_pellet_number, dplyr::select(Site, Year, julianweek, number_pellets), by =c("Site", "Year", "julianweek")) %>%
   rename(frass_mass = mass) #all years previous standardized (same jday range before joining)
 
-#add frass_volume_corrections $ volume
-
+all_six_variables_dataframe <- cat_data_byweek %>%
+  dplyr::select(Site, Year, julianweek, fracSurveys, meanDensity)%>%
+  left_join(occurance_frass_combined_weeks, by=c("Site", "Year", "julianweek")) %>%
+  left_join(imputation_data %>% dplyr::select(Site, Year, julianweek, meanBiomass, mass), by=c("Site", "Year", "julianweek")) %>%
+  left_join(frass_pellet_number, dplyr::select(Site, Year, julianweek, number_pellets), by =c("Site", "Year", "julianweek")) %>%
+  rename(frass_mass = mass) #all years previous standardized (same jday range before joining)
 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   running correlations between site/year/julianweek for all 5 variables to see which ones best correlated
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
-vars_of_interest <- c("fracSurveys", "meanBiomass", "meanDensity", "trap_occurance_percent", "frass_mass")
+vars_of_interest <- c("fracSurveys", "meanBiomass", "meanDensity", "trap_occurance_percent", "frass_mass", "mean_area", "number_pellets")
+#without area
+vars_of_interest2 <- c("fracSurveys", "meanBiomass", "meanDensity", "trap_occurance_percent", "frass_mass", "number_pellets")
+#keep safe ones only
+safe_cor_mat <- possibly(
+  ~ rstatix::cor_mat(.x, method = "pearson"),
+  otherwise = NULL
+)
+#pearsons
+nested_data_pearson <- all_six_variables_dataframe %>% #change DF if needed
+  dplyr::select(Site, Year, all_of(vars_of_interest2)) %>%
+  group_by(Site, Year) %>%
+  nest() %>%
+  mutate(cor_matrix = map(data, safe_cor_mat))
 
 #nest data by Site x Year combo
-nested_data_pearson <- all_five_variables_dataframe %>%
-  dplyr::select(Site, Year, all_of(vars_of_interest)) %>%
-  group_by(Site, Year) %>%
-  nest()%>%
-  mutate(cor_matrix = map(data, ~ cor_mat(.x, vars = vars_of_interest, method ="pearson", use ="pairwise.complete.obs"))) #run correlation, does pearson feel right?
+safe_cor_mat_spearman <- possibly(
+  ~ rstatix::cor_mat(.x, method = "spearman"),
+  otherwise = NULL
+)
 
-#nest data by Site x Year combo
-nested_data_spearmans <- all_five_variables_dataframe %>%
-  dplyr::select(Site, Year, all_of(vars_of_interest)) %>%
+nested_data_spearman <- all_six_variables_dataframe %>%
+  dplyr::select(Site, Year, all_of(vars_of_interest2)) %>%
   group_by(Site, Year) %>%
-  nest()%>%
-  mutate(cor_matrix = map(data, ~ cor_mat(.x, vars = vars_of_interest, method ="spearman", use ="pairwise.complete.obs"))) #run correlation, does pearson feel right?
-
-#look at a group
-nested_data_spearmans$cor_matrix[[1]]
+  nest() %>%
+  mutate(cor_matrix = map(data, safe_cor_mat_spearman))
 
 #---------------------------------------------------------------------------
 #visualizations- may have to do for loop
@@ -619,7 +633,7 @@ correlation_plotting <- function(data, year_choice, site_choice) {
   
   invisible(cor_matrix)
 }
-correlation_plotting(nested_data_spearmans, 2025, 8892356)  
+correlation_plotting(nested_data_pearson, 2022, 8892356)  
 
 ##saving as a pdf------------------------ ^^^^^
 # Years for each site
@@ -628,7 +642,7 @@ years_NCBG <- setdiff(2015:2026, 2020)
 setwd("C:/Z_School/school/HurlbertLab/graphs")
 #set up pdf
 pdf(
-  file = "correlation_spearman_pearson_OG_upper.pdf",
+  file = "6vars_correlation_pearson.pdf",
   width = 8,
   height = 8)
 #layout for pdf
@@ -640,7 +654,7 @@ par(
 for (yr in years_NCBG) {
   try(
     correlation_plotting(
-      data = nested_data_spearmans,
+      data = nested_data_pearson,
       year_choice = yr,
       site_choice = 8892356  
     ),
@@ -648,7 +662,7 @@ for (yr in years_NCBG) {
 for (yr in years_PR) {
   try(
     correlation_plotting(
-      data = nested_data_spearmans,
+      data = nested_data_pearson,
       year_choice = yr,
       site_choice = 117   
     ),
@@ -674,3 +688,8 @@ array_cormatrix_num <- array(
 )
 #calculate the mean for each square:
 mean_cormatrix <- apply(array_cormatrix_num, c(1,2), mean, na.rm= TRUE)
+
+
+
+
+
