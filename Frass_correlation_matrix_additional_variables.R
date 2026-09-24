@@ -674,7 +674,7 @@ dev.off()
 #     Do mean of correlation values when we stack them for every square 
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #Create an array that have every one of these as a different layer and then apply a function so 
-array_cormatrix <- abind(nested_data_pearson$cor_matrix, along = 3) #change data set here for either pearsons or spearmans
+array_cormatrix <- abind(nested_data_spearman$cor_matrix, along = 3) #change data set here for either pearsons or spearmans
 
 #grab the row labels from the first slice (assumes same order across slices)
 row_labels <- array_cormatrix[, "rowname", 1]
