@@ -142,6 +142,14 @@ summed_optimal_long <- AllTemp_long %>%
   summarize(total_optimal = sum(optimal)) %>%
   mutate(mean_optimal_days = mean(total_optimal))
 #based on total data from last 26ish years is the data point for an individual year significantly different from site mean?
+#split up sites
+summed_optimal_long_PR <- AllTemp_long %>%
+  mutate(optimal = ifelse(tmax..deg.c.>=32, 1, 0))%>%
+  group_by(site, Year) %>%
+  summarize(total_optimal = sum(optimal)) %>%
+  mutate(mean_optimal_days = mean(total_optimal))
+
+
 years_PR   <- c(2015, 2018, 2019, 2021, 2022)
 years_NCBG <- setdiff(2015:2026, 2020) 
 
