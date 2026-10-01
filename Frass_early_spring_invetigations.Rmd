@@ -490,7 +490,7 @@ imputation_data <- imputation_data %>%
 
 ```
 
-#combining frass mass/occurrence and caterpillar occurrence,biomass, and density into one dataframe: 
+#combining frass mass/occurrence and caterpillar occurrence, biomass, and density into one dataframe: 
 ```{r}
 all_six_variables_dataframe <- cat_data_byweek %>%
   dplyr::select(Site, Year, julianweek, fracSurveys, meanDensity)%>%
@@ -667,7 +667,7 @@ years_NCBG <- setdiff(2015:2026, 2020)
 setwd("C:/Z_School/school/HurlbertLab/graphs")
 #set up pdf
 pdf(
-  file = "7vars_correlation_pearson.pdf",
+  file = "spring_investigations.pdf",
   width = 8,
   height = 8)
 #layout for pdf
