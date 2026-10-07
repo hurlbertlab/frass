@@ -284,8 +284,8 @@ frass_pellet_number <- data %>%
   mutate(julianweek = 7 * floor(jday / 7) + 4)%>%
   group_by(julianweek, Site, Year) %>%
   summarize(number_pellets = sum(Frass.number), .groups = "drop") %>%
-  mutate(Site = recode(Site, "Botanical Garden" = "8892356"))%>%
-  mutate(Site = recode(Site, "Prairie Ridge" = "117"))
+  mutate(Site = dplyr::recode(Site, "Botanical Garden" = "8892356"))%>%
+  mutate(Site = dplyr::recode(Site, "Prairie Ridge" = "117"))
 frass_pellet_number$Year <- as.integer(frass_pellet_number$Year)
 
 
@@ -694,7 +694,95 @@ for (yr in years_PR) {
     silent = TRUE)}
 dev.off()
 
+#-----------------------------------------------------
+#other test code
 
+centroid_metric <- c("centroid_frass_occurrence", "centroid_frass_mass", "centroid_frass_pelletnum",
+                     "centroid_cat_occurrence", "centroid_cat_biomass", "centroid_cat_density")
+
+junetotal_metric <- c("total_frass_occurrence_june", "total_frass_mass_june", "total_frass_pelletnum_june",
+                      "total_cat_occurrence_june", "total_cat_biomass_june", "total_cat_density_june")
+
+temp_vars <- c("spring_avg_both", "spring_avg_may")   
+
+#long format: one row per Site x Year x metric x temp variable
+long_df <- temp_and_metric_combined %>%
+  dplyr::select(Site, Year, all_of(temp_vars), all_of(centroid_metric), all_of(junetotal_metric)) %>%
+  pivot_longer(all_of(c(centroid_metric, junetotal_metric)),
+               names_to = "metric", values_to = "response") %>%
+  pivot_longer(all_of(temp_vars),
+               names_to = "temp_var", values_to = "temp") %>%
+  mutate(metric_type = if_else(metric %in% centroid_metric, "centroid", "june_total"))
+
+#safe correlation function (returns NA if too few complete pairs, more than 4 NA)
+safe_cor <- function(x, y, method = "pearson") {
+  ok <- complete.cases(x, y)
+  n  <- sum(ok)
+  if (n < 4 || sd(x[ok]) == 0 || sd(y[ok]) == 0) {
+    return(tibble(r = NA_real_, p = NA_real_, n = n))
+  }
+  ct <- suppressWarnings(cor.test(x[ok], y[ok], method = method))
+  tibble(r = unname(ct$estimate), p = ct$p.value, n = n)
+}
+
+cor_results <- long_df %>%
+  group_by(Site, metric_type, metric, temp_var) %>%
+  group_modify(~ safe_cor(.x$temp, .x$response, method = "spearman")) %>%   #change pearson vs spearman here
+  ungroup()
+
+cor_results %>% arrange(Site, temp_var, metric_type, metric)
+
+#heatmaps
+responses <- c(centroid_metric, junetotal_metric)
+temp_vars <- c("spring_avg_both", "spring_avg_may")  
+
+#correlation matrix for one site: rows = responses, cols = temp variables
+site_cor_matrix <- function(df, site, method = "pearson", min_n = 4) {
+  d <- df[df$Site == site, ]
+
+  r_mat <- cor(d[, responses], d[, temp_vars],
+               use = "pairwise.complete.obs", method = method)
+
+  # number of complete pairs behind each correlation
+  n_mat <- sapply(temp_vars, function(tv)
+    sapply(responses, function(rv) sum(complete.cases(d[[tv]], d[[rv]]))))
+
+  r_mat[n_mat < min_n] <- NA     # blank out cells with too few years
+  list(r = r_mat, n = n_mat)
+}
+
+plot_site_cor <- function(df, site, method = "pearson") {
+  m <- site_cor_matrix(df, site, method)$r
+  corrplot(m,
+           is.corr   = FALSE,
+           col.lim   = c(-1, 1),
+           method    = "shade",
+           title     = paste("Site", site),
+           mar       = c(0, 0, 2, 0),
+           tl.col    = "black",
+           tl.srt    = 45,
+           cl.align.text = "l",
+           cl.offset = .7,
+           addCoef.col = "black",
+           number.cex  = 0.5,
+           addgrid.col = "black",
+           na.label    = "NA",
+           col = colorRampPalette(c("firebrick2", "white", "dodgerblue3"))(200))
+  invisible(m)
+}
+
+# one panel per site
+par(mfrow = c(1, 2))
+plot_site_cor(temp_and_metric_combined, 8892356)
+plot_site_cor(temp_and_metric_combined, 117)
+par(mfrow = c(1, 1))
+
+# save as PDF
+pdf("C:/Z_School/school/HurlbertLab/graphs/temp_correlations.pdf", width = 10, height = 8)
+par(mfrow = c(1, 2))
+plot_site_cor(temp_and_metric_combined, 8892356)
+plot_site_cor(temp_and_metric_combined, 117)
+dev.off()
 ```
 
 
