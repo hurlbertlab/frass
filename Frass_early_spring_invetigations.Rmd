@@ -585,7 +585,8 @@ AllTemp_weekly <- AllTemp %>%
 alltemp_weekly_spring_only <- AllTemp_weekly %>%
   group_by(Year, Site) %>%
   summarise(spring_avg_both = mean(weeklytemp[julianweek >= 91 & julianweek <=151]),
-            spring_avg_may = mean(weeklytemp[julianweek >=121 & julianweek <=151]))
+            spring_avg_may = mean(weeklytemp[julianweek >=121 & julianweek <=151]),
+            spring_2week_may = mean(weeklytemp[julianweek >=137 & julianweek <= 151]))
 
 ```
 
@@ -598,7 +599,7 @@ temp_and_metric_combined <- two_metric_variables %>%
 
 ```
 
-#run correlations between each metric(june totals vs centroid dates), and temperature and see what correlaiton is over time
+#run correlations between each metric(june totals vs centroid dates), and temperature and see what correlaiton is over time (two different code sections in here, beware)
 ```{r}
 centroid_metric <- c("centroid_frass_occurrence", "centroid_frass_mass", "centroid_frass_pelletnum", "centroid_cat_occurrence", "centroid_cat_biomass", "centroid_cat_density")
 
@@ -703,7 +704,7 @@ centroid_metric <- c("centroid_frass_occurrence", "centroid_frass_mass", "centro
 junetotal_metric <- c("total_frass_occurrence_june", "total_frass_mass_june", "total_frass_pelletnum_june",
                       "total_cat_occurrence_june", "total_cat_biomass_june", "total_cat_density_june")
 
-temp_vars <- c("spring_avg_both", "spring_avg_may")   
+temp_vars <- c("spring_avg_both", "spring_avg_may", "spring_2week_may")   
 
 #long format: one row per Site x Year x metric x temp variable
 long_df <- temp_and_metric_combined %>%
@@ -715,7 +716,7 @@ long_df <- temp_and_metric_combined %>%
   mutate(metric_type = if_else(metric %in% centroid_metric, "centroid", "june_total"))
 
 #safe correlation function (returns NA if too few complete pairs, more than 4 NA)
-safe_cor <- function(x, y, method = "pearson") {
+safe_cor <- function(x, y, method = "spearman") {
   ok <- complete.cases(x, y)
   n  <- sum(ok)
   if (n < 4 || sd(x[ok]) == 0 || sd(y[ok]) == 0) {
@@ -734,10 +735,10 @@ cor_results %>% arrange(Site, temp_var, metric_type, metric)
 
 #heatmaps
 responses <- c(centroid_metric, junetotal_metric)
-temp_vars <- c("spring_avg_both", "spring_avg_may")  
+temp_vars <- c("spring_avg_both", "spring_avg_may", "spring_2week_may")  
 
 #correlation matrix for one site: rows = responses, cols = temp variables
-site_cor_matrix <- function(df, site, method = "pearson", min_n = 4) {
+site_cor_matrix <- function(df, site, method = "spearman", min_n = 4) {
   d <- df[df$Site == site, ]
 
   r_mat <- cor(d[, responses], d[, temp_vars],
@@ -751,7 +752,7 @@ site_cor_matrix <- function(df, site, method = "pearson", min_n = 4) {
   list(r = r_mat, n = n_mat)
 }
 
-plot_site_cor <- function(df, site, method = "pearson") {
+plot_site_cor <- function(df, site, method = "spearman") {
   m <- site_cor_matrix(df, site, method)$r
   corrplot(m,
            is.corr   = FALSE,
@@ -777,32 +778,27 @@ plot_site_cor(temp_and_metric_combined, 8892356)
 plot_site_cor(temp_and_metric_combined, 117)
 par(mfrow = c(1, 1))
 
-# save as PDF
-pdf("C:/Z_School/school/HurlbertLab/graphs/temp_correlations.pdf", width = 10, height = 8)
-par(mfrow = c(1, 2))
-plot_site_cor(temp_and_metric_combined, 8892356)
-plot_site_cor(temp_and_metric_combined, 117)
-dev.off()
+
+
+#-------------------------------------
+#testing why some correlations are =1
+p <- long_df %>%
+  filter(Site == 8892356) %>%     
+  ggplot(aes(temp, response)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_grid(metric ~ temp_var, scales = "free") +
+  theme_bw() +
+  theme(
+    axis.title.x = element_text(size = 10),       
+    axis.title.y = element_text(size = 10)         
+  )
+
+ggsave("C:/Z_School/school/HurlbertLab/graphs/temp_vs_response_NCBG.pdf",
+       p, width = 8, height = 14)
 ```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#linear model with site as covariant
+#linear model with site as covariant **IDK what this is doing don't use
 ```{r}
 library(dplyr); library(purrr); library(broom)
 
