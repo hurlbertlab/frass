@@ -834,7 +834,39 @@ results <- map_df(responses, function(y) {
 
 ```
 
+#Correlation (spearman) using shifting 2 week windows for temperature. So for each week in the summer use the previous 2 weeks of temperature as correlation
+```{r}
+#have variables in df: all_six_variables_dataframe
 
+x <- data.frame (all_six_variables_dataframe$Year, all_six_variables_dataframe$Site, all_six_variables_dataframe$julianweek)
+
+#create 2 week avg temp blocks (start with alltemp_weekly)
+
+# caterpillar key: one row per site/year/julianweek
+variable_weeks <- all_six_variables_dataframe %>%
+  distinct(Site, Year, julianweek) %>%
+  mutate(win_start = julianweek - 14,   # two weeks before
+         win_end   = julianweek - 1)    # up to, but not including, the caterpillar week
+
+AllTemp_weekly_2week <- variable_weeks %>%
+  left_join(
+    AllTemp_weekly %>% dplyr::select(Site, Year, temp_week = julianweek, weeklytemp),
+    by = join_by(Site, Year, win_start <= temp_week, win_end >= temp_week)
+  ) %>%
+  group_by(Site, Year, julianweek) %>%      # julianweek comes from the caterpillar data
+  summarise(spring_avg_2week = mean(weeklytemp, na.rm = TRUE),
+            n_temp_weeks = sum(!is.na(weeklytemp)),
+            .groups = "drop")
+
+all6_vars_2week_temp_combined <- all_six_variables_dataframe %>%
+  left_join(AllTemp_weekly_2week, by = c("Site", "Year", "julianweek"))
+
+
+
+
+
+
+```
 
 
 
