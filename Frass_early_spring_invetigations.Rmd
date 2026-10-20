@@ -861,34 +861,81 @@ AllTemp_weekly_2week <- variable_weeks %>%
 all6_vars_2week_temp_combined <- all_six_variables_dataframe %>%
   left_join(AllTemp_weekly_2week, by = c("Site", "Year", "julianweek"))
 
-##### running correlation
-allvars <- c("total_frass_occurrence_june", "total_frass_mass_june", "total_frass_pelletnum_june", "total_cat_occurrence_june", "total_cat_biomass_june", "total_cat_density_june")
+##### running correlation-----------------------------------------------------------
+allvars <- c("fracSurveys", "meanDensity", "trap_occurance_percent", "meanBiomass", "frass_mass", "number_pellets")
 
-#Pearsons (keep safe ones (non NA) only)
-safe_cor_mat <- possibly(
-  ~ rstatix::cor_mat(.x, method = "pearson"),
-  otherwise = NULL
-)
-#pearsons
-nested_data_pearson <- all6_vars_2week_temp_combined %>% #change DF if needed
-  dplyr::select(Site, Year, all_of(centroid_metric)) %>%
-  group_by(Site, Year) %>%
-  nest() %>%
-  mutate(cor_matrix = map(data, safe_cor_mat))
+temp_metric <- c("spring_avg_2week")
 
-#Spearmans
-safe_cor_mat_spearman <- possibly(
-  ~ rstatix::cor_mat(.x, method = "spearman"),
-  otherwise = NULL
-)
+#long format: one row per Site x Year x metric x temp variable
+long_df_2weeks <- all6_vars_2week_temp_combined %>%
+  dplyr::select(Site, Year, all_of(temp_metric), all_of(allvars)) %>%
+  pivot_longer(all_of(c(allvars)),
+               names_to = "metric", values_to = "response") %>%
+  pivot_longer(all_of(temp_metric),
+               names_to = "temp_var", values_to = "temp") %>%
+  mutate(metric_type = if_else(metric %in% allvars, "vars", "temp"))
 
-nested_data_spearman <- temp_and_metric_combined %>%
-  dplyr::select(Site, Year, all_of(centroid_metric)) %>%
-  group_by(Site, Year) %>%
-  nest() %>%
-  mutate(cor_matrix = map(data, safe_cor_mat_spearman))
+#safe correlation function (returns NA if too few complete pairs, more than 4 NA)
+safe_cor <- function(x, y, method = "spearman") {
+  ok <- complete.cases(x, y)
+  n  <- sum(ok)
+  if (n < 4 || sd(x[ok]) == 0 || sd(y[ok]) == 0) {
+    return(tibble(r = NA_real_, p = NA_real_, n = n))
+  }
+  ct <- suppressWarnings(cor.test(x[ok], y[ok], method = method))
+  tibble(r = unname(ct$estimate), p = ct$p.value, n = n)
+}
 
+cor_results <- long_df_2weeks %>%
+  group_by(Site, metric_type, metric, temp_var) %>%
+  group_modify(~ safe_cor(.x$temp, .x$response, method = "spearman")) %>%   #change pearson vs spearman here
+  ungroup()
 
+cor_results %>% arrange(Site, temp_var, metric_type, metric)
+
+#heatmaps
+responses <- c(all_vars)
+responses <- as.character(unlist(allvars))   
+temp_vars <- c("spring_avg_2week")  
+
+#correlation matrix for one site: rows = responses, cols = temp variables
+site_cor_matrix <- function(df, site, method = "spearman", min_n = 4) {
+  d <- df[df$Site == site, ]
+
+  r_mat <- cor(d[, responses], d[, temp_vars],
+               use = "pairwise.complete.obs", method = method)
+
+  # number of complete pairs behind each correlation
+  n_mat <- sapply(temp_vars, function(tv)
+    sapply(responses, function(rv) sum(complete.cases(d[[tv]], d[[rv]]))))
+
+  r_mat[n_mat < min_n] <- NA     # blank out cells with too few years
+  list(r = r_mat, n = n_mat)
+}
+
+plot_site_cor <- function(df, site, method = "spearman") {
+  m <- site_cor_matrix(df, site, method)$r
+  corrplot(m,
+           is.corr   = FALSE,
+           col.lim   = c(-1, 1),
+           method    = "shade",
+           title     = paste("Site", site),
+           mar       = c(0, 0, 2, 0),
+           tl.col    = "black",
+           tl.srt    = 45,
+           cl.align.text = "l",
+           cl.offset = .7,
+           addCoef.col = "black",
+           number.cex  = 0.5,
+           addgrid.col = "black",
+           na.label    = "NA",
+           col = colorRampPalette(c("firebrick2", "white", "dodgerblue3"))(200))
+  invisible(m)
+}
+
+# one panel per site
+plot_site_cor(all6_vars_2week_temp_combined, 8892356)
+plot_site_cor(all6_vars_2week_temp_combined, 117)
 
 
 
