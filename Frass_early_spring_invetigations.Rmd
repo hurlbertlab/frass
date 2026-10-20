@@ -861,6 +861,32 @@ AllTemp_weekly_2week <- variable_weeks %>%
 all6_vars_2week_temp_combined <- all_six_variables_dataframe %>%
   left_join(AllTemp_weekly_2week, by = c("Site", "Year", "julianweek"))
 
+##### running correlation
+allvars <- c("total_frass_occurrence_june", "total_frass_mass_june", "total_frass_pelletnum_june", "total_cat_occurrence_june", "total_cat_biomass_june", "total_cat_density_june")
+
+#Pearsons (keep safe ones (non NA) only)
+safe_cor_mat <- possibly(
+  ~ rstatix::cor_mat(.x, method = "pearson"),
+  otherwise = NULL
+)
+#pearsons
+nested_data_pearson <- all6_vars_2week_temp_combined %>% #change DF if needed
+  dplyr::select(Site, Year, all_of(centroid_metric)) %>%
+  group_by(Site, Year) %>%
+  nest() %>%
+  mutate(cor_matrix = map(data, safe_cor_mat))
+
+#Spearmans
+safe_cor_mat_spearman <- possibly(
+  ~ rstatix::cor_mat(.x, method = "spearman"),
+  otherwise = NULL
+)
+
+nested_data_spearman <- temp_and_metric_combined %>%
+  dplyr::select(Site, Year, all_of(centroid_metric)) %>%
+  group_by(Site, Year) %>%
+  nest() %>%
+  mutate(cor_matrix = map(data, safe_cor_mat_spearman))
 
 
 
