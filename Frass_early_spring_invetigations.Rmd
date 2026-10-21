@@ -849,11 +849,21 @@ plot_site_cor(all6_vars_2week_temp_combined, 117)
 #linear model to investiagte how much the estimates for each of the 6 variables is changing in reponse to shifting temperature
 ```{r}
 #lm(reponses (all6) ~ spring_avg_2week + interaction of response*temp)
+models <- lapply(allvars, function(v) {
+  lm(as.formula(paste(v, "~ spring_avg_2week + Site")), data = all6_vars_2week_temp_combined)
+})
+names(models) <- allvars
+
+# Look at one
+summary(models[["fracSurveys"]])
+
+# Pull out the spring_avg_2week coefficient for each model
+do.call(rbind, lapply(models, function(m) {
+  coef(summary(m))["spring_avg_2week", ]
+})) # ok so same thing as code below
 
 
-
-test <- lm(allvars ~ spring_avg_2week + allvars*spring_avg_2week, all6_vars_2week_temp_combined)
-
+#code from before-------------------------------------------------
 dat <- all6_vars_2week_temp_combined %>%
   filter(!is.na(spring_avg_2week)) %>%
   mutate(Site = factor(Site),
@@ -861,6 +871,7 @@ dat <- all6_vars_2week_temp_combined %>%
          across(starts_with("total_"), log1p, .names = "{.col}_log"))
 
 allvars <- c("fracSurveys", "meanDensity", "trap_occurance_percent", "meanBiomass", "frass_mass", "number_pellets")
+
 
 results <- map_df(allvars, function(y) {
   d <- dat %>% filter(!is.na(.data[[y]]))
