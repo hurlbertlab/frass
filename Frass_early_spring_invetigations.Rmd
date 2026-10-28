@@ -893,7 +893,48 @@ results <- map_df(allvars, function(y) {
 
 ```
 
+#add interaction term and fixed/ random effects to the model
+```{r}
+#lm(response var (all6) ~ spring_avg_2weeks + site + springtemp * site) can add interaction term (spring*site)
+models <- lapply(allvars, function(v) {
+  lm(as.formula(paste(v, "~ spring_avg_2week + Site + Site * spring_avg_2week")), data = all6_vars_2week_temp_combined)
+})
+names(models) <- allvars
 
+#pull out the spring_avg_2week coefficient for each model
+do.call(rbind, lapply(models, function(m) {
+  coef(summary(m))["spring_avg_2week", ]
+})) 
+
+#to see all models at once
+lapply(models, summary)
+
+#pull out data I want
+coef_table <- map_dfr(models, tidy, .id = "model")
+
+fit_table <- map_dfr(models, glance, .id = "model") %>%
+  dplyr::select(model, r.squared, adj.r.squared, sigma, statistic, p.value, df, nobs)
+
+full_table <- coef_table %>%
+  left_join(
+    fit_table %>% dplyr::select(model, r.squared, adj.r.squared),
+    by = "model"
+  )
+
+#-----------------------------
+#So with this use mixed effects model
+library(lme4)
+#lmer(response(all6) ~ spring_temp + site + (1 | year), data=df)
+models <- lapply(allvars, function(v) {
+  lmer(as.formula(paste(v, "~ spring_avg_2week + Site + (1| Year)")), data = all6_vars_2week_temp_combined)
+})
+names(models) <- allvars
+
+lapply(models, summary)
+
+#lmer(response ~ fixed effect + (1 | categorical variable(year, or year+site)), data=df)
+
+```
 
 
 
