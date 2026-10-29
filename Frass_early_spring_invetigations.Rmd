@@ -702,44 +702,32 @@ ggsave("C:/Z_School/school/HurlbertLab/graphs/temp_vs_response_NCBG.pdf",
        p, width = 8, height = 14)
 ```
 
-#linear model with site as covariant **IDK what this is doing don't use
+##LM to investiagte how much the estimates for each of the 6 variables is changing in reponse to shifting temperature, interaction term (spring_avg_both)
 ```{r}
-library(dplyr); library(purrr); library(broom)
+#Add interaction term (different slopes)
+ #lm(response var ~ spring_avg_both + site + spring_avg_both * site):
+allvars <- c("fracSurveys", "meanDensity", "trap_occurance_percent", "meanBiomass", "frass_mass", "number_pellets")
 
-dat <- temp_and_metric_combined %>%
-  filter(!is.na(spring_avg_both)) %>%
-  mutate(Site = factor(Site),
-         temp_z = scale(spring_avg_both)[, 1],
-         across(starts_with("total_"), log1p, .names = "{.col}_log"))
+models <- lapply(allvars, function(v) {
+  lm(as.formula(paste(v, "~ spring_avg_both + Site + Site * spring_avg_both")), data = temp_and_metric_combined)
+})
+names(models) <- allvars
 
-responses <- c("centroid_frass_occurrence","centroid_frass_mass","centroid_frass_pelletnum",
-               "centroid_cat_occurrence","centroid_cat_biomass","centroid_cat_density",
-               "total_frass_occurrence_june_log","total_frass_mass_june_log",
-               "total_frass_pelletnum_june_log","total_cat_occurrence_june_log",
-               "total_cat_biomass_june_log","total_cat_density_june_log")
+#to see all models at once
+lapply(models, summary)
 
-results <- map_df(responses, function(y) {
-  d <- dat %>% filter(!is.na(.data[[y]]))
-  m <- lm(reformulate(c("temp_z", "Site"), y), data = d)
-  ci <- confint(m)["temp_z", ]
-  tidy(m) %>% filter(term == "temp_z") %>%
-    mutate(response = y, n = nrow(d),
-           lwr = ci[1], upr = ci[2],
-           partial_R2 = summary(m)$r.squared -
-                        summary(lm(reformulate("Site", y), data = d))$r.squared)
-}) %>%
-  mutate(p_adj = p.adjust(p.value, method = "BH"))
+```
 
-#interpret:
-#Slope for centroids is days shifted per 1 SD of spring temperature, which is the most interpretable result you'll get.
-#Partial R² is the extent to which temperature explains variation beyond site differences.
-#Confidence intervals matter more than p-values at this sample size.
-
+##LM to investiagte how much the estimates for each of the 6 variables is changing in reponse to shifting temperature, interaction term (spring_avg_may)
+```{r}
+#Add interaction term (different slopes)
+ #lm(response var ~ spring_avg_may + site + spring_avg_may * site):
 
 ```
 
 
-#Correlation (spearman) using shifting 2 week windows for temperature. So for each week in the summer use the previous 2 weeks of temperature as correlation
+-----------------------------------------------------------------------------------
+#Correlation (spearman) using shifting 2 week windows for temperature. So for each week in the summer use the previous 2 weeks of temperature as correlation (spring_avg_2weeks)
 ```{r}
 #have variables in df: all_six_variables_dataframe
 
@@ -846,7 +834,7 @@ plot_site_cor(all6_vars_2week_temp_combined, 117)
 
 ```
 
-#linear model to investiagte how much the estimates for each of the 6 variables is changing in reponse to shifting temperature
+#linear model to investiagte how much the estimates for each of the 6 variables is changing in reponse to shifting temperature (spring_avg_2weeks)
 ```{r}
 #lm(reponses (all6) ~ spring_avg_2week + interaction of response*temp)
 models <- lapply(allvars, function(v) {
@@ -893,7 +881,7 @@ results <- map_df(allvars, function(y) {
 
 ```
 
-#add interaction term and fixed/ random effects to the model
+#add interaction term and fixed/ random effects to the model (spring_avg_2weeks)
 ```{r}
 #INTERACTION TERM MODEL:
 #lm(response var (all6) ~ spring_avg_2weeks + site + springtemp * site) can add interaction term (spring*site) 
@@ -916,11 +904,25 @@ names(models) <- allvars
 
 lapply(models, summary)
 
-#lmer(response ~ fixed effect + (1 | categorical variable(year, or year+site)), data=df)
 #---------------------------
-#lmer(response(all6) ~ spring_temp + site + (1 + spring_temp | year), data=df)
+#lmer(response(all6) ~ spring_temp + (1 | year + site), data=df)
+models <- lapply(allvars, function(v) {
+  lmer(as.formula(paste(v, "~ spring_avg_2week + (1| Year+Site)")), data = all6_vars_2week_temp_combined)
+})
+names(models) <- allvars
 
+lapply(models, summary)
 
+#-----------------------------
+#GLM
+#family = Gamma (continious, right skewed, positive) can use for meanBiomass, frass_mass, and meanDensity
+library(glmmTMB)
+modeltest <- glmmTMB(meanBiomass~spring_avg_2week + (1|Site/Year), family= Gamma(link="log"), data = all6_vars_2week_temp_combined)
+summary(modeltest)
+modeltest <- glmmTMB(frass_mass~spring_avg_2week + (1|Site/Year), family= Gamma(link="log"), data = all6_vars_2week_temp_combined)
+summary(modeltest)
+
+#exp(β₁) is the factor by which the mean changes per 1-degree increase in spring_avg_2week. For example, a coefficient of 0.10 gives exp(0.10) ≈ 1.105, so about a 10.5% increase in mean biomass per degree. Likewise, exp(β₂) is the ratio of the mean at Site 8892356 vs. Site 117, and the interaction coefficient is a ratio of slopes between the sites.
 
 ```
 
