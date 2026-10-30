@@ -917,10 +917,36 @@ lapply(models, summary)
 #GLM
 #family = Gamma (continious, right skewed, positive) can use for meanBiomass, frass_mass, and meanDensity
 library(glmmTMB)
-modeltest <- glmmTMB(meanBiomass~spring_avg_2week + (1|Site/Year), family= Gamma(link="log"), data = all6_vars_2week_temp_combined)
+modeltest <- glmmTMB(meanBiomass~spring_avg_2week +Site + (1|Site:Year), family= Gamma(link="log"), data = all6_vars_2week_temp_combined)
+summary(modeltest) #The default Gamma link is inverse (not useful for interpretation)
+#testing phenology effect and see if temperature effect survives
+modeltest2 <- glmmTMB(meanBiomass ~ spring_avg_2week + Site + julianweek + I(julianweek^2) + (1|Site:Year),
+        family = Gamma(link = "log"), data = all6_vars_2week_temp_combined)
+summary(modeltest2)
+#test if one model better 
+anova(modeltest, modeltest2)
+
+#frass mass
+modeltest <- glmmTMB(frass_mass~spring_avg_2week +Site + (1|Site:Year), family= Gamma(link="log"), data = all6_vars_2week_temp_combined)
 summary(modeltest)
-modeltest <- glmmTMB(frass_mass~spring_avg_2week + (1|Site/Year), family= Gamma(link="log"), data = all6_vars_2week_temp_combined)
+
+#meanDensity
+dat_pos <- subset(all6_vars_2week_temp_combined, meanDensity > 0)
+modeltest <- glmmTMB(meanDensity~spring_avg_2week +Site + (1|Site:Year), family= Gamma(link="log"), data = dat_pos)
 summary(modeltest)
+
+#fracSurveys
+modeltest <- glmmTMB(fracSurveys~spring_avg_2week +Site + (1|Site:Year), family= tweedie(link="log"), data = all6_vars_2week_temp_combined) #tweedie handles the zero
+summary(modeltest)
+
+#trap_occurrence_percent FIX LATER
+modeltest <- glmmTMB(trap_occurance_percent~spring_avg_2week +Site + (1|Site:Year), family= binomial(link="log"), data = all6_vars_2week_temp_combined)
+summary(modeltest)
+
+#number_pellets 
+modeltest <- glmmTMB(number_pellets~spring_avg_2week +Site + (1|Site:Year), family= nbinom2(link="log"), data = all6_vars_2week_temp_combined)
+summary(modeltest)
+
 
 #exp(β₁) is the factor by which the mean changes per 1-degree increase in spring_avg_2week. For example, a coefficient of 0.10 gives exp(0.10) ≈ 1.105, so about a 10.5% increase in mean biomass per degree. Likewise, exp(β₂) is the ratio of the mean at Site 8892356 vs. Site 117, and the interaction coefficient is a ratio of slopes between the sites.
 
