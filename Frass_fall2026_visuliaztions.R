@@ -566,8 +566,6 @@ visualization_data_average <- visualization_data %>%
 #   creating visualization
 # -----------------------------------------------------------------------------------------------
 #make a function for plotting each variable for all years and then also plotting that average as a bold line
-
-
 anomaly_plotting <- function(data, data2, var_choice, avg_var_choice,
                              site_choice,
                              x_var = julianweek, year_var = Year,
@@ -583,7 +581,7 @@ anomaly_plotting <- function(data, data2, var_choice, avg_var_choice,
                   y = {{ var_choice }},
                   group = {{ year_var }},
                   color = factor({{ year_var }})),
-              alpha = 0.7, linewidth = 0.7) +
+              alpha = 0.7, linewidth = 0.5) +
     # bold average line
     geom_line(data = df2,
               aes(x = {{ x_var }},
@@ -601,61 +599,94 @@ anomaly_plotting(visualization_data, visualization_data_average,
                  trap_occurrence_percent, trap_occurrence_percent_avg, 8892356)
 
 #saving as a pdf------------------------ ^^^^^
-var_choice     <- c("fracSurveys", "meanDensity", "trap_occurrence_percent",
-                    "meanBiomass", "number_pellet", "frass_mass")
-avg_var_choice <- paste0(var_choice, "_avg")
-
-sites <- c(8892356, 117)
+vars     <- c("fracSurveys", "meanDensity", "trap_occurrence_percent",
+              "meanBiomass", "number_pellets", "frass_mass", "weeklytemp")
+avg_vars <- paste0(vars, "_avg")
+sites    <- c(8892356, 117)
 
 setwd("C:/Z_School/school/HurlbertLab/graphs")
-
-pdf("6vars_linecharts.pdf", width = 11, height = 11)
+pdf("6vars_linecharts.pdf", width = 8, height = 10)
 
 for (s in sites) {
-  plots <- map2(var_choice, avg_var_choice,
+  plots <- map2(vars, avg_vars,
                 ~ anomaly_plotting(visualization_data,
-                                       visualization_data_average,
-                                       .x, .y, site_choice = s))
+                                   visualization_data_average,
+                                   !!rlang::sym(.x),
+                                   !!rlang::sym(.y),
+                                   site_choice = s))
   
-  page <- wrap_plots(plots, ncol = 2, nrow = 3, guides = "collect") +
-    plot_annotation(title = paste("Site", s))
-  
-  print(page)  
+  print(wrap_plots(plots, ncol = 2, nrow = 4, guides = "collect") +
+          plot_annotation(title = paste("Site", s)))
 }
 
 dev.off()
 
-#set up pdf
-pdf(
-  file = "insertnamehere.pdf",
-  width = 8,
-  height = 8)
-#layout for pdf
-par(
-  mfrow = c(3, 2),
-  mar = c(4, 4, 3, 6),  
-  oma = c(0, 0, 2, 0))
-#loops over each sites
-for (yr in years_NCBG) {
-  try(
-    density_plotting(
-      data = all_data_clean,
-      year_choice = yr,
-      site_choice = 8892356  
-    ),
-    silent = TRUE)}
-for (yr in years_PR) {
-  try(
-    density_plotting(
-      data = all_data_clean,
-      year_choice = yr,
-      site_choice = 117   
-    ),
-    silent = TRUE)}
-dev.off()
 
 
 
+# ---------------------------------------------------------------------------------------------
+#   adding anomaly columns, also add two week temperature bins
+# -----------------------------------------------------------------------------------------------
+visualization_data_anomaly <- visualization_data%>%
+  group_by(Site, julianweek) %>%
+  mutate(fracSurveys_anomaly = fracSurveys - fracSurveys_avg,
+         meanDensity_anomaly = meanDensity - meanDensity_avg,
+         meanBiomass_anomaly = meanBiomass - meanBiomass_avg,
+         trap_occurrence_percent_anomaly = trap_occurrence_percent - trap_occurrence_percent_avg,
+         frass_mass_anomaly = frass_mass - frass_mass_avg,
+         number_pellets_anomaly = number_pellets - number_pellets_avg,
+         weeklytemp_anomaly = weeklytemp - weeklytemp_avg)
+
+
+#code from frass_early_spring_investigations document
+#have variables in df: all_six_variables_dataframe
+
+x <- data.frame (all_six_variables_dataframe$Year, all_six_variables_dataframe$Site, all_six_variables_dataframe$julianweek)
+
+#create 2 week avg temp blocks (start with alltemp_weekly)
+
+# caterpillar key: one row per site/year/julianweek
+variable_weeks <- all_six_variables_dataframe %>%
+  distinct(Site, Year, julianweek) %>%
+  mutate(win_start = julianweek - 14,   # two weeks before
+         win_end   = julianweek - 1)    # up to, but not including, the caterpillar week
+
+AllTemp_weekly_2week <- variable_weeks %>%
+  left_join(
+    AllTemp_weekly %>% dplyr::select(Site, Year, temp_week = julianweek, weeklytemp),
+    by = join_by(Site, Year, win_start <= temp_week, win_end >= temp_week)
+  ) %>%
+  group_by(Site, Year, julianweek) %>%      # julianweek comes from the caterpillar data
+  summarise(spring_avg_2week = mean(weeklytemp, na.rm = TRUE),
+            n_temp_weeks = sum(!is.na(weeklytemp)),
+            .groups = "drop")
+
+#adding two week temp values
+visualization_data_anomaly <- visualization_data_anomaly %>%
+  left_join(AllTemp_weekly_2week, by = c("Site", "Year", "julianweek"))
+
+
+# ---------------------------------------------------------------------------------------------
+#   re-running mixed effects models
+# -----------------------------------------------------------------------------------------------
+#MIXED EFFECTS MODEL
+library(lme4)
+#lmer(response(all6)_anomaly ~ spring_temp + site + (1 | year), data=df)
+models <- lapply(allvars, function(v) {
+  lmer(as.formula(paste(v, "~ spring_avg_2week + Site + (1| Year)")), data = all6_vars_2week_temp_combined)
+})
+names(models) <- allvars
+
+lapply(models, summary)
+
+#---------------------------
+#lmer(response(all6) ~ spring_temp + (1 | year + site), data=df)
+models <- lapply(allvars, function(v) {
+  lmer(as.formula(paste(v, "~ spring_avg_2week + (1| Year+Site)")), data = all6_vars_2week_temp_combined)
+})
+names(models) <- allvars
+
+lapply(models, summary)
 
 
 
