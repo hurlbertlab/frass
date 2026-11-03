@@ -15,6 +15,8 @@ library(abind)
 library(pastecs)
 library(StatMatch)
 library(MASS)
+library(ggplot2)
+library(patchwork)
 
 #loading CC data
 #Loading in CC data 
@@ -219,10 +221,444 @@ data = frassData(open = T) %>%
          jday = (floor(jday.Collected) + floor(jday.Set))/2)
 
 
+#-----------------------------------------------------------------------------------------------
+#Filtering Data for Frass OCCURRENCE -> use occurrence_frass_combined_weeks DF
+#-----------------------------------------------------------------------------------------------
+#filter data so only reliable rows are left then filter frass.mg.d so that only traps with total mass >4mg are left
+filtered_mass <- data %>%
+  filter(OK==1)%>% #only days deemed reliable left
+  mutate(julianweek = 7 * floor(jday / 7) + 4)%>%
+  mutate(included_in_trap_count = if_else(Frass.mass..mg. > 4,1,0))  #CHANGE THRESHOLD HERE
+
+#-----------------------------------------------------------------------------------------------
+#now need to count number of traps with same julian day  
+occurrence_frass <- filtered_mass %>%
+  group_by(Site, Year, julianweek)%>%
+  mutate(trap_occurrence_percent = mean(included_in_trap_count == 1, na.rm=TRUE)) #mean here calculates the proportion along the length of the groupby columns
 
 
-#If we lump all years together, can fit a smooth (GAMS) curve to data to all data and have one curve, and compare average across all years to one particular year
-#Have average GAM and individual GAMS
+#issue that in 2015-2023 sites sampled twice a week, so still percentage works since dividing by total seen???
+occurrence_frass_combined_weeks <- occurrence_frass %>%
+  group_by(Site, Year, julianweek) %>%
+  summarise(
+    # average frass measurements
+    trap_occurrence_percent = mean(trap_occurrence_percent, na.rm = TRUE),
+    # keep representative values for the rest
+    jday = min(jday, na.rm = TRUE),
+    .groups = "drop")%>%
+  mutate(Year=as.integer(Year)) %>%
+  mutate(Site = case_when(
+    Site == "Botanical Garden" ~ "8892356",
+    Site == "Prairie Ridge" ~ "117"  )) %>%
+  filter(
+    (Site == 117 & Year %in% c(2015, 2018, 2019, 2021, 2022) & julianweek %in% 142:200) |
+      (Site == 8892356 & Year %in% c(2015:2019, 2021:2026) & julianweek %in% 154:198))
+
+#-----------------------------------------------------------------------------------------------
+#Filtering Data for Frass NUMBER of PELLETS 
+#-----------------------------------------------------------------------------------------------
+frass_pellet_number <- data %>%
+  filter(OK==1)%>% #only days deemed reliable left
+  mutate(julianweek = 7 * floor(jday / 7) + 4)%>%
+  group_by(julianweek, Site, Year) %>%
+  summarize(number_pellets = sum(Frass.number), .groups = "drop") %>%
+  mutate(Site = dplyr::recode(Site, "Botanical Garden" = "8892356"))%>%
+  mutate(Site = dplyr::recode(Site, "Prairie Ridge" = "117"))
+frass_pellet_number$Year <- as.integer(frass_pellet_number$Year)
+
+
+#-----------------------------------------------------------------------------------------------
+#Filtering Data for Frass and Cat MASS
+#-----------------------------------------------------------------------------------------------
+# using data to find mean frass per day for reliable frass only 
+#read in proper url, change dates and label events for below meanfrass
+url = "https://docs.google.com/spreadsheets/d/1RwXzwhHUbP0m5gKSOVhnKZbS1C_NrbdfHLglIVCzyFc/edit#gid=1611171427"
+events = gsheet2tbl(url)
+events$date = as.Date(events$date, format = "%m/%d/%Y")
+
+#fiter out OK days and creating by trap area for mass values
+meanfrass = data %>%
+  filter(!is.na(Frass.mass..mg.)) %>%
+  filter(OK == 1) %>% #keeps reliable frass row
+  mutate(site = as.character(ifelse(Site=="Botanical Garden", 8892356, 117))) %>%
+  group_by(site, Date.Collected, Year, jday) %>%
+  summarize(
+    mass = mean(frass.mg.d, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate( #altering the density based on size of the trap
+    trap_area_cm2 = ifelse(Year <= 2018, 309.74, 197.71), #before 2018 use 309cm^2 after use 197cm^2 
+    density_mg_cm2 = mass / trap_area_cm2,
+    density_mg_m2 = density_mg_cm2 * 10000   # optional but recommended
+  ) %>%
+  left_join(events[, c('date', 'site', 'reliability')],
+            by = c('Date.Collected' = 'date', 'site' = 'site')) %>%
+  rename(date = Date.Collected)
+
+#make sure frass has correct columns--------------------------------------
+#having mean Frass data sorted by julian week
+meanfrass <- meanfrass %>%
+  mutate(julianweek = 7 * floor(jday / 7) + 4)%>% #this is using jday calculated from 'data' where it uses day and time set to alter jday
+  mutate(Year = as.integer(Year)) #make sure integer
+#combine and average meanfrass data that comes from same week (2015-2023 this happened), is mean frass per day
+meanfrass_combinedweeks <- meanfrass %>%
+  group_by(site, Year, julianweek) %>%
+  summarise(
+    # average frass measurements
+    mass = mean(mass, na.rm = TRUE),
+    density = mean(density_mg_cm2, na.rm = TRUE),
+    # keep representative values for the rest
+    date = min(date, na.rm = TRUE),   # or first(date)
+    jday = mean(jday, na.rm = TRUE),
+    reliability = first(reliability),
+    
+    .groups = "drop")
+
+#Caterpillar Count data---------------------------------------------------
+#NCBG site filter fulldataset for all years
+NCBG <- fullDataset %>%
+  filter(Name %in% c("NC Botanical Garden"),
+         Year %in% 2015:2026)
+#PR site filter fulldataset for all years
+PR <- fullDataset %>%
+  filter(Name %in% c("Prairie Ridge Ecostation"),
+         Year %in% 2015:2026)
+#have meandensitybyweek aggregate caterpillar stuff by week for NCBG
+cats_NCBG <- NCBG %>%
+  group_by(Year) %>%
+  group_split() %>%                 # split into a list, one dataframe per year
+  map_dfr(~ {
+    out <- meanDensityByWeek(
+      surveyData = .x,
+      ordersToInclude = "caterpillar",
+      allDates = TRUE
+    )
+    out$Year <- unique(.x$Year)      # add Year back
+    out
+  })%>%
+  mutate(site=8892356)
+#have meandensitybyweek aggregate caterpillar stuff by week for PR
+cats_PR <- PR %>%
+  group_by(Year) %>%
+  group_split() %>%                 # split into a list, one dataframe per year
+  map_dfr(~ {
+    out <- meanDensityByWeek(
+      surveyData = .x,
+      ordersToInclude = "caterpillar",
+      allDates = TRUE
+    )
+    out$Year <- unique(.x$Year)      # add Year back
+    out
+  })%>%
+  mutate(site=117)
+#all caterpillar data together
+cats_all <- rbind(cats_NCBG, cats_PR)
+
+#combine into one df
+all_data <- cats_all %>%
+  mutate(site = as.character(site)) %>% #make sure same type to join
+  full_join(meanfrass_combinedweeks, by = c("julianweek", "Year", "site")) #shows where missing frass data is? is full join appropriate here?
+
+#filter by cutoff days and correct years for both sites
+all_data <- all_data %>%
+  filter(
+    (site == 117 & Year %in% c(2015, 2018, 2019, 2021, 2022) & julianweek %in% 142:200) |
+      (site == 8892356 & Year %in% c(2015:2019, 2021:2026) & julianweek %in% 154:198)
+  ) #ok kinda shows weeks where no frass data compared to CC but doesnt address issues of individual days where no data
+
+#clean all data so only have columns I want and divide by trap area
+all_data_clean <- all_data %>%
+  dplyr::select(site, Year, jday, julianweek, meanBiomass, date, mass) %>% #make sure no duplicate weeks
+  group_by(site, Year, julianweek) %>%
+  summarise(
+    meanBiomass = mean(meanBiomass, na.rm = TRUE),
+    mass        = mean(mass, na.rm = TRUE),
+    .groups = "drop") %>%
+  mutate(biomass_density = meanBiomass/(ifelse(Year <= 2018, 309.74, 197.71))) %>% #dividing by 209 for years 2018 and before, and 197 for years after
+  mutate(frass_density = mass/ (ifelse(Year <= 2018, 309.74, 197.71)))
+
+
+#bring in imputation data from last semester:
+#imputation function
+impute_biomass_data <- function(data, site_mass_defaults) {
+  
+  # --- Precompute first/last julianweek reference values across years ---
+  first_jweek_refs <- data %>%
+    group_by(site, Year) %>%
+    slice_min(julianweek, n = 1) %>%
+    ungroup() %>%
+    group_by(site) %>%
+    summarise(
+      ref_first_meanBiomass = mean(meanBiomass, na.rm = TRUE),
+      ref_first_mass        = mean(mass, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  last_jweek_refs <- data %>%
+    group_by(site, Year) %>%
+    slice_max(julianweek, n = 1) %>%
+    ungroup() %>%
+    group_by(site) %>%
+    summarise(
+      ref_last_meanBiomass = mean(meanBiomass, na.rm = TRUE),
+      ref_last_mass        = mean(mass, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  data %>%
+    left_join(first_jweek_refs, by = "site") %>%
+    left_join(last_jweek_refs,  by = "site") %>%
+    group_by(site, Year) %>%
+    arrange(julianweek, .by_group = TRUE) %>%
+    mutate(
+      # --- save originals before imputation ---
+      orig_meanBiomass = meanBiomass,
+      orig_mass        = mass,
+      
+      # --- fill first julianweek NA with cross-year average for that site ---
+      meanBiomass = if_else(
+        is.na(meanBiomass) & julianweek == first(julianweek),
+        ref_first_meanBiomass,
+        meanBiomass
+      ),
+      mass = if_else(
+        is.na(mass) & julianweek == first(julianweek),
+        coalesce(site_mass_defaults[as.character(site)], ref_first_mass),
+        mass
+      ),
+      
+      # --- fill last julianweek NA with cross-year average for that site ---
+      meanBiomass = if_else(
+        is.na(meanBiomass) & julianweek == last(julianweek),
+        ref_last_meanBiomass,
+        meanBiomass
+      ),
+      mass = if_else(
+        is.na(mass) & julianweek == last(julianweek),
+        ref_last_mass,
+        mass
+      ),
+      
+      # --- interpolate interior NAs ---
+      meanBiomass = na.approx(meanBiomass, x = julianweek, na.rm = FALSE, rule = 2, maxgap = 2),
+      mass        = na.approx(mass,        x = julianweek, na.rm = FALSE, rule = 2, maxgap = 2),
+      
+      # --- flag imputed rows ---
+      imputed_biomass = as.integer(is.na(orig_meanBiomass) & !is.na(meanBiomass)),
+      imputed_mass    = as.integer(is.na(orig_mass)        & !is.na(mass)),
+      
+      # --- drop helper columns ---
+      orig_meanBiomass      = NULL,
+      orig_mass             = NULL,
+      ref_first_meanBiomass = NULL,
+      ref_first_mass        = NULL,
+      ref_last_meanBiomass  = NULL,
+      ref_last_mass         = NULL
+    ) %>%
+    ungroup()
+}
+#run function
+imputation_data <- impute_biomass_data(all_data_clean, site_mass_defaults = c() )
+#make site become Site so can combine later
+imputation_data <- imputation_data %>%
+  rename(Site = site)
+
+
+#-----------------------------------------------------------------------------------------------
+#Combing all 6 variables into one DF
+#-----------------------------------------------------------------------------------------------
+#combining frass mass/occurrence and caterpillar occurrence, biomass, and density into one dataframe
+all_six_variables_dataframe <- cat_data_byweek %>%
+  dplyr::select(Site, Year, julianweek, fracSurveys, meanDensity)%>%
+  left_join(occurrence_frass_combined_weeks, by=c("Site", "Year", "julianweek")) %>%
+  left_join(imputation_data %>% dplyr::select(Site, Year, julianweek, meanBiomass, mass), by=c("Site", "Year", "julianweek")) %>%
+  left_join(frass_pellet_number, dplyr::select(Site, Year, julianweek, number_pellets), by =c("Site", "Year", "julianweek")) %>%
+  rename(frass_mass = mass) #all years previous standardized (same jday range before joining)
+
+#-----------------------------------------------------------------------------------------------
+ # Loading in temp data
+#-----------------------------------------------------------------------------------------------
+#loading in temp data (from Nosa)------------------------------------------------------
+tmp_file = tempfile(fileext = ".csv")
+
+AnomalySites = fullDataset[, c("Name","Year", "Latitude", "Longitude")] %>% 
+  filter(Name %in% c("NC Botanical Garden", "Prairie Ridge Ecostation")) %>% 
+  group_by(Name, Latitude, Longitude) %>% 
+  summarise(n = n()) %>% 
+  dplyr::select(-n) %>% as.data.frame()   
+
+AnomalyDaymetr = AnomalySites %>% 
+  rename(
+    site = Name,
+    lat = Latitude,
+    lon = Longitude
+  ) %>%
+  write.csv(tmp_file, row.names = FALSE)
+
+# pass temp CSV to function
+TempAnomaly = download_daymet_batch(
+  file_location = tmp_file,
+  start = 2015,
+  end = 2025, # this is the most recent available in daymetr
+  internal = TRUE
+)
+# remove temporary file 
+unlink(tmp_file)
+
+TempAnomalyData_clean <- lapply(TempAnomaly, function(x) {
+  x$data %>% mutate(site = x$site,
+                    Latidue = x$latitude,
+                    Longitude = x$longitude)})
+
+AllTemp= bind_rows(TempAnomalyData_clean) #this is the file we want (has all NCBG and PR data)
+#clean up globals
+rm(AnomalySites, TempAnomaly, files, TempAnomalyData_clean)
+
+
+
+# ---------------------------------------------------------------------------------------------
+#   altering temperature to be what sites I want and have jday and jweek columns
+# -----------------------------------------------------------------------------------------------
+#rename site names so match other dataframes, also rename so can be joined properly with meanfrass data
+AllTemp <- AllTemp %>%
+  mutate(site = case_when(
+    site == "NC Botanical Garden" ~ "117",
+    site == "Prairie Ridge Ecostation" ~ "8892356"  )) 
+AllTemp <- rename(AllTemp, jday=yday)
+AllTemp<- rename(AllTemp, Year=year)
+AllTemp <- rename (AllTemp, Site=site)
+
+
+#adding average weekly temp column to alltemp data, and averaging temp for all days with same jweek value
+AllTemp_weekly <- AllTemp %>%
+  mutate(julianweek = 7 * floor(jday / 7) + 4) %>%
+  mutate(avgtemp = (tmax..deg.c. + tmin..deg.c.) / 2)%>%
+  group_by(Year, Site, julianweek) %>%
+  summarise(weeklytemp = mean(avgtemp, na.rm = TRUE),
+            .groups = "drop")
+
+# ---------------------------------------------------------------------------------------------
+#   combining weekly temp and 6 variables dataframe
+# -----------------------------------------------------------------------------------------------
+visualization_data <- all_six_variables_dataframe %>%
+  left_join(AllTemp_weekly, by=c("Year", "Site", "julianweek")) %>% #2026 data not available
+  group_by(Site, julianweek) %>%
+  mutate(fracSurveys_avg = mean(fracSurveys, na.rm = TRUE),
+         meanDensity_avg = mean(meanDensity, na.rm = TRUE),
+         meanBiomass_avg = mean(meanBiomass, na.rm = TRUE),
+         trap_occurrence_percent_avg = mean(trap_occurrence_percent, na.rm = TRUE),
+         frass_mass_avg = mean(frass_mass, na.rm = TRUE),
+         number_pellets_avg = mean(number_pellets, na.rm = TRUE),
+         weeklytemp_avg = mean(weeklytemp, na.rm = TRUE)) #maybe change to summarize
+
+#also create average columns for all 6 variables and temp
+visualization_data_average <- visualization_data %>%
+  group_by(Site, julianweek) %>% #should I be grouping by site??????
+  summarise(fracSurveys_avg = mean(fracSurveys, na.rm = TRUE),
+         meanDensity_avg = mean(meanDensity, na.rm = TRUE),
+         meanBiomass_avg = mean(meanBiomass, na.rm = TRUE),
+         trap_occurrence_percent_avg = mean(trap_occurrence_percent, na.rm = TRUE),
+         frass_mass_avg = mean(frass_mass, na.rm = TRUE),
+         number_pellets_avg = mean(number_pellets, na.rm = TRUE),
+         weeklytemp_avg = mean(weeklytemp, na.rm = TRUE)) #maybe change to summarize
+
+# ---------------------------------------------------------------------------------------------
+#   creating visualization
+# -----------------------------------------------------------------------------------------------
+#make a function for plotting each variable for all years and then also plotting that average as a bold line
+
+
+anomaly_plotting <- function(data, data2, var_choice, avg_var_choice,
+                             site_choice,
+                             x_var = julianweek, year_var = Year,
+                             site_var = Site) {
+  
+  # keep only the chosen site in both data frames
+  df1 <- data  %>% filter({{ site_var }} == .env$site_choice)
+  df2 <- data2 %>% filter({{ site_var }} == .env$site_choice)
+  
+  ggplot(df1) +
+    # one thin line per year
+    geom_line(aes(x = {{ x_var }},
+                  y = {{ var_choice }},
+                  group = {{ year_var }},
+                  color = factor({{ year_var }})),
+              alpha = 0.7, linewidth = 0.7) +
+    # bold average line
+    geom_line(data = df2,
+              aes(x = {{ x_var }},
+                  y = {{ avg_var_choice }}),
+              color = "black", linewidth = 1.2) +
+    labs(x = rlang::as_label(enquo(x_var)),
+         y = rlang::as_label(enquo(var_choice)),
+         color = "Year",
+         title = paste("Site", site_choice, "-", rlang::as_label(enquo(var_choice)))) +
+    theme_classic()
+}
+
+#use it
+anomaly_plotting(visualization_data, visualization_data_average,
+                 trap_occurrence_percent, trap_occurrence_percent_avg, 8892356)
+
+#saving as a pdf------------------------ ^^^^^
+var_choice     <- c("fracSurveys", "meanDensity", "trap_occurrence_percent",
+                    "meanBiomass", "number_pellet", "frass_mass")
+avg_var_choice <- paste0(var_choice, "_avg")
+
+sites <- c(8892356, 117)
+
+setwd("C:/Z_School/school/HurlbertLab/graphs")
+
+pdf("6vars_linecharts.pdf", width = 11, height = 11)
+
+for (s in sites) {
+  plots <- map2(var_choice, avg_var_choice,
+                ~ anomaly_plotting(visualization_data,
+                                       visualization_data_average,
+                                       .x, .y, site_choice = s))
+  
+  page <- wrap_plots(plots, ncol = 2, nrow = 3, guides = "collect") +
+    plot_annotation(title = paste("Site", s))
+  
+  print(page)  
+}
+
+dev.off()
+
+#set up pdf
+pdf(
+  file = "insertnamehere.pdf",
+  width = 8,
+  height = 8)
+#layout for pdf
+par(
+  mfrow = c(3, 2),
+  mar = c(4, 4, 3, 6),  
+  oma = c(0, 0, 2, 0))
+#loops over each sites
+for (yr in years_NCBG) {
+  try(
+    density_plotting(
+      data = all_data_clean,
+      year_choice = yr,
+      site_choice = 8892356  
+    ),
+    silent = TRUE)}
+for (yr in years_PR) {
+  try(
+    density_plotting(
+      data = all_data_clean,
+      year_choice = yr,
+      site_choice = 117   
+    ),
+    silent = TRUE)}
+dev.off()
+
+
+
+
+
+
 
 
 
