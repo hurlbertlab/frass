@@ -663,7 +663,10 @@ AllTemp_weekly_2week <- variable_weeks %>%
 
 #adding two week temp values
 visualization_data_anomaly <- visualization_data_anomaly %>%
-  left_join(AllTemp_weekly_2week, by = c("Site", "Year", "julianweek"))
+  left_join(AllTemp_weekly_2week, by = c("Site", "Year", "julianweek"))%>%
+  group_by(Site, julianweek) %>%
+  mutate(spring_avg_2week_avg = mean(spring_avg_2week, na.rm = TRUE),
+         spring_avg_2week_anomaly = spring_avg_2week - spring_avg_2week_avg)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -671,18 +674,21 @@ visualization_data_anomaly <- visualization_data_anomaly %>%
 # -----------------------------------------------------------------------------------------------
 #MIXED EFFECTS MODEL
 library(lme4)
-#lmer(response(all6)_anomaly ~ spring_temp + site + (1 | year), data=df)
+#all variables
+allvars <- c("fracSurveys_anomaly", "meanDensity_anomaly", "trap_occurrence_percent_anomaly", "meanBiomass_anomaly", "frass_mass_anomaly", "number_pellets_anomaly")
+library(lmerTest)
+#lmer(response(all6)_anomaly ~ spring_temp_anomaly + site + (1 | year), data=df)
 models <- lapply(allvars, function(v) {
-  lmer(as.formula(paste(v, "~ spring_avg_2week + Site + (1| Year)")), data = all6_vars_2week_temp_combined)
+  lmer(as.formula(paste(v, "~ spring_avg_2week_anomaly + Site + (1| Year)")), data = visualization_data_anomaly)
 })
 names(models) <- allvars
 
 lapply(models, summary)
 
 #---------------------------
-#lmer(response(all6) ~ spring_temp + (1 | year + site), data=df)
+#lmer(response(all6)_anomaly ~ spring_temp_anomaly + (1 | year + site), data=df)
 models <- lapply(allvars, function(v) {
-  lmer(as.formula(paste(v, "~ spring_avg_2week + (1| Year+Site)")), data = all6_vars_2week_temp_combined)
+  lmer(as.formula(paste(v, "~ spring_avg_2week_anomaly + (1| Year+Site)")), data = visualization_data_anomaly)
 })
 names(models) <- allvars
 
