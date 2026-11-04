@@ -238,7 +238,7 @@ data = frassData(open = T) %>%
 ```{r}
 
 #-----------------------------------------------------------------------------------------------
-#Filtering Data for Frass OCCURRENCE -> use occurance_frass_combined_weeks DF
+#Filtering Data for Frass OCCURRENCE -> use occurrence_frass_combined_weeks DF
 #-----------------------------------------------------------------------------------------------
 #filter data so only reliable rows are left then filter frass.mg.d so that only traps with total mass >4mg are left
 filtered_mass <- data %>%
@@ -248,17 +248,17 @@ filtered_mass <- data %>%
 
 #-----------------------------------------------------------------------------------------------
 #now need to count number of traps with same julian day  
-occurance_frass <- filtered_mass %>%
+occurrence_frass <- filtered_mass %>%
   group_by(Site, Year, julianweek)%>%
-  mutate(trap_occurance_percent = mean(included_in_trap_count == 1, na.rm=TRUE)) #mean here calculates the proportion along the length of the groupby columns
+  mutate(trap_occurrence_percent = mean(included_in_trap_count == 1, na.rm=TRUE)) #mean here calculates the proportion along the length of the groupby columns
 
 
 #issue that in 2015-2023 sites sampled twice a week, so still percentage works since dividing by total seen???
-occurance_frass_combined_weeks <- occurance_frass %>%
+occurrence_frass_combined_weeks <- occurrence_frass %>%
   group_by(Site, Year, julianweek) %>%
   summarise(
     # average frass measurements
-    trap_occurance_percent = mean(trap_occurance_percent, na.rm = TRUE),
+    trap_occurrence_percent = mean(trap_occurrence_percent, na.rm = TRUE),
     # keep representative values for the rest
     jday = min(jday, na.rm = TRUE),
     .groups = "drop")%>%
@@ -494,7 +494,7 @@ imputation_data <- imputation_data %>%
 ```{r}
 all_six_variables_dataframe <- cat_data_byweek %>%
   dplyr::select(Site, Year, julianweek, fracSurveys, meanDensity)%>%
-  left_join(occurance_frass_combined_weeks, by=c("Site", "Year", "julianweek")) %>%
+  left_join(occurrence_frass_combined_weeks, by=c("Site", "Year", "julianweek")) %>%
   left_join(imputation_data %>% dplyr::select(Site, Year, julianweek, meanBiomass, mass), by=c("Site", "Year", "julianweek")) %>%
   left_join(frass_pellet_number, dplyr::select(Site, Year, julianweek, number_pellets), by =c("Site", "Year", "julianweek")) %>%
   rename(frass_mass = mass) #all years previous standardized (same jday range before joining)
@@ -503,17 +503,17 @@ all_six_variables_dataframe <- cat_data_byweek %>%
 
 #calculate centroid dates and total june values for all 6 variables
 ```{r}
-vars_of_interest <- c("fracSurveys", "meanBiomass", "meanDensity", "trap_occurance_percent", "frass_mass", "number_pellets")
+vars_of_interest <- c("fracSurveys", "meanBiomass", "meanDensity", "trap_occurrence_percent", "frass_mass", "number_pellets")
 
 two_metric_variables <- all_six_variables_dataframe %>%
   group_by(Year, Site)%>%
-  summarise(centroid_frass_occurrence = weighted.mean(julianweek, trap_occurance_percent, na.rm = TRUE),
+  summarise(centroid_frass_occurrence = weighted.mean(julianweek, trap_occurrence_percent, na.rm = TRUE),
          centroid_frass_mass = weighted.mean(julianweek, frass_mass, na.rm = TRUE),
          centroid_frass_pelletnum = weighted.mean(julianweek, number_pellets, na.rm = TRUE),
          centroid_cat_occurrence = weighted.mean(julianweek, fracSurveys, na.rm = TRUE),
          centroid_cat_biomass = weighted.mean(julianweek, meanBiomass, na.rm = TRUE),
          centroid_cat_density = weighted.mean(julianweek, meanDensity, na.rm = TRUE),
-         total_frass_occurrence_june = sum(trap_occurance_percent[julianweek >= 152 & julianweek <= 181], na.rm = TRUE),
+         total_frass_occurrence_june = sum(trap_occurrence_percent[julianweek >= 152 & julianweek <= 181], na.rm = TRUE),
          total_frass_mass_june = sum(frass_mass[julianweek >= 152 & julianweek <= 181], na.rm = TRUE),
          total_frass_pelletnum_june = sum(number_pellets[julianweek >= 152 & julianweek <= 181], na.rm = TRUE),
          total_cat_occurrence_june = sum(fracSurveys[julianweek >= 152 & julianweek <= 181], na.rm = TRUE),
@@ -706,7 +706,7 @@ ggsave("C:/Z_School/school/HurlbertLab/graphs/temp_vs_response_NCBG.pdf",
 ```{r}
 #Add interaction term (different slopes)
  #lm(response var ~ spring_avg_both + site + spring_avg_both * site):
-allvars <- c("fracSurveys", "meanDensity", "trap_occurance_percent", "meanBiomass", "frass_mass", "number_pellets")
+allvars <- c("fracSurveys", "meanDensity", "trap_occurrence_percent", "meanBiomass", "frass_mass", "number_pellets")
 
 models <- lapply(allvars, function(v) {
   lm(as.formula(paste(v, "~ spring_avg_both + Site + Site * spring_avg_both")), data = temp_and_metric_combined)
@@ -755,7 +755,7 @@ all6_vars_2week_temp_combined <- all_six_variables_dataframe %>%
   left_join(AllTemp_weekly_2week, by = c("Site", "Year", "julianweek"))
 
 ##### running correlation-----------------------------------------------------------
-allvars <- c("fracSurveys", "meanDensity", "trap_occurance_percent", "meanBiomass", "frass_mass", "number_pellets")
+allvars <- c("fracSurveys", "meanDensity", "trap_occurrence_percent", "meanBiomass", "frass_mass", "number_pellets")
 
 temp_metric <- c("spring_avg_2week")
 
@@ -858,7 +858,7 @@ dat <- all6_vars_2week_temp_combined %>%
          temp_z = scale(spring_avg_2week)[, 1],
          across(starts_with("total_"), log1p, .names = "{.col}_log"))
 
-allvars <- c("fracSurveys", "meanDensity", "trap_occurance_percent", "meanBiomass", "frass_mass", "number_pellets")
+allvars <- c("fracSurveys", "meanDensity", "trap_occurrence_percent", "meanBiomass", "frass_mass", "number_pellets")
 
 
 results <- map_df(allvars, function(y) {
@@ -940,7 +940,7 @@ modeltest <- glmmTMB(fracSurveys~spring_avg_2week +Site + (1|Site:Year), family=
 summary(modeltest)
 
 #trap_occurrence_percent FIX LATER
-modeltest <- glmmTMB(trap_occurance_percent~spring_avg_2week +Site + (1|Site:Year), family= binomial(link="log"), data = all6_vars_2week_temp_combined)
+modeltest <- glmmTMB(trap_occurrence_percent~spring_avg_2week +Site + (1|Site:Year), family= binomial(link="log"), data = all6_vars_2week_temp_combined)
 summary(modeltest)
 
 #number_pellets 
