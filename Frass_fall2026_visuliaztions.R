@@ -670,7 +670,7 @@ visualization_data_anomaly <- visualization_data_anomaly %>%
 
 
 # ---------------------------------------------------------------------------------------------
-#   re-running mixed effects models
+#   re-running mixed effects models & interaction model
 # -----------------------------------------------------------------------------------------------
 #MIXED EFFECTS MODEL
 library(lme4)
@@ -686,13 +686,28 @@ names(models) <- allvars
 lapply(models, summary)
 
 #---------------------------
-#lmer(response(all6)_anomaly ~ spring_temp_anomaly + (1 | year + site), data=df)
+#INTERACTION TERMS
+#lm(response_var_anomaly ~ spring_avg_2weeks_anomaly + site + spring_avg_2weeks_anomaly * site):
 models <- lapply(allvars, function(v) {
-  lmer(as.formula(paste(v, "~ spring_avg_2week_anomaly + (1| Year+Site)")), data = visualization_data_anomaly)
+  lm(as.formula(paste(v, "~ spring_avg_2week_anomaly + Site + Site * spring_avg_2week_anomaly")), data = visualization_data_anomaly)
 })
 names(models) <- allvars
 
+#to see all models at once
 lapply(models, summary)
+
+#-----------------------------------------
+#lm(response_var_anomaly ~ spring_avg_2weeks_anomaly + site + Year + Site*year):
+models <- lapply(allvars, function(v) {
+  lm(as.formula(paste(v, "~ spring_avg_2week_anomaly + Site + Year + Site*Year")), data = visualization_data_anomaly)
+})
+names(models) <- allvars
+
+#to see all models at once
+lapply(models, summary) #does the spring 2-week temperature anomaly predict the response, after accounting for differences among sites and years?
+
+#---------------------------------------------
+
 
 
 
