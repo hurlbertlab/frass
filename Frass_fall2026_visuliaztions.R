@@ -710,6 +710,9 @@ lapply(models, summary) #does the spring 2-week temperature anomaly predict the 
 
 
 
+#SCATTERPLOT OF THINGS WITH ABLINE INCLUDED BY COLOR
+
+
 
 
 
