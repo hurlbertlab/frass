@@ -724,67 +724,79 @@ anomaly_centered <- all_six_variables_dataframe %>%
          trap_occurrence_percent_anomaly = trap_occurrence_percent - trap_occurrence_percent_avg,
          frass_mass_anomaly = frass_mass - frass_mass_avg,
          number_pellets_anomaly = number_pellets - number_pellets_avg,
-         weeklytemp_anomaly = weeklytemp - weeklytemp_avg)
+         weeklytemp_anomaly = weeklytemp - weeklytemp_avg,
+         fracSurveys_sd = sd(fracSurveys, na.rm = TRUE), #STANDARD DEVIATION START HERE
+         meanDensity_sd = sd(meanDensity, na.rm = TRUE),
+         meanBiomass_sd = sd(meanBiomass, na.rm = TRUE),
+         trap_occurrence_percent_sd = sd(trap_occurrence_percent, na.rm = TRUE),
+         frass_mass_sd = sd(frass_mass, na.rm = TRUE),
+         number_pellets_sd = sd(number_pellets, na.rm = TRUE),
+         weeklytemp_sd = sd(weeklytemp, na.rm = TRUE),
+         fracSurveys_zscore = (fracSurveys_anomaly/fracSurveys_sd), #Z SCORE START HERE
+         meanDensity_zscore = (meanDensity_anomaly/meanDensity_sd),
+         meanBiomass_zscore = (meanBiomass_anomaly/meanBiomass_sd),
+         trap_occurrence_percent_zscore = (trap_occurrence_percent_anomaly/trap_occurrence_percent_sd),
+         frass_mass_zscore = (frass_mass_anomaly/frass_mass_sd),
+         number_pellets_zscore = (number_pellets_anomaly/number_pellets_sd),
+         weeklytemp_zscore = (weeklytemp_anomaly/weeklytemp_sd))
 
-#Using plotting code from above: 
-
-#make a function for plotting each variable for all years and then also plotting that average as a bold line
-anomaly_centered_plotting <- function(data, data2, var_choice, avg_var_choice,
-                             site_choice,
-                             x_var = julianweek, year_var = Year,
-                             site_var = Site) {
+#make a function for plotting each variable for all years and where they are all centered at 0
+anomaly_centered_plotting <- function(data, var_choice, site_choice, x_var = julianweek, year_var = Year, site_var = Site) {
   
-  # keep only the chosen site in both data frames
+  # keep only the chosen site
   df1 <- data  %>% filter({{ site_var }} == .env$site_choice)
-  df2 <- data2 %>% filter({{ site_var }} == .env$site_choice)
-  
+
   ggplot(df1) +
     # one thin line per year
     geom_line(aes(x = {{ x_var }},
                   y = {{ var_choice }},
                   group = {{ year_var }},
                   color = factor({{ year_var }})),
-              alpha = 0.7, linewidth = 0.5) +
-    # bold average line
-    geom_line(data = df2,
-              aes(x = {{ x_var }},
-                  y = {{ avg_var_choice }}),
-              color = "black", linewidth = 1.2) +
-    labs(x = rlang::as_label(enquo(x_var)),
-         y = rlang::as_label(enquo(var_choice)),
-         color = "Year",
-         title = paste("Site", site_choice, "-", rlang::as_label(enquo(var_choice)))) +
+              alpha = 0.7, linewidth = 0.6) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "black", linewidth = 0.8) +
     theme_classic()
 }
 
 #use it
-anomaly_plotting(visualization_data, visualization_data_average,
-                 trap_occurrence_percent, trap_occurrence_percent_avg, 8892356)
+anomaly_centered_plotting(anomaly_centered, trap_occurrence_percent_anomaly, 8892356)
+anomaly_centered_plotting(anomaly_centered, trap_occurrence_percent_zscore, 8892356)
+
 
 #saving as a pdf------------------------ ^^^^^
-vars     <- c("fracSurveys", "meanDensity", "trap_occurrence_percent",
-              "meanBiomass", "number_pellets", "frass_mass", "weeklytemp")
-avg_vars <- paste0(vars, "_avg")
-sites    <- c(8892356, 117)
+vars  <- c("fracSurveys_anomaly", "meanDensity_anomaly", "trap_occurrence_percent_anomaly",
+           "meanBiomass_anomaly", "number_pellets_anomaly", "frass_mass_anomaly", "weeklytemp_anomaly")
+vars_z  <- c("fracSurveys_zscore", "meanDensity_zscore", "trap_occurrence_percent_zscore",
+           "meanBiomass_zscore", "number_pellets_zscore", "frass_mass_zscore", "weeklytemp_zscore")
+sites <- c(8892356, 117)
 
 setwd("C:/Z_School/school/HurlbertLab/graphs")
-pdf("6vars_linecharts.pdf", width = 8, height = 10)
+pdf("anomalytest.pdf", width = 8, height = 10)
 
 for (s in sites) {
-  plots <- map2(vars, avg_vars,
-                ~ anomaly_plotting(visualization_data,
-                                   visualization_data_average,
-                                   !!rlang::sym(.x),
-                                   !!rlang::sym(.y),
-                                   site_choice = s))
+  plots <- map(vars_z, ~ anomaly_centered_plotting(
+    anomaly_centered,
+    !!rlang::sym(.x),     # turns the string into a column name
+    site_choice = s       # must be named, since the 3rd positional arg is site_choice
+  ))
   
   print(wrap_plots(plots, ncol = 2, nrow = 4, guides = "collect") +
           plot_annotation(title = paste("Site", s)))
 }
 
-dev.off()
+dev.off()   # closes the PDF, otherwise it may be corrupt or empty
 
+#--------------------------
+#linear model for zscore anomaly
+vars_z  <- c("fracSurveys_zscore", "meanDensity_zscore", "trap_occurrence_percent_zscore",
+             "meanBiomass_zscore", "number_pellets_zscore", "frass_mass_zscore", "weeklytemp_zscore")
 
+#lmer(response(all6)_anomaly ~ spring_temp_anomaly, data=df)
+models <- lapply(allvars, function(v) {
+  lmer(as.formula(paste(v, "~ spring_avg_2week_anomaly + Site + (1| Year)")), data = visualization_data_anomaly)
+})
+names(models) <- allvars
+
+lapply(models, summary)
 
 
 #SCATTERPLOT OF THINGS WITH ABLINE INCLUDED BY COLOR
