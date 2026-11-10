@@ -563,7 +563,7 @@ visualization_data_average <- visualization_data %>%
          weeklytemp_avg = mean(weeklytemp, na.rm = TRUE)) #maybe change to summarize
 
 # ---------------------------------------------------------------------------------------------
-#   creating visualization
+#   creating visualization for basic anomaly plots
 # -----------------------------------------------------------------------------------------------
 #make a function for plotting each variable for all years and then also plotting that average as a bold line
 anomaly_plotting <- function(data, data2, var_choice, avg_var_choice,
@@ -620,8 +620,6 @@ for (s in sites) {
 }
 
 dev.off()
-
-
 
 
 # ---------------------------------------------------------------------------------------------
@@ -706,7 +704,86 @@ names(models) <- allvars
 #to see all models at once
 lapply(models, summary) #does the spring 2-week temperature anomaly predict the response, after accounting for differences among sites and years?
 
-#---------------------------------------------
+
+# ---------------------------------------------------------------------------------------------
+#   creating visualization for centered anomaly plots & z score ones
+# -----------------------------------------------------------------------------------------------
+anomaly_centered <- all_six_variables_dataframe %>%
+  left_join(AllTemp_weekly, by=c("Year", "Site", "julianweek")) %>%
+  group_by(Site, Year) %>%
+  mutate(fracSurveys_avg = mean(fracSurveys, na.rm = TRUE), #MEAN START HERE
+            meanDensity_avg = mean(meanDensity, na.rm = TRUE),
+            meanBiomass_avg = mean(meanBiomass, na.rm = TRUE),
+            trap_occurrence_percent_avg = mean(trap_occurrence_percent, na.rm = TRUE),
+            frass_mass_avg = mean(frass_mass, na.rm = TRUE),
+            number_pellets_avg = mean(number_pellets, na.rm = TRUE),
+            weeklytemp_avg = mean(weeklytemp, na.rm = TRUE), 
+         fracSurveys_anomaly = fracSurveys - fracSurveys_avg, #ANAOMALY START HERE
+         meanDensity_anomaly = meanDensity - meanDensity_avg,
+         meanBiomass_anomaly = meanBiomass - meanBiomass_avg,
+         trap_occurrence_percent_anomaly = trap_occurrence_percent - trap_occurrence_percent_avg,
+         frass_mass_anomaly = frass_mass - frass_mass_avg,
+         number_pellets_anomaly = number_pellets - number_pellets_avg,
+         weeklytemp_anomaly = weeklytemp - weeklytemp_avg)
+
+#Using plotting code from above: 
+
+#make a function for plotting each variable for all years and then also plotting that average as a bold line
+anomaly_centered_plotting <- function(data, data2, var_choice, avg_var_choice,
+                             site_choice,
+                             x_var = julianweek, year_var = Year,
+                             site_var = Site) {
+  
+  # keep only the chosen site in both data frames
+  df1 <- data  %>% filter({{ site_var }} == .env$site_choice)
+  df2 <- data2 %>% filter({{ site_var }} == .env$site_choice)
+  
+  ggplot(df1) +
+    # one thin line per year
+    geom_line(aes(x = {{ x_var }},
+                  y = {{ var_choice }},
+                  group = {{ year_var }},
+                  color = factor({{ year_var }})),
+              alpha = 0.7, linewidth = 0.5) +
+    # bold average line
+    geom_line(data = df2,
+              aes(x = {{ x_var }},
+                  y = {{ avg_var_choice }}),
+              color = "black", linewidth = 1.2) +
+    labs(x = rlang::as_label(enquo(x_var)),
+         y = rlang::as_label(enquo(var_choice)),
+         color = "Year",
+         title = paste("Site", site_choice, "-", rlang::as_label(enquo(var_choice)))) +
+    theme_classic()
+}
+
+#use it
+anomaly_plotting(visualization_data, visualization_data_average,
+                 trap_occurrence_percent, trap_occurrence_percent_avg, 8892356)
+
+#saving as a pdf------------------------ ^^^^^
+vars     <- c("fracSurveys", "meanDensity", "trap_occurrence_percent",
+              "meanBiomass", "number_pellets", "frass_mass", "weeklytemp")
+avg_vars <- paste0(vars, "_avg")
+sites    <- c(8892356, 117)
+
+setwd("C:/Z_School/school/HurlbertLab/graphs")
+pdf("6vars_linecharts.pdf", width = 8, height = 10)
+
+for (s in sites) {
+  plots <- map2(vars, avg_vars,
+                ~ anomaly_plotting(visualization_data,
+                                   visualization_data_average,
+                                   !!rlang::sym(.x),
+                                   !!rlang::sym(.y),
+                                   site_choice = s))
+  
+  print(wrap_plots(plots, ncol = 2, nrow = 4, guides = "collect") +
+          plot_annotation(title = paste("Site", s)))
+}
+
+dev.off()
+
 
 
 
