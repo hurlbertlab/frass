@@ -266,6 +266,87 @@ frass_pellet_number <- data %>%
   mutate(Site = dplyr::recode(Site, "Prairie Ridge" = "117"))
 frass_pellet_number$Year <- as.integer(frass_pellet_number$Year)
 
+#imputation function
+impute_biomass_data <- function(data, site_mass_defaults) {
+  
+  # --- Precompute first/last julianweek reference values across years ---
+  first_jweek_refs <- data %>%
+    group_by(site, Year) %>%
+    slice_min(julianweek, n = 1) %>%
+    ungroup() %>%
+    group_by(site) %>%
+    summarise(
+      ref_first_meanBiomass = mean(meanBiomass, na.rm = TRUE),
+      ref_first_mass        = mean(mass, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  last_jweek_refs <- data %>%
+    group_by(site, Year) %>%
+    slice_max(julianweek, n = 1) %>%
+    ungroup() %>%
+    group_by(site) %>%
+    summarise(
+      ref_last_meanBiomass = mean(meanBiomass, na.rm = TRUE),
+      ref_last_mass        = mean(mass, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  data %>%
+    left_join(first_jweek_refs, by = "site") %>%
+    left_join(last_jweek_refs,  by = "site") %>%
+    group_by(site, Year) %>%
+    arrange(julianweek, .by_group = TRUE) %>%
+    mutate(
+      # --- save originals before imputation ---
+      orig_meanBiomass = meanBiomass,
+      orig_mass        = mass,
+      
+      # --- fill first julianweek NA with cross-year average for that site ---
+      meanBiomass = if_else(
+        is.na(meanBiomass) & julianweek == first(julianweek),
+        ref_first_meanBiomass,
+        meanBiomass
+      ),
+      mass = if_else(
+        is.na(mass) & julianweek == first(julianweek),
+        coalesce(site_mass_defaults[as.character(site)], ref_first_mass),
+        mass
+      ),
+      
+      # --- fill last julianweek NA with cross-year average for that site ---
+      meanBiomass = if_else(
+        is.na(meanBiomass) & julianweek == last(julianweek),
+        ref_last_meanBiomass,
+        meanBiomass
+      ),
+      mass = if_else(
+        is.na(mass) & julianweek == last(julianweek),
+        ref_last_mass,
+        mass
+      ),
+      
+      # --- interpolate interior NAs ---
+      meanBiomass = na.approx(meanBiomass, x = julianweek, na.rm = FALSE, rule = 2, maxgap = 2),
+      mass        = na.approx(mass,        x = julianweek, na.rm = FALSE, rule = 2, maxgap = 2),
+      
+      # --- flag imputed rows ---
+      imputed_biomass = as.integer(is.na(orig_meanBiomass) & !is.na(meanBiomass)),
+      imputed_mass    = as.integer(is.na(orig_mass)        & !is.na(mass)),
+      
+      # --- drop helper columns ---
+      orig_meanBiomass      = NULL,
+      orig_mass             = NULL,
+      ref_first_meanBiomass = NULL,
+      ref_first_mass        = NULL,
+      ref_last_meanBiomass  = NULL,
+      ref_last_mass         = NULL
+    ) %>%
+    ungroup()
+}
+#run function
+imputation_data <- impute_biomass_data(all_data_clean, site_mass_defaults = c() )
+
 
 #-----------------------------------------------------------------------------------------------
 #Filtering Data for Frass and Cat MASS
@@ -791,10 +872,10 @@ vars_z  <- c("fracSurveys_zscore", "meanDensity_zscore", "trap_occurrence_percen
              "meanBiomass_zscore", "number_pellets_zscore", "frass_mass_zscore", "weeklytemp_zscore")
 
 #lmer(response(all6)_anomaly ~ spring_temp_anomaly, data=df)
-models <- lapply(allvars, function(v) {
-  lmer(as.formula(paste(v, "~ spring_avg_2week_anomaly + Site + (1| Year)")), data = visualization_data_anomaly)
+models <- lapply(vars_z, function(v) {
+  lm(as.formula(paste(v, "~ weeklytemp_zscore")), data = anomaly_centered)
 })
-names(models) <- allvars
+names(models) <- vars_z
 
 lapply(models, summary)
 
