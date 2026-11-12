@@ -229,7 +229,7 @@ data = frassData(open = T) %>%
          jday = (floor(jday.Collected) + floor(jday.Set))/2)
 
 #-----------------------------------------------------------------------------------------------
-#Filtering Data for Frass OCCURRENCE -> use occurance_frass_combined_weeks DF
+#Filtering Data for Frass OCCURRENCE -> use occurrence_frass_combined_weeks DF
 #-----------------------------------------------------------------------------------------------
 #filter data so only reliable rows are left then filter frass.mg.d so that only traps with total mass >4mg are left
 filtered_mass <- data %>%
@@ -240,17 +240,17 @@ filtered_mass <- data %>%
 
 #-----------------------------------------------------------------------------------------------
 #now need to count number of traps with same julian day  
-occurance_frass <- filtered_mass %>%
+occurrence_frass <- filtered_mass %>%
   group_by(Site, Year, julianweek)%>%
-  mutate(trap_occurance_percent = mean(included_in_trap_count == 1, na.rm=TRUE)) #mean here calculates the proportion along the length of the groupby columns
+  mutate(trap_occurrence_percent = mean(included_in_trap_count == 1, na.rm=TRUE)) #mean here calculates the proportion along the length of the groupby columns
 
 
 #issue that in 2015-2023 sites sampled twice a week, so still percentage works since dividing by total seen???
-occurance_frass_combined_weeks <- occurance_frass %>%
+occurrence_frass_combined_weeks <- occurrence_frass %>%
   group_by(Site, Year, julianweek) %>%
   summarise(
     # average frass measurements
-    trap_occurance_percent = mean(trap_occurance_percent, na.rm = TRUE),
+    trap_occurrence_percent = mean(trap_occurrence_percent, na.rm = TRUE),
     # keep representative values for the rest
     jday = min(jday, na.rm = TRUE),
     .groups = "drop")%>%
@@ -560,7 +560,7 @@ frass_volume_corrections$Year <- as.integer(frass_volume_corrections$Year)
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 all_seven_variables_dataframe <- cat_data_byweek %>%
   dplyr::select(Site, Year, julianweek, fracSurveys, meanDensity)%>%
-  left_join(occurance_frass_combined_weeks, by=c("Site", "Year", "julianweek")) %>%
+  left_join(occurrence_frass_combined_weeks, by=c("Site", "Year", "julianweek")) %>%
   left_join(imputation_data %>% dplyr::select(Site, Year, julianweek, meanBiomass, mass), by=c("Site", "Year", "julianweek")) %>%
   left_join(frass_volume_corrections, dplyr::select(Site, Year, julianweek, volume), by=c("Site", "Year", "julianweek")) %>% #volume data missing 2021 for PR because data bad
   left_join(frass_pellet_number, dplyr::select(Site, Year, julianweek, number_pellets), by =c("Site", "Year", "julianweek")) %>%
@@ -568,7 +568,7 @@ all_seven_variables_dataframe <- cat_data_byweek %>%
 
 all_six_variables_dataframe <- cat_data_byweek %>%
   dplyr::select(Site, Year, julianweek, fracSurveys, meanDensity)%>%
-  left_join(occurance_frass_combined_weeks, by=c("Site", "Year", "julianweek")) %>%
+  left_join(occurrence_frass_combined_weeks, by=c("Site", "Year", "julianweek")) %>%
   left_join(imputation_data %>% dplyr::select(Site, Year, julianweek, meanBiomass, mass), by=c("Site", "Year", "julianweek")) %>%
   left_join(frass_pellet_number, dplyr::select(Site, Year, julianweek, number_pellets), by =c("Site", "Year", "julianweek")) %>%
   rename(frass_mass = mass) #all years previous standardized (same jday range before joining)
@@ -576,9 +576,9 @@ all_six_variables_dataframe <- cat_data_byweek %>%
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
 #   running correlations between site/year/julianweek for all 5 variables to see which ones best correlated
 # *+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+*+
-vars_of_interest <- c("fracSurveys", "meanBiomass", "meanDensity", "trap_occurance_percent", "frass_mass", "mean_area", "number_pellets")
+vars_of_interest <- c("fracSurveys", "meanBiomass", "meanDensity", "trap_occurrence_percent", "frass_mass", "mean_area", "number_pellets")
 #without area
-vars_of_interest2 <- c("fracSurveys", "meanBiomass", "meanDensity", "trap_occurance_percent", "frass_mass", "number_pellets")
+vars_of_interest2 <- c("fracSurveys", "meanBiomass", "meanDensity", "trap_occurrence_percent", "frass_mass", "number_pellets")
 #keep safe ones only
 safe_cor_mat <- possibly(
   ~ rstatix::cor_mat(.x, method = "pearson"),
@@ -752,9 +752,9 @@ all_variables_plotting_altered <- function(data, year_choice, site_choice) {
   #Frass Occurrence
   par(new = TRUE)
   
-  keep4 <- !is.na(df$julianweek) & !is.na(df$trap_occurance_percent)
+  keep4 <- !is.na(df$julianweek) & !is.na(df$trap_occurrence_percent)
   plot(
-    df$julianweek[keep4], df$trap_occurance_percent[keep4],
+    df$julianweek[keep4], df$trap_occurrence_percent[keep4],
     type = "l",
     col = "sienna",
     lty = "solid",
@@ -763,7 +763,7 @@ all_variables_plotting_altered <- function(data, year_choice, site_choice) {
     xlab = "",
     ylab = "",
     xlim = range(df$julianweek, na.rm = TRUE),
-    ylim = range(df$trap_occurance_percent, na.rm = TRUE)
+    ylim = range(df$trap_occurrence_percent, na.rm = TRUE)
   )
   
   #Frass Mass
@@ -869,6 +869,47 @@ for (yr in years_PR) {
 dev.off()
 
 
+
+
+#---------------------------------------------------------------------------
+#all years spearman correlation for 6 variables
+#----------------------------------------------------------------------------
+nested_data_spearman_allyears <- all_six_variables_dataframe %>%
+  dplyr::select(Site, all_of(vars_of_interest2)) %>%   # Year no longer needed
+  group_by(Site) %>%
+  nest() %>%
+  mutate(cor_matrix = map(data, safe_cor_mat_spearman))
+
+
+correlation_plotting_allyears <- function(data, site_choice) {
+  df <- data %>%
+    filter(Site == site_choice)
+  
+  cor_df <- df$cor_matrix[[1]]
+  
+  cor_matrix <- cor_df %>%
+    column_to_rownames(var = colnames(cor_df)[1]) %>%
+    as.matrix()
+  
+  corrplot(cor_matrix,
+           type = "upper",
+           title = "",
+           mar = c(0, 0, 2, 0),
+           method = "shade",
+           order = "original",
+           tl.col = "black",
+           tl.srt = 45,
+           cl.align.text = "l",
+           cl.offset = .5,
+           addCoef.col = "black",
+           number.cex = 0.8,
+           addgrid.col = "black",
+           col = colorRampPalette(c("firebrick2", "white", "dodgerblue3"))(200))
+  
+  invisible(cor_matrix)
+}
+
+correlation_plotting_allyears(nested_data_spearman_allyears, 117)
 
 
 
