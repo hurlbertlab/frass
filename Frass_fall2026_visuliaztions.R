@@ -230,7 +230,7 @@ filtered_mass <- data %>%
   mutate(julianweek = 7 * floor(jday / 7) + 4)%>%
   mutate(included_in_trap_count = if_else(Frass.mass..mg. > 4,1,0))  #CHANGE THRESHOLD HERE
 
-#-----------------------------------------------------------------------------------------------
+#---------------------------------------------------------
 #now need to count number of traps with same julian day  
 occurrence_frass <- filtered_mass %>%
   group_by(Site, Year, julianweek)%>%
@@ -254,6 +254,67 @@ occurrence_frass_combined_weeks <- occurrence_frass %>%
     (Site == 117 & Year %in% c(2015, 2018, 2019, 2021, 2022) & julianweek %in% 142:200) |
       (Site == 8892356 & Year %in% c(2015:2019, 2021:2026) & julianweek %in% 154:198))
 
+#imputation function
+impute_data <- function(data, var) {
+  
+  # Turn the bare column name into a string for building new column names
+  var_chr <- rlang::as_name(rlang::ensym(var))
+  
+  imputed_flag_name <- paste0("imputed_", var_chr)
+  
+  # --- Cross-year reference values for the first julianweek of each Site/Year ---
+  first_jweek_refs <- data %>%
+    group_by(Site, Year) %>%
+    slice_min(julianweek, n = 1, with_ties = FALSE) %>%
+    ungroup() %>%
+    group_by(Site) %>%
+    summarise(ref_first = mean({{ var }}, na.rm = TRUE), .groups = "drop")
+  
+  # --- Cross-year reference values for the last julianweek of each Site/Year ---
+  last_jweek_refs <- data %>%
+    group_by(Site, Year) %>%
+    slice_max(julianweek, n = 1, with_ties = FALSE) %>%
+    ungroup() %>%
+    group_by(Site) %>%
+    summarise(ref_last = mean({{ var }}, na.rm = TRUE), .groups = "drop")
+  
+  data %>%
+    left_join(first_jweek_refs, by = "Site") %>%
+    left_join(last_jweek_refs,  by = "Site") %>%
+    group_by(Site, Year) %>%
+    arrange(julianweek, .by_group = TRUE) %>%
+    mutate(
+      .orig = {{ var }},
+      
+      # fill first julianweek NA with cross-year site average
+      {{ var }} := if_else(
+        is.na({{ var }}) & julianweek == first(julianweek),
+        ref_first,
+        {{ var }}
+      ),
+      
+      # fill last julianweek NA with cross-year site average
+      {{ var }} := if_else(
+        is.na({{ var }}) & julianweek == last(julianweek),
+        ref_last,
+        {{ var }}
+      ),
+      
+      # interpolate interior NAs
+      {{ var }} := na.approx({{ var }}, x = julianweek, na.rm = FALSE,
+                             rule = 2, maxgap = 2),
+      
+      # flag imputed rows
+      !!imputed_flag_name := as.integer(is.na(.orig) & !is.na({{ var }}))
+    ) %>%
+    dplyr::select(-.orig, -ref_first, -ref_last) %>%
+    ungroup()
+}
+
+#call with the bare column name (no quotes)
+occurrence_frass_combined_weeks_imputation_data <-
+  impute_data(occurrence_frass_combined_weeks, trap_occurrence_percent)
+
 #-----------------------------------------------------------------------------------------------
 #Filtering Data for Frass NUMBER of PELLETS 
 #-----------------------------------------------------------------------------------------------
@@ -266,87 +327,8 @@ frass_pellet_number <- data %>%
   mutate(Site = dplyr::recode(Site, "Prairie Ridge" = "117"))
 frass_pellet_number$Year <- as.integer(frass_pellet_number$Year)
 
-#imputation function
-impute_biomass_data <- function(data, site_mass_defaults) {
-  
-  # --- Precompute first/last julianweek reference values across years ---
-  first_jweek_refs <- data %>%
-    group_by(site, Year) %>%
-    slice_min(julianweek, n = 1) %>%
-    ungroup() %>%
-    group_by(site) %>%
-    summarise(
-      ref_first_meanBiomass = mean(meanBiomass, na.rm = TRUE),
-      ref_first_mass        = mean(mass, na.rm = TRUE),
-      .groups = "drop"
-    )
-  
-  last_jweek_refs <- data %>%
-    group_by(site, Year) %>%
-    slice_max(julianweek, n = 1) %>%
-    ungroup() %>%
-    group_by(site) %>%
-    summarise(
-      ref_last_meanBiomass = mean(meanBiomass, na.rm = TRUE),
-      ref_last_mass        = mean(mass, na.rm = TRUE),
-      .groups = "drop"
-    )
-  
-  data %>%
-    left_join(first_jweek_refs, by = "site") %>%
-    left_join(last_jweek_refs,  by = "site") %>%
-    group_by(site, Year) %>%
-    arrange(julianweek, .by_group = TRUE) %>%
-    mutate(
-      # --- save originals before imputation ---
-      orig_meanBiomass = meanBiomass,
-      orig_mass        = mass,
-      
-      # --- fill first julianweek NA with cross-year average for that site ---
-      meanBiomass = if_else(
-        is.na(meanBiomass) & julianweek == first(julianweek),
-        ref_first_meanBiomass,
-        meanBiomass
-      ),
-      mass = if_else(
-        is.na(mass) & julianweek == first(julianweek),
-        coalesce(site_mass_defaults[as.character(site)], ref_first_mass),
-        mass
-      ),
-      
-      # --- fill last julianweek NA with cross-year average for that site ---
-      meanBiomass = if_else(
-        is.na(meanBiomass) & julianweek == last(julianweek),
-        ref_last_meanBiomass,
-        meanBiomass
-      ),
-      mass = if_else(
-        is.na(mass) & julianweek == last(julianweek),
-        ref_last_mass,
-        mass
-      ),
-      
-      # --- interpolate interior NAs ---
-      meanBiomass = na.approx(meanBiomass, x = julianweek, na.rm = FALSE, rule = 2, maxgap = 2),
-      mass        = na.approx(mass,        x = julianweek, na.rm = FALSE, rule = 2, maxgap = 2),
-      
-      # --- flag imputed rows ---
-      imputed_biomass = as.integer(is.na(orig_meanBiomass) & !is.na(meanBiomass)),
-      imputed_mass    = as.integer(is.na(orig_mass)        & !is.na(mass)),
-      
-      # --- drop helper columns ---
-      orig_meanBiomass      = NULL,
-      orig_mass             = NULL,
-      ref_first_meanBiomass = NULL,
-      ref_first_mass        = NULL,
-      ref_last_meanBiomass  = NULL,
-      ref_last_mass         = NULL
-    ) %>%
-    ungroup()
-}
-#run function
-imputation_data <- impute_biomass_data(all_data_clean, site_mass_defaults = c() )
-
+frass_pellet_number_imputation_data <-
+  impute_data(frass_pellet_number, number_pellets)
 
 #-----------------------------------------------------------------------------------------------
 #Filtering Data for Frass and Cat MASS
@@ -787,7 +769,7 @@ lapply(models, summary) #does the spring 2-week temperature anomaly predict the 
 
 
 # ---------------------------------------------------------------------------------------------
-#   creating visualization for centered anomaly plots & z score ones
+#   creating visualization for centered ANOMALY plots & z score ones
 # -----------------------------------------------------------------------------------------------
 anomaly_centered <- all_six_variables_dataframe %>%
   left_join(AllTemp_weekly, by=c("Year", "Site", "julianweek")) %>%
@@ -878,6 +860,109 @@ models <- lapply(vars_z, function(v) {
 names(models) <- vars_z
 
 lapply(models, summary)
+
+
+# ---------------------------------------------------------------------------------------------
+#   creating visualization for centered IMPUTED ANOMALY plots & z score ones
+# -----------------------------------------------------------------------------------------------
+#combining frass mass/occurrence and caterpillar occurrence, biomass, and density into one dataframe
+all_six_variables_dataframe_impute <- cat_data_byweek %>%
+  dplyr::select(Site, Year, julianweek, fracSurveys, meanDensity)%>%
+  left_join(occurrence_frass_combined_weeks_imputation_data, by=c("Site", "Year", "julianweek")) %>%
+  left_join(imputation_data %>% dplyr::select(Site, Year, julianweek, meanBiomass, mass), by=c("Site", "Year", "julianweek")) %>%
+  left_join(frass_pellet_number_imputation_data, dplyr::select(Site, Year, julianweek, number_pellets), by =c("Site", "Year", "julianweek")) %>%
+  rename(frass_mass = mass) #all years previous standardized (same jday range before joining)
+
+anomaly_centered_impute <- all_six_variables_dataframe_impute %>%
+  left_join(AllTemp_weekly, by=c("Year", "Site", "julianweek")) %>%
+  group_by(Site, Year) %>%
+  mutate(fracSurveys_avg = mean(fracSurveys, na.rm = TRUE), #MEAN START HERE
+         meanDensity_avg = mean(meanDensity, na.rm = TRUE),
+         meanBiomass_avg = mean(meanBiomass, na.rm = TRUE),
+         trap_occurrence_percent_avg = mean(trap_occurrence_percent, na.rm = TRUE),
+         frass_mass_avg = mean(frass_mass, na.rm = TRUE),
+         number_pellets_avg = mean(number_pellets, na.rm = TRUE),
+         weeklytemp_avg = mean(weeklytemp, na.rm = TRUE), 
+         fracSurveys_anomaly = fracSurveys - fracSurveys_avg, #ANAOMALY START HERE
+         meanDensity_anomaly = meanDensity - meanDensity_avg,
+         meanBiomass_anomaly = meanBiomass - meanBiomass_avg,
+         trap_occurrence_percent_anomaly = trap_occurrence_percent - trap_occurrence_percent_avg,
+         frass_mass_anomaly = frass_mass - frass_mass_avg,
+         number_pellets_anomaly = number_pellets - number_pellets_avg,
+         weeklytemp_anomaly = weeklytemp - weeklytemp_avg,
+         fracSurveys_sd = sd(fracSurveys, na.rm = TRUE), #STANDARD DEVIATION START HERE
+         meanDensity_sd = sd(meanDensity, na.rm = TRUE),
+         meanBiomass_sd = sd(meanBiomass, na.rm = TRUE),
+         trap_occurrence_percent_sd = sd(trap_occurrence_percent, na.rm = TRUE),
+         frass_mass_sd = sd(frass_mass, na.rm = TRUE),
+         number_pellets_sd = sd(number_pellets, na.rm = TRUE),
+         weeklytemp_sd = sd(weeklytemp, na.rm = TRUE),
+         fracSurveys_zscore = (fracSurveys_anomaly/fracSurveys_sd), #Z SCORE START HERE
+         meanDensity_zscore = (meanDensity_anomaly/meanDensity_sd),
+         meanBiomass_zscore = (meanBiomass_anomaly/meanBiomass_sd),
+         trap_occurrence_percent_zscore = (trap_occurrence_percent_anomaly/trap_occurrence_percent_sd),
+         frass_mass_zscore = (frass_mass_anomaly/frass_mass_sd),
+         number_pellets_zscore = (number_pellets_anomaly/number_pellets_sd),
+         weeklytemp_zscore = (weeklytemp_anomaly/weeklytemp_sd))
+
+#make a function for plotting each variable for all years and where they are all centered at 0
+anomaly_centered_plotting <- function(data, var_choice, site_choice, x_var = julianweek, year_var = Year, site_var = Site) {
+  
+  # keep only the chosen site
+  df1 <- data  %>% filter({{ site_var }} == .env$site_choice)
+  
+  ggplot(df1) +
+    # one thin line per year
+    geom_line(aes(x = {{ x_var }},
+                  y = {{ var_choice }},
+                  group = {{ year_var }},
+                  color = factor({{ year_var }})),
+              alpha = 0.7, linewidth = 0.6) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "black", linewidth = 0.8) +
+    theme_classic()
+}
+
+#use it
+anomaly_centered_plotting(anomaly_centered_impute, trap_occurrence_percent_anomaly, 8892356)
+anomaly_centered_plotting(anomaly_centered_impute, trap_occurrence_percent_zscore, 8892356)
+
+
+#saving as a pdf------------------------ ^^^^^
+vars  <- c("fracSurveys_anomaly", "meanDensity_anomaly", "trap_occurrence_percent_anomaly",
+           "meanBiomass_anomaly", "number_pellets_anomaly", "frass_mass_anomaly", "weeklytemp_anomaly")
+vars_z  <- c("fracSurveys_zscore", "meanDensity_zscore", "trap_occurrence_percent_zscore",
+             "meanBiomass_zscore", "number_pellets_zscore", "frass_mass_zscore", "weeklytemp_zscore")
+sites <- c(8892356, 117)
+
+setwd("C:/Z_School/school/HurlbertLab/graphs")
+pdf("anomalytest.pdf", width = 8, height = 10)
+
+for (s in sites) {
+  plots <- map(vars_z, ~ anomaly_centered_plotting(
+    anomaly_centered,
+    !!rlang::sym(.x),     # turns the string into a column name
+    site_choice = s       # must be named, since the 3rd positional arg is site_choice
+  ))
+  
+  print(wrap_plots(plots, ncol = 2, nrow = 4, guides = "collect") +
+          plot_annotation(title = paste("Site", s)))
+}
+
+dev.off()   # closes the PDF, otherwise it may be corrupt or empty
+
+#--------------------------
+#linear model for zscore anomaly
+vars_z  <- c("fracSurveys_zscore", "meanDensity_zscore", "trap_occurrence_percent_zscore",
+             "meanBiomass_zscore", "number_pellets_zscore", "frass_mass_zscore", "weeklytemp_zscore")
+
+#lmer(response(all6)_anomaly ~ spring_temp_anomaly, data=df)
+models <- lapply(vars_z, function(v) {
+  lm(as.formula(paste(v, "~ weeklytemp_zscore")), data = anomaly_centered)
+})
+names(models) <- vars_z
+
+lapply(models, summary)
+
 
 
 #SCATTERPLOT OF THINGS WITH ABLINE INCLUDED BY COLOR
