@@ -1039,6 +1039,177 @@ lapply(models, summary)
 
 
 
+# ---------------------------------------------------------------------------------------------
+#   POSTER VISUALS
+# -----------------------------------------------------------------------------------------------
+#line plot of one variable (caterpillar biomass) for one site across all years
+simple_plotting <- function(data, site_choice, var_choice,
+                            year_col = "Year",
+                            colors   = c("gold", "firebrick", "navy"),  # custom gradient
+                            palette  = NULL,                            # or an hcl.colors name
+                            xlab     = "Julian week",
+                            ylab     = expression(paste("Caterpillar Biomass per cm"^2)),
+                            xlim     = NULL,
+                            ylim     = NULL) {
+  
+  df <- data %>%
+    filter(Site == site_choice) %>%
+    filter(!is.na(julianweek), !is.na(.data[[var_choice]]), !is.na(.data[[year_col]]))
+  
+  if (nrow(df) == 0) {
+    plot.new()
+    text(0.5, 0.5, paste("No data for", site_choice, "-", var_choice), cex = 1.2)
+    return(invisible(NULL))
+  }
+  
+  ## ---- Year colors ----
+  years <- sort(unique(df[[year_col]]))
+  cols  <- if (!is.null(palette)) {
+    hcl.colors(length(years), palette)
+  } else {
+    colorRampPalette(colors)(length(years))
+  }
+  year_col_map <- setNames(cols, years)
+  
+  ## ---- Plot setup ----
+  op <- par(mar = c(5, 6, 2, 6))
+  on.exit(par(op))
+  
+  plot(
+    NA,
+    xlim = if (is.null(xlim)) range(df$julianweek) else xlim,
+    ylim = if (is.null(ylim)) range(df[[var_choice]]) else ylim,
+    xlab = xlab,
+    ylab = ylab,
+    main = ""          # no title
+  )
+  
+  ## ---- One line per year ----
+  for (yr in years) {
+    d <- df[df[[year_col]] == yr, ]
+    d <- d[order(d$julianweek), ]
+    lines(d$julianweek, d[[var_choice]],
+          col = year_col_map[as.character(yr)], lwd = 2)
+  }
+  
+  ## ---- Legend ----
+  leg_years <- if (length(years) <= 8) years else
+    years[unique(round(seq(1, length(years), length.out = 6)))]
+  
+  legend(
+    "topright", inset = c(-0.18, 0), xpd = TRUE,
+    title = year_col,
+    legend = leg_years,
+    col = year_col_map[as.character(leg_years)],
+    lwd = 2, bty = "n", cex = 0.8
+  )
+  
+  invisible(df)
+}
+
+simple_plotting(all_six_variables_dataframe, "8892356", "meanBiomass")
+
+#line plot of one year at NCBG, but plotting all the variables
+library(dplyr)
+
+multi_plotting <- function(data, site_choice, year_choice,
+                           year_col   = "Year",
+                           cat_vars   = c("fracSurveys", "meanDensity", "meanBiomass"),
+                           frass_vars = c("trap_occurrence_percent", "number_pellets", "frass_mass"),
+                           cat_colors   = c("lightgreen", "darkgreen"),
+                           frass_colors = c("tan", "sienna4"),
+                           scale_to   = c("max", "minmax"),
+                           xlab = "Julian week",
+                           xlim = NULL,
+                           lwd  = 2.5,
+                           legend_labels = NULL,        # named vector: c(column = "new text")
+                           legend_title  = NULL,
+                           legend_cex    = 0.8,
+                           legend_pos    = "topright") {
+  
+  scale_to <- match.arg(scale_to)
+  
+  df <- data %>%
+    filter(Site == site_choice, .data[[year_col]] == year_choice) %>%
+    filter(!is.na(julianweek)) %>%
+    arrange(julianweek)
+  
+  all_vars <- c(cat_vars, frass_vars)
+  all_vars <- all_vars[all_vars %in% names(df)]
+  
+  if (nrow(df) == 0 || length(all_vars) == 0) {
+    plot.new()
+    text(0.5, 0.5, paste("No data for", site_choice, year_choice), cex = 1.2)
+    return(invisible(NULL))
+  }
+  
+  ## ---- Colors ----
+  cat_cols   <- colorRampPalette(cat_colors)(length(cat_vars))
+  frass_cols <- colorRampPalette(frass_colors)(length(frass_vars))
+  col_map    <- setNames(c(cat_cols, frass_cols), c(cat_vars, frass_vars))
+  
+  lty_map <- setNames(c(rep(1, length(cat_vars)), rep(2, length(frass_vars))),
+                      c(cat_vars, frass_vars))
+  
+  ## ---- Legend text: use custom label if given, otherwise column name ----
+  labels <- setNames(all_vars, all_vars)
+  if (!is.null(legend_labels)) {
+    matched <- intersect(names(legend_labels), all_vars)
+    labels[matched] <- legend_labels[matched]
+  }
+  
+  ## ---- Rescale ----
+  rescale <- function(x) {
+    if (all(is.na(x))) return(x)
+    if (scale_to == "max") {
+      m <- max(x, na.rm = TRUE)
+      if (m == 0) x else x / m
+    } else {
+      r <- range(x, na.rm = TRUE)
+      if (diff(r) == 0) rep(0, length(x)) else (x - r[1]) / diff(r)
+    }
+  }
+  
+  ## ---- Plot ----
+  op <- par(mar = c(5, 2, 2, 9), bty = "l")
+  on.exit(par(op))
+  
+  plot(NA,
+       xlim = if (is.null(xlim)) range(df$julianweek) else xlim,
+       ylim = c(0, 1.05),
+       xlab = xlab, ylab = "",
+       yaxt = "n", main = "")
+  
+  for (v in all_vars) {
+    ok <- !is.na(df[[v]])
+    lines(df$julianweek[ok], rescale(df[[v]])[ok],
+          col = col_map[v], lty = lty_map[v], lwd = lwd)
+  }
+  
+  ## ---- Legend ----
+  legend(legend_pos, inset = c(-0.45, 0), xpd = TRUE, bty = "n",
+         cex    = legend_cex,
+         title  = legend_title,
+         legend = unname(labels[all_vars]),
+         col    = col_map[all_vars],
+         lty    = lty_map[all_vars],
+         lwd    = lwd)
+  
+  invisible(df)
+}
+multi_plotting(all_six_variables_dataframe, "8892356", 2021,
+               cat_colors   = c("gold", "darkorange3"),
+               frass_colors = c("lightblue", "navy"),
+               legend_labels = c(fracSurveys             = "% Surveys Caterpillars",
+                                 meanDensity             = "Caterpillar Density",
+                                 meanBiomass             = "Caterpillar Biomass",
+                                 trap_occurrence_percent = "% Traps Frass",
+                                 number_pellets          = "Number of Frass Pellets",
+                                 frass_mass              = "Frass mass"))
+
+
+
+
 #SCATTERPLOT OF THINGS WITH ABLINE INCLUDED BY COLOR
 
 
