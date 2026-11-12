@@ -254,7 +254,7 @@ occurrence_frass_combined_weeks <- occurrence_frass %>%
     (Site == 117 & Year %in% c(2015, 2018, 2019, 2021, 2022) & julianweek %in% 142:200) |
       (Site == 8892356 & Year %in% c(2015:2019, 2021:2026) & julianweek %in% 154:198))
 
-#imputation function
+#imputation function -> fills NA values
 impute_data <- function(data, var) {
   
   # Turn the bare column name into a string for building new column names
@@ -311,9 +311,76 @@ impute_data <- function(data, var) {
     ungroup()
 }
 
-#call with the bare column name (no quotes)
+#imputation function -> fills zero values
+impute_zeros <- function(data, var) {
+  
+  var_chr   <- rlang::as_name(rlang::ensym(var))
+  flag_name <- paste0("imputed_", var_chr)
+  
+  # Keep the original values, then treat 0 as missing
+  data <- data %>%
+    mutate(
+      .orig = {{ var }},
+      {{ var }} := na_if({{ var }}, 0)
+    )
+  
+  # Cross-year average of the FIRST week per Site/Year (zeros/NAs excluded)
+  first_jweek_refs <- data %>%
+    group_by(Site, Year) %>%
+    slice_min(julianweek, n = 1, with_ties = FALSE) %>%
+    ungroup() %>%
+    group_by(Site) %>%
+    summarise(ref_first = mean({{ var }}, na.rm = TRUE), .groups = "drop") %>%
+    mutate(ref_first = if_else(is.nan(ref_first), NA_real_, ref_first))
+  
+  # Cross-year average of the LAST week per Site/Year (zeros/NAs excluded)
+  last_jweek_refs <- data %>%
+    group_by(Site, Year) %>%
+    slice_max(julianweek, n = 1, with_ties = FALSE) %>%
+    ungroup() %>%
+    group_by(Site) %>%
+    summarise(ref_last = mean({{ var }}, na.rm = TRUE), .groups = "drop") %>%
+    mutate(ref_last = if_else(is.nan(ref_last), NA_real_, ref_last))
+  
+  data %>%
+    left_join(first_jweek_refs, by = "Site") %>%
+    left_join(last_jweek_refs,  by = "Site") %>%
+    group_by(Site, Year) %>%
+    arrange(julianweek, .by_group = TRUE) %>%
+    mutate(
+      .was_missing = is.na({{ var }}),
+      
+      # first week missing -> site average for first weeks in other years
+      {{ var }} := if_else(
+        is.na({{ var }}) & julianweek == first(julianweek),
+        ref_first, {{ var }}
+      ),
+      
+      # last week missing -> site average for last weeks in other years
+      {{ var }} := if_else(
+        is.na({{ var }}) & julianweek == last(julianweek),
+        ref_last, {{ var }}
+      ),
+      
+      # interior missing -> interpolate between values above and below
+      {{ var }} := na.approx({{ var }}, x = julianweek, na.rm = FALSE,
+                             rule = 2, maxgap = 2),
+      
+      # flag rows that were zero/NA and now have an imputed value
+      !!flag_name := as.integer(.was_missing & !is.na({{ var }})),
+      
+      # anything that couldn't be filled goes back to its original value
+      {{ var }} := coalesce({{ var }}, .orig)
+    ) %>%
+    ungroup() %>%
+    dplyr::select(-.orig, -.was_missing, -ref_first, -ref_last)
+}
+
+#use the zero one
 occurrence_frass_combined_weeks_imputation_data <-
-  impute_data(occurrence_frass_combined_weeks, trap_occurrence_percent)
+  impute_zeros(occurrence_frass_combined_weeks, trap_occurrence_percent)
+
+
 
 #-----------------------------------------------------------------------------------------------
 #Filtering Data for Frass NUMBER of PELLETS 
@@ -327,6 +394,7 @@ frass_pellet_number <- data %>%
   mutate(Site = dplyr::recode(Site, "Prairie Ridge" = "117"))
 frass_pellet_number$Year <- as.integer(frass_pellet_number$Year)
 
+#impute using the na one
 frass_pellet_number_imputation_data <-
   impute_data(frass_pellet_number, number_pellets)
 
@@ -868,12 +936,18 @@ lapply(models, summary)
 #combining frass mass/occurrence and caterpillar occurrence, biomass, and density into one dataframe
 all_six_variables_dataframe_impute <- cat_data_byweek %>%
   dplyr::select(Site, Year, julianweek, fracSurveys, meanDensity)%>%
-  left_join(occurrence_frass_combined_weeks_imputation_data, by=c("Site", "Year", "julianweek")) %>%
+  left_join(occurrence_frass_combined_weeks_imputation_data %>% dplyr::select(Site, Year, julianweek, trap_occurrence_percent),by=c("Site", "Year", "julianweek")) %>%
   left_join(imputation_data %>% dplyr::select(Site, Year, julianweek, meanBiomass, mass), by=c("Site", "Year", "julianweek")) %>%
   left_join(frass_pellet_number_imputation_data, dplyr::select(Site, Year, julianweek, number_pellets), by =c("Site", "Year", "julianweek")) %>%
   rename(frass_mass = mass) #all years previous standardized (same jday range before joining)
 
-anomaly_centered_impute <- all_six_variables_dataframe_impute %>%
+#ok lowkey use imputation function again on the combined dataframe to fill in missing trap_occurrence_percent and number pellets columns
+all_six_variables_dataframe_impute2 <- impute_data(all_six_variables_dataframe_impute, trap_occurrence_percent) 
+
+all_six_variables_dataframe_impute3 <- impute_data(all_six_variables_dataframe_impute2, number_pellets)
+
+#make all impute columns
+anomaly_centered_impute <- all_six_variables_dataframe_impute3 %>%
   left_join(AllTemp_weekly, by=c("Year", "Site", "julianweek")) %>%
   group_by(Site, Year) %>%
   mutate(fracSurveys_avg = mean(fracSurveys, na.rm = TRUE), #MEAN START HERE
@@ -935,7 +1009,7 @@ vars_z  <- c("fracSurveys_zscore", "meanDensity_zscore", "trap_occurrence_percen
 sites <- c(8892356, 117)
 
 setwd("C:/Z_School/school/HurlbertLab/graphs")
-pdf("anomalytest.pdf", width = 8, height = 10)
+pdf("anomalytest_impute.pdf", width = 8, height = 10)
 
 for (s in sites) {
   plots <- map(vars_z, ~ anomaly_centered_plotting(
