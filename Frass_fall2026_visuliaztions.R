@@ -1009,11 +1009,11 @@ vars_z  <- c("fracSurveys_zscore", "meanDensity_zscore", "trap_occurrence_percen
 sites <- c(8892356, 117)
 
 setwd("C:/Z_School/school/HurlbertLab/graphs")
-pdf("anomalytest_impute.pdf", width = 8, height = 10)
+pdf("anomalytest_impute_zscore.pdf", width = 8, height = 10)
 
 for (s in sites) {
   plots <- map(vars_z, ~ anomaly_centered_plotting(
-    anomaly_centered,
+    anomaly_centered_impute,
     !!rlang::sym(.x),     # turns the string into a column name
     site_choice = s       # must be named, since the 3rd positional arg is site_choice
   ))
@@ -1022,7 +1022,7 @@ for (s in sites) {
           plot_annotation(title = paste("Site", s)))
 }
 
-dev.off()   # closes the PDF, otherwise it may be corrupt or empty
+dev.off()   
 
 #--------------------------
 #linear model for zscore anomaly
@@ -1031,7 +1031,7 @@ vars_z  <- c("fracSurveys_zscore", "meanDensity_zscore", "trap_occurrence_percen
 
 #lmer(response(all6)_anomaly ~ spring_temp_anomaly, data=df)
 models <- lapply(vars_z, function(v) {
-  lm(as.formula(paste(v, "~ weeklytemp_zscore")), data = anomaly_centered)
+  lm(as.formula(paste(v, "~ weeklytemp_zscore")), data = anomaly_centered_impute)
 })
 names(models) <- vars_z
 
