@@ -1042,6 +1042,8 @@ lapply(models, summary)
 # ---------------------------------------------------------------------------------------------
 #   POSTER VISUALS
 # -----------------------------------------------------------------------------------------------
+#FIGURE 1
+
 #line plot of one variable (caterpillar biomass) for one site across all years
 simple_plotting <- function(data, site_choice, var_choice,
                             year_col = "Year",
@@ -1107,10 +1109,46 @@ simple_plotting <- function(data, site_choice, var_choice,
   invisible(df)
 }
 
-simple_plotting(all_six_variables_dataframe, "8892356", "meanBiomass")
+simple_plotting(all_six_variables_dataframe, "117", "fracSurveys", colors = c("grey40"))
+
+#this is one where all lines grey with average line and corrected labels
+anomaly_plotting <- function(data, data2, var_choice, avg_var_choice,
+                             site_choice,
+                             x_var = julianweek, year_var = Year,
+                             site_var = Site) {
+  
+  df1 <- data  %>% filter({{ site_var }} == .env$site_choice)
+  df2 <- data2 %>% filter({{ site_var }} == .env$site_choice)
+  
+  ggplot(df1) +
+    geom_line(aes(x = {{ x_var }},
+                  y = {{ var_choice }},
+                  group = {{ year_var }}),
+              alpha = 0.7, color = "grey40", linewidth = 0.6) +
+    geom_line(data = df2,
+              aes(x = {{ x_var }},
+                  y = {{ avg_var_choice }}),
+              color = "black", linewidth = 2) +
+    labs(x = "Day of Year",
+         y = "% Caterpillars per Survey",
+         color = "Year",
+         title = "") +
+    theme_classic() +
+    theme(axis.title.x = element_text(margin = margin(t = 40)))  # increase t to move farther down
+}
+
+#use it
+anomaly_plotting(visualization_data, visualization_data_average,
+                 fracSurveys, fracSurveys_avg, 8892356)
+
+
+
+#FIGURE 2:
 
 #line plot of one year at NCBG, but plotting all the variables
-library(dplyr)
+
+
+
 
 multi_plotting <- function(data, site_choice, year_choice,
                            year_col   = "Year",
@@ -1119,7 +1157,7 @@ multi_plotting <- function(data, site_choice, year_choice,
                            cat_colors   = c("lightgreen", "darkgreen"),
                            frass_colors = c("tan", "sienna4"),
                            scale_to   = c("max", "minmax"),
-                           xlab = "Julian week",
+                           xlab = "Day of Week",
                            xlim = NULL,
                            lwd  = 2.5,
                            legend_labels = NULL,        # named vector: c(column = "new text")
@@ -1171,14 +1209,148 @@ multi_plotting <- function(data, site_choice, year_choice,
   }
   
   ## ---- Plot ----
-  op <- par(mar = c(5, 2, 2, 9), bty = "l")
+  op <- par(mar = c(6, 2, 2, 9), bty = "l")   # increase bottom margin (was 5)
   on.exit(par(op))
   
   plot(NA,
        xlim = if (is.null(xlim)) range(df$julianweek) else xlim,
        ylim = c(0, 1.05),
-       xlab = xlab, ylab = "",
+       xlab = "", ylab = "",                   # blank out the default label
        yaxt = "n", main = "")
+  
+  title(xlab = xlab, line = 4.7)               # line = distance from axis (default is ~3)
+  
+  for (v in all_vars) {
+    ok <- !is.na(df[[v]])
+    lines(df$julianweek[ok], rescale(df[[v]])[ok],
+          col = col_map[v], lty = lty_map[v], lwd = lwd)
+  }
+  
+  ## ---- Legend ----
+  cat_present   <- cat_vars[cat_vars %in% all_vars]
+  frass_present <- frass_vars[frass_vars %in% all_vars]
+  
+  # Caterpillar legend: same place as before
+  if (length(cat_present) > 0) {
+    legend(legend_pos, inset = c(-0.45, 0), xpd = TRUE, bty = "n",
+           cex    = legend_cex,
+           title  = legend_title,
+           legend = unname(labels[cat_present]),
+           col    = col_map[cat_present],
+           lty    = lty_map[cat_present],
+           lwd    = lwd)
+  }
+  
+  # Frass legend: same horizontal spot, scooted down
+  if (length(frass_present) > 0) {
+    legend(legend_pos, inset = c(-0.45, frass_inset_y), xpd = TRUE, bty = "n",
+           cex    = legend_cex,
+           title  = frass_legend_title,
+           legend = unname(labels[frass_present]),
+           col    = col_map[frass_present],
+           lty    = lty_map[frass_present],
+           lwd    = lwd)
+  }
+  
+  invisible(df) 
+}
+multi_plotting <- function(data, site_choice, year_choice,
+                           year_col   = "Year",
+                           cat_vars   = c("fracSurveys", "meanDensity", "meanBiomass"),
+                           frass_vars = c("trap_occurrence_percent", "number_pellets", "frass_mass"),
+                           cat_colors   = c("orange", "red3"),
+                           frass_colors = c("deepskyblue1", "#0F52BA"),
+                           scale_to   = c("max", "minmax"),
+                           xlab = "Day of Week",
+                           xlim = NULL,
+                           lwd  = 2.5,
+                           legend_labels      = NULL,   # named vector: c(column = "new text")
+                           legend_title       = NULL,   # caterpillar legend title
+                           frass_legend_title = NULL,   # frass legend title
+                           legend_cex         = 0.8,
+                           legend_pos         = "topright",
+                           frass_inset_y      = 0.3)   # larger = frass legend lower
+
+#SCATTERPLOT OF THINGS WITH ABLINE INCLUDED BY COLOR
+
+
+
+
+
+
+
+
+
+
+multi_plotting <- function(data, site_choice, year_choice,
+                           year_col   = "Year",
+                           cat_vars   = c("fracSurveys", "meanDensity", "meanBiomass"),
+                           frass_vars = c("trap_occurrence_percent", "number_pellets", "frass_mass"),
+                           cat_colors   = c("lightgreen", "darkgreen"),
+                           frass_colors = c("tan", "sienna4"),
+                           scale_to   = c("max", "minmax"),
+                           xlab = "Day of Week",
+                           xlim = NULL,
+                           lwd  = 2.5,
+                           legend_labels = NULL,        # named vector: c(column = "new text")
+                           legend_title  = NULL,
+                           legend_cex    = 0.8,
+                           legend_pos    = "topright") {
+  
+  scale_to <- match.arg(scale_to)
+  
+  df <- data %>%
+    filter(Site == site_choice, .data[[year_col]] == year_choice) %>%
+    filter(!is.na(julianweek)) %>%
+    arrange(julianweek)
+  
+  all_vars <- c(cat_vars, frass_vars)
+  all_vars <- all_vars[all_vars %in% names(df)]
+  
+  if (nrow(df) == 0 || length(all_vars) == 0) {
+    plot.new()
+    text(0.5, 0.5, paste("No data for", site_choice, year_choice), cex = 1.2)
+    return(invisible(NULL))
+  }
+  
+  ## ---- Colors ----
+  cat_cols   <- colorRampPalette(cat_colors)(length(cat_vars))
+  frass_cols <- colorRampPalette(frass_colors)(length(frass_vars))
+  col_map    <- setNames(c(cat_cols, frass_cols), c(cat_vars, frass_vars))
+  
+  lty_map <- setNames(c(rep(1, length(cat_vars)), rep(2, length(frass_vars))),
+                      c(cat_vars, frass_vars))
+  
+  ## ---- Legend text: use custom label if given, otherwise column name ----
+  labels <- setNames(all_vars, all_vars)
+  if (!is.null(legend_labels)) {
+    matched <- intersect(names(legend_labels), all_vars)
+    labels[matched] <- legend_labels[matched]
+  }
+  
+  ## ---- Rescale ----
+  rescale <- function(x) {
+    if (all(is.na(x))) return(x)
+    if (scale_to == "max") {
+      m <- max(x, na.rm = TRUE)
+      if (m == 0) x else x / m
+    } else {
+      r <- range(x, na.rm = TRUE)
+      if (diff(r) == 0) rep(0, length(x)) else (x - r[1]) / diff(r)
+    }
+  }
+  
+  ## ---- Plot ----
+  op <- par(mar = c(6, 2, 2, 9), bty = "l")   # increase bottom margin (was 5)
+  on.exit(par(op))
+  
+  plot(NA,
+       xlim = if (is.null(xlim)) range(df$julianweek) else xlim,
+       ylim = c(0, 1.05),
+       xlab = "", ylab = "",                   # blank out the default label
+       yaxt = "n", main = "")
+  
+  title(xlab = xlab, line = 4.7)               # line = distance from axis (default is ~3)
   
   for (v in all_vars) {
     ok <- !is.na(df[[v]])
@@ -1195,32 +1367,17 @@ multi_plotting <- function(data, site_choice, year_choice,
          lty    = lty_map[all_vars],
          lwd    = lwd)
   
-  invisible(df)
+  invisible(df) 
 }
 multi_plotting(all_six_variables_dataframe, "8892356", 2021,
-               cat_colors   = c("gold", "darkorange3"),
-               frass_colors = c("lightblue", "navy"),
+               cat_colors   = c("orange", "red3"),
+               frass_colors = c("deepskyblue1", "#0F52BA"),
                legend_labels = c(fracSurveys             = "% Surveys Caterpillars",
                                  meanDensity             = "Caterpillar Density",
                                  meanBiomass             = "Caterpillar Biomass",
                                  trap_occurrence_percent = "% Traps Frass",
                                  number_pellets          = "Number of Frass Pellets",
                                  frass_mass              = "Frass mass"))
-
-
-
-
-#SCATTERPLOT OF THINGS WITH ABLINE INCLUDED BY COLOR
-
-
-
-
-
-
-
-
-
-
 
 
 
