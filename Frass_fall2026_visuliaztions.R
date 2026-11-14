@@ -1044,7 +1044,7 @@ lapply(models, summary)
 # -----------------------------------------------------------------------------------------------
 #FIGURE 1
 
-#line plot of one variable (caterpillar biomass) for one site across all years
+#line plot of one variable (caterpillar biomass) for one site across all years (old version)
 simple_plotting <- function(data, site_choice, var_choice,
                             year_col = "Year",
                             colors   = c("gold", "firebrick", "navy"),  # custom gradient
@@ -1111,7 +1111,7 @@ simple_plotting <- function(data, site_choice, var_choice,
 
 simple_plotting(all_six_variables_dataframe, "117", "fracSurveys", colors = c("grey40"))
 
-#this is one where all lines grey with average line and corrected labels
+#this is one where all lines grey with average line and corrected labels (new version)
 anomaly_plotting <- function(data, data2, var_choice, avg_var_choice,
                              site_choice,
                              x_var = julianweek, year_var = Year,
@@ -1141,29 +1141,64 @@ anomaly_plotting <- function(data, data2, var_choice, avg_var_choice,
 anomaly_plotting(visualization_data, visualization_data_average,
                  fracSurveys, fracSurveys_avg, 8892356)
 
-
-
+#where 2022 year is red
+anomaly_plotting <- function(data, data2, var_choice, avg_var_choice,
+                             site_choice,
+                             x_var = julianweek, year_var = Year,
+                             site_var = Site,
+                             highlight_year = 2022,
+                             highlight_color = "red3") {
+  
+  df1 <- data  %>% filter({{ site_var }} == .env$site_choice)
+  df2 <- data2 %>% filter({{ site_var }} == .env$site_choice)
+  
+  ggplot() +
+    # all other years: thin grey lines
+    geom_line(data = df1 %>% filter({{ year_var }} != .env$highlight_year),
+              aes(x = {{ x_var }},
+                  y = {{ var_choice }},
+                  group = {{ year_var }}),
+              alpha = 0.7, color = "grey40", linewidth = 0.6) +
+    # highlighted year: drawn on top in red3
+    geom_line(data = df1 %>% filter({{ year_var }} == .env$highlight_year),
+              aes(x = {{ x_var }},
+                  y = {{ var_choice }},
+                  group = {{ year_var }}),
+              color = highlight_color, linewidth = 0.9) +
+    # bold average line
+    geom_line(data = df2,
+              aes(x = {{ x_var }},
+                  y = {{ avg_var_choice }}),
+              color = "black", linewidth = 2) +
+    labs(x = "Day of Year",
+         y = "% Caterpillars per Survey",
+         title = "") +
+    theme_classic() +
+    theme(axis.title.x = element_text(margin = margin(t = 40)))
+}
+#use
+anomaly_plotting(visualization_data, visualization_data_average,
+                 fracSurveys, fracSurveys_avg, 8892356)
+#---------------------------------------------------
 #FIGURE 2:
 
 #line plot of one year at NCBG, but plotting all the variables
-
-
-
-
 multi_plotting <- function(data, site_choice, year_choice,
                            year_col   = "Year",
                            cat_vars   = c("fracSurveys", "meanDensity", "meanBiomass"),
                            frass_vars = c("trap_occurrence_percent", "number_pellets", "frass_mass"),
-                           cat_colors   = c("lightgreen", "darkgreen"),
-                           frass_colors = c("tan", "sienna4"),
+                           cat_colors   = c("orange", "red3"),
+                           frass_colors = c("deepskyblue1", "#0F52BA"),
                            scale_to   = c("max", "minmax"),
                            xlab = "Day of Week",
                            xlim = NULL,
                            lwd  = 2.5,
-                           legend_labels = NULL,        # named vector: c(column = "new text")
-                           legend_title  = NULL,
-                           legend_cex    = 0.8,
-                           legend_pos    = "topright") {
+                           legend_labels      = NULL,
+                           legend_title       = NULL,
+                           frass_legend_title = NULL,
+                           legend_cex         = 0.8,
+                           legend_pos         = "topright",
+                           frass_inset_y      = 0.5) {
   
   scale_to <- match.arg(scale_to)
   
@@ -1189,7 +1224,7 @@ multi_plotting <- function(data, site_choice, year_choice,
   lty_map <- setNames(c(rep(1, length(cat_vars)), rep(2, length(frass_vars))),
                       c(cat_vars, frass_vars))
   
-  ## ---- Legend text: use custom label if given, otherwise column name ----
+  ## ---- Legend text ----
   labels <- setNames(all_vars, all_vars)
   if (!is.null(legend_labels)) {
     matched <- intersect(names(legend_labels), all_vars)
@@ -1209,16 +1244,16 @@ multi_plotting <- function(data, site_choice, year_choice,
   }
   
   ## ---- Plot ----
-  op <- par(mar = c(6, 2, 2, 9), bty = "l")   # increase bottom margin (was 5)
+  op <- par(mar = c(6, 2, 2, 9), bty = "l")
   on.exit(par(op))
   
   plot(NA,
        xlim = if (is.null(xlim)) range(df$julianweek) else xlim,
        ylim = c(0, 1.05),
-       xlab = "", ylab = "",                   # blank out the default label
+       xlab = "", ylab = "",
        yaxt = "n", main = "")
   
-  title(xlab = xlab, line = 4.7)               # line = distance from axis (default is ~3)
+  title(xlab = xlab, line = 4.7)
   
   for (v in all_vars) {
     ok <- !is.na(df[[v]])
@@ -1226,11 +1261,10 @@ multi_plotting <- function(data, site_choice, year_choice,
           col = col_map[v], lty = lty_map[v], lwd = lwd)
   }
   
-  ## ---- Legend ----
+  ## ---- Legends ----
   cat_present   <- cat_vars[cat_vars %in% all_vars]
   frass_present <- frass_vars[frass_vars %in% all_vars]
   
-  # Caterpillar legend: same place as before
   if (length(cat_present) > 0) {
     legend(legend_pos, inset = c(-0.45, 0), xpd = TRUE, bty = "n",
            cex    = legend_cex,
@@ -1241,9 +1275,8 @@ multi_plotting <- function(data, site_choice, year_choice,
            lwd    = lwd)
   }
   
-  # Frass legend: same horizontal spot, scooted down
   if (length(frass_present) > 0) {
-    legend(legend_pos, inset = c(-0.45, frass_inset_y), xpd = TRUE, bty = "n",
+    legend(legend_pos, inset = c(-0.47, frass_inset_y), xpd = TRUE, bty = "n",
            cex    = legend_cex,
            title  = frass_legend_title,
            legend = unname(labels[frass_present]),
@@ -1252,36 +1285,19 @@ multi_plotting <- function(data, site_choice, year_choice,
            lwd    = lwd)
   }
   
-  invisible(df) 
+  invisible(df)
 }
-multi_plotting <- function(data, site_choice, year_choice,
-                           year_col   = "Year",
-                           cat_vars   = c("fracSurveys", "meanDensity", "meanBiomass"),
-                           frass_vars = c("trap_occurrence_percent", "number_pellets", "frass_mass"),
-                           cat_colors   = c("orange", "red3"),
-                           frass_colors = c("deepskyblue1", "#0F52BA"),
-                           scale_to   = c("max", "minmax"),
-                           xlab = "Day of Week",
-                           xlim = NULL,
-                           lwd  = 2.5,
-                           legend_labels      = NULL,   # named vector: c(column = "new text")
-                           legend_title       = NULL,   # caterpillar legend title
-                           frass_legend_title = NULL,   # frass legend title
-                           legend_cex         = 0.8,
-                           legend_pos         = "topright",
-                           frass_inset_y      = 0.3)   # larger = frass legend lower
-
-#SCATTERPLOT OF THINGS WITH ABLINE INCLUDED BY COLOR
 
 
+multi_plotting(all_six_variables_dataframe, "8892356", 2022,
+               legend_labels = c(fracSurveys             = "% Surveys Caterpillars",
+                                 meanDensity             = "Caterpillar Density",
+                                 meanBiomass             = "Caterpillar Biomass",
+                                 trap_occurrence_percent = "% Traps Frass",
+                                 number_pellets          = "Number of Frass Pellets",
+                                 frass_mass              = "Frass mass"))
 
-
-
-
-
-
-
-
+#old version
 multi_plotting <- function(data, site_choice, year_choice,
                            year_col   = "Year",
                            cat_vars   = c("fracSurveys", "meanDensity", "meanBiomass"),
@@ -1378,6 +1394,104 @@ multi_plotting(all_six_variables_dataframe, "8892356", 2021,
                                  trap_occurrence_percent = "% Traps Frass",
                                  number_pellets          = "Number of Frass Pellets",
                                  frass_mass              = "Frass mass"))
+#------------------------------------------------------
+#FIGURE 3:
+
+
+#---------------------------------------------------------------------------
+#all years spearman correlation for 6 variables
+#----------------------------------------------------------------------------
+vars_of_interest <- c("fracSurveys", "meanBiomass", "meanDensity", "trap_occurrence_percent", "frass_mass", "number_pellets")
+
+
+#nest data by Site x Year combo
+safe_cor_mat_spearman <- possibly(
+  ~ rstatix::cor_mat(.x, method = "spearman"),
+  otherwise = NULL
+)
+nested_data_spearman_allyears <- all_six_variables_dataframe_impute3 %>%
+  dplyr::select(Site, all_of(vars_of_interest)) %>%   # Year no longer needed, add year back if want individual year
+  group_by(Site) %>%
+  nest() %>%
+  mutate(cor_matrix = map(data, safe_cor_mat_spearman))
+
+
+correlation_plotting_allyears <- function(data, site_choice) {
+  df <- data %>%
+    filter(Site == site_choice)
+  
+  cor_df <- df$cor_matrix[[1]]
+  
+  cor_matrix <- cor_df %>%
+    column_to_rownames(var = colnames(cor_df)[1]) %>%
+    as.matrix()
+  
+  corrplot(cor_matrix,
+           type = "upper",
+           title = "",
+           mar = c(0, 0, 2, 0),
+           method = "shade",
+           order = "original",
+           tl.col = "black",
+           tl.srt = 45,
+           cl.align.text = "l",
+           cl.offset = .5,
+           addCoef.col = "black",
+           number.cex = 0.8,
+           addgrid.col = "black",
+           col = colorRampPalette(c("firebrick2", "white", "dodgerblue3"))(200))
+  
+  invisible(cor_matrix)
+}
+
+correlation_plotting_allyears(nested_data_spearman_allyears, 8892356)
+
+
+#no site
+
+nested_data_spearman_allyears <- all_six_variables_dataframe_impute3 %>%
+  dplyr::select(all_of(vars_of_interest)) %>%   # Year no longer needed, add year back if want individual year
+  nest() %>%
+  mutate(cor_matrix = map(data, safe_cor_mat_spearman))
+
+
+correlation_plotting_allyears <- function(data) {
+  df <- data 
+  cor_df <- df$cor_matrix[[1]]
+  
+  cor_matrix <- cor_df %>%
+    column_to_rownames(var = colnames(cor_df)[1]) %>%
+    as.matrix()
+  
+  corrplot(cor_matrix,
+           type = "upper",
+           title = "",
+           mar = c(0, 0, 2, 0),
+           method = "shade",
+           order = "original",
+           tl.col = "black",
+           tl.srt = 45,
+           cl.align.text = "l",
+           cl.offset = .5,
+           addCoef.col = "black",
+           number.cex = 0.8,
+           addgrid.col = "black",
+           col = colorRampPalette(c("firebrick2", "white", "dodgerblue3"))(200))
+  
+  invisible(cor_matrix)
+}
+
+correlation_plotting_allyears(nested_data_spearman_allyears)
+
+
+#SCATTERPLOT OF THINGS WITH ABLINE INCLUDED BY COLOR
+
+
+
+
+
+
+
 
 
 
