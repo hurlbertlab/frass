@@ -1385,9 +1385,9 @@ multi_plotting <- function(data, site_choice, year_choice,
   
   invisible(df) 
 }
-multi_plotting(all_six_variables_dataframe, "8892356", 2021,
-               cat_colors   = c("orange", "red3"),
-               frass_colors = c("deepskyblue1", "#0F52BA"),
+multi_plotting(all_six_variables_dataframe, "8892356", 2022,
+               cat_colors   = c("orange", "brown1"),
+               frass_colors = c("#70DB65", "#018060"),
                legend_labels = c(fracSurveys             = "% Surveys Caterpillars",
                                  meanDensity             = "Caterpillar Density",
                                  meanBiomass             = "Caterpillar Biomass",
@@ -1397,10 +1397,6 @@ multi_plotting(all_six_variables_dataframe, "8892356", 2021,
 #------------------------------------------------------
 #FIGURE 3:
 
-
-#---------------------------------------------------------------------------
-#all years spearman correlation for 6 variables
-#----------------------------------------------------------------------------
 vars_of_interest <- c("fracSurveys", "meanBiomass", "meanDensity", "trap_occurrence_percent", "frass_mass", "number_pellets")
 
 
@@ -1415,7 +1411,7 @@ nested_data_spearman_allyears <- all_six_variables_dataframe_impute3 %>%
   nest() %>%
   mutate(cor_matrix = map(data, safe_cor_mat_spearman))
 
-
+#correlation by site year------------------------------------------------------------
 correlation_plotting_allyears <- function(data, site_choice) {
   df <- data %>%
     filter(Site == site_choice)
@@ -1447,8 +1443,7 @@ correlation_plotting_allyears <- function(data, site_choice) {
 correlation_plotting_allyears(nested_data_spearman_allyears, 8892356)
 
 
-#no site
-
+#Correlation across all site years (one panel for all data)-------------------------
 nested_data_spearman_allyears <- all_six_variables_dataframe_impute3 %>%
   dplyr::select(all_of(vars_of_interest)) %>%   # Year no longer needed, add year back if want individual year
   nest() %>%
@@ -1483,7 +1478,58 @@ correlation_plotting_allyears <- function(data) {
 
 correlation_plotting_allyears(nested_data_spearman_allyears)
 
+#changing label colors--------------------------------------------------------------
+correlation_plotting_allyears <- function(data,
+                                          labels = c(
+                                            fracSurveys             = "% Surveys Caterpillars",
+                                            meanDensity             = "Caterpillar Density",
+                                            meanBiomass             = "Caterpillar Biomass",
+                                            trap_occurrence_percent = "% Traps Frass",
+                                            number_pellets          = "Number of Frass Pellets",
+                                            frass_mass              = "Frass Mass"
+                                          ),
+                                          cat_vars   = c("fracSurveys", "meanDensity", "meanBiomass"),
+                                          frass_vars = c("trap_occurrence_percent", "number_pellets", "frass_mass"),
+                                          cat_col    = "brown1",
+                                          frass_col  = "#018060") {
+  df <- data
+  cor_df <- df$cor_matrix[[1]]
+  
+  cor_matrix <- cor_df %>%
+    column_to_rownames(var = colnames(cor_df)[1]) %>%
+    as.matrix()
+  
+  # Label colors, determined from the ORIGINAL variable names
+  orig_names <- colnames(cor_matrix)
+  label_cols <- ifelse(orig_names %in% cat_vars, cat_col,
+                       ifelse(orig_names %in% frass_vars, frass_col, "black"))
+  
+  # Rename rows/columns; keep original name if not in the lookup
+  new_names <- ifelse(orig_names %in% names(labels), labels[orig_names], orig_names)
+  colnames(cor_matrix) <- new_names
+  rownames(cor_matrix) <- ifelse(rownames(cor_matrix) %in% names(labels),
+                                 labels[rownames(cor_matrix)],
+                                 rownames(cor_matrix))
+  
+  corrplot(cor_matrix,
+           type = "upper",
+           title = "",
+           mar = c(0, 0, 2, 0),
+           method = "shade",
+           order = "original",
+           tl.col = label_cols,
+           tl.srt = 45,
+           cl.align.text = "l",
+           cl.offset = .5,
+           addCoef.col = "black",
+           number.cex = 0.8,
+           addgrid.col = "black",
+           col = colorRampPalette(c("firebrick2", "white", "dodgerblue3"))(200))
+  
+  invisible(cor_matrix)
+}
 
+correlation_plotting_allyears(nested_data_spearman_allyears)
 #SCATTERPLOT OF THINGS WITH ABLINE INCLUDED BY COLOR
 
 
