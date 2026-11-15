@@ -671,7 +671,7 @@ AllTemp_weekly <- AllTemp %>%
 # ---------------------------------------------------------------------------------------------
 #   combining weekly temp and 6 variables dataframe
 # -----------------------------------------------------------------------------------------------
-visualization_data <- all_six_variables_dataframe %>%
+visualization_data <- all_six_variables_dataframe_impute3 %>%
   left_join(AllTemp_weekly, by=c("Year", "Site", "julianweek")) %>% #2026 data not available
   group_by(Site, julianweek) %>%
   mutate(fracSurveys_avg = mean(fracSurveys, na.rm = TRUE),
@@ -869,7 +869,24 @@ anomaly_centered <- all_six_variables_dataframe %>%
          trap_occurrence_percent_zscore = (trap_occurrence_percent_anomaly/trap_occurrence_percent_sd),
          frass_mass_zscore = (frass_mass_anomaly/frass_mass_sd),
          number_pellets_zscore = (number_pellets_anomaly/number_pellets_sd),
-         weeklytemp_zscore = (weeklytemp_anomaly/weeklytemp_sd))
+         weeklytemp_zscore = (weeklytemp_anomaly/weeklytemp_sd)) %>%
+  ungroup() %>%
+  group_by(Site, julianweek) %>% 
+  mutate(fracSurveys_avg_zscore = mean(fracSurveys_zscore, na.rm = TRUE), #NEW AVG STARTS HERE
+            meanDensity_avg_zscore = mean(meanDensity_zscore, na.rm = TRUE),
+            meanBiomass_avg_zscore = mean(meanBiomass_zscore, na.rm = TRUE),
+            trap_occurrence_percent_avg_zscore = mean(trap_occurrence_percent_zscore, na.rm = TRUE),
+            frass_mass_avg_zscore = mean(frass_mass_zscore, na.rm = TRUE),
+            number_pellets_avg_zscore = mean(number_pellets_zscore, na.rm = TRUE),
+            weeklytemp_avg_zscore = mean(weeklytemp_zscore, na.rm = TRUE),
+         fracSurveys_anomaly_new = fracSurveys_zscore - fracSurveys_avg_zscore, #NEW ANAOMALY START HERE
+         meanDensity_anomaly_new = meanDensity_zscore - meanDensity_avg_zscore,
+         meanBiomass_anomaly_new = meanBiomass_zscore - meanBiomass_avg_zscore,
+         trap_occurrence_percent_anomaly_new = trap_occurrence_percent_zscore - trap_occurrence_percent_avg_zscore,
+         frass_mass_anomaly_new = frass_mass_zscore - frass_mass_avg_zscore,
+         number_pellets_anomaly_new = number_pellets_zscore - number_pellets_avg_zscore,
+         weeklytemp_anomaly_new = weeklytemp_zscore - weeklytemp_avg_zscore) #maybe change to summarize
+
 
 #make a function for plotting each variable for all years and where they are all centered at 0
 anomaly_centered_plotting <- function(data, var_choice, site_choice, x_var = julianweek, year_var = Year, site_var = Site) {
@@ -977,7 +994,80 @@ anomaly_centered_impute <- all_six_variables_dataframe_impute3 %>%
          trap_occurrence_percent_zscore = (trap_occurrence_percent_anomaly/trap_occurrence_percent_sd),
          frass_mass_zscore = (frass_mass_anomaly/frass_mass_sd),
          number_pellets_zscore = (number_pellets_anomaly/number_pellets_sd),
-         weeklytemp_zscore = (weeklytemp_anomaly/weeklytemp_sd))
+         weeklytemp_zscore = (weeklytemp_anomaly/weeklytemp_sd)) %>%
+  ungroup() %>%
+  group_by(Site, julianweek) %>% 
+  mutate(fracSurveys_avg_zscore = mean(fracSurveys_zscore, na.rm = TRUE), #NEW AVG STARTS HERE
+         meanDensity_avg_zscore = mean(meanDensity_zscore, na.rm = TRUE),
+         meanBiomass_avg_zscore = mean(meanBiomass_zscore, na.rm = TRUE),
+         trap_occurrence_percent_avg_zscore = mean(trap_occurrence_percent_zscore, na.rm = TRUE),
+         frass_mass_avg_zscore = mean(frass_mass_zscore, na.rm = TRUE),
+         number_pellets_avg_zscore = mean(number_pellets_zscore, na.rm = TRUE),
+         weeklytemp_avg_zscore = mean(weeklytemp_zscore, na.rm = TRUE),
+         fracSurveys_anomaly_new = fracSurveys_zscore - fracSurveys_avg_zscore, #NEW ANAOMALY START HERE
+         meanDensity_anomaly_new = meanDensity_zscore - meanDensity_avg_zscore,
+         meanBiomass_anomaly_new = meanBiomass_zscore - meanBiomass_avg_zscore,
+         trap_occurrence_percent_anomaly_new = trap_occurrence_percent_zscore - trap_occurrence_percent_avg_zscore,
+         frass_mass_anomaly_new = frass_mass_zscore - frass_mass_avg_zscore,
+         number_pellets_anomaly_new = number_pellets_zscore - number_pellets_avg_zscore,
+         weeklytemp_anomaly_new = weeklytemp_zscore - weeklytemp_avg_zscore) #maybe change to summarize
+
+##redo this anomaly -> fix grouping so averages are across site/julian week (year collapsed) and other oes are for site year so each year has different value
+anomaly_centered_impute <- all_six_variables_dataframe_impute3 %>%
+  left_join(AllTemp_weekly, by=c("Year", "Site", "julianweek")) %>%
+  group_by(Site, julianweek) %>%
+  mutate(fracSurveys_avg = mean(fracSurveys, na.rm = TRUE), #MEAN START HERE
+         meanDensity_avg = mean(meanDensity, na.rm = TRUE),
+         meanBiomass_avg = mean(meanBiomass, na.rm = TRUE),
+         trap_occurrence_percent_avg = mean(trap_occurrence_percent, na.rm = TRUE),
+         frass_mass_avg = mean(frass_mass, na.rm = TRUE),
+         number_pellets_avg = mean(number_pellets, na.rm = TRUE),
+         weeklytemp_avg = mean(weeklytemp, na.rm = TRUE)) %>%
+  ungroup()%>%
+  group_by(Site, Year) %>%
+  mutate(
+         fracSurveys_anomaly = fracSurveys - fracSurveys_avg, #ANAOMALY START HERE
+         meanDensity_anomaly = meanDensity - meanDensity_avg,
+         meanBiomass_anomaly = meanBiomass - meanBiomass_avg,
+         trap_occurrence_percent_anomaly = trap_occurrence_percent - trap_occurrence_percent_avg,
+         frass_mass_anomaly = frass_mass - frass_mass_avg,
+         number_pellets_anomaly = number_pellets - number_pellets_avg,
+         weeklytemp_anomaly = weeklytemp - weeklytemp_avg,
+         fracSurveys_sd = sd(fracSurveys, na.rm = TRUE), #STANDARD DEVIATION START HERE
+         meanDensity_sd = sd(meanDensity, na.rm = TRUE),
+         meanBiomass_sd = sd(meanBiomass, na.rm = TRUE),
+         trap_occurrence_percent_sd = sd(trap_occurrence_percent, na.rm = TRUE),
+         frass_mass_sd = sd(frass_mass, na.rm = TRUE),
+         number_pellets_sd = sd(number_pellets, na.rm = TRUE),
+         weeklytemp_sd = sd(weeklytemp, na.rm = TRUE),
+         fracSurveys_zscore = (fracSurveys_anomaly/fracSurveys_sd), #Z SCORE START HERE
+         meanDensity_zscore = (meanDensity_anomaly/meanDensity_sd),
+         meanBiomass_zscore = (meanBiomass_anomaly/meanBiomass_sd),
+         trap_occurrence_percent_zscore = (trap_occurrence_percent_anomaly/trap_occurrence_percent_sd),
+         frass_mass_zscore = (frass_mass_anomaly/frass_mass_sd),
+         number_pellets_zscore = (number_pellets_anomaly/number_pellets_sd),
+         weeklytemp_zscore = (weeklytemp_anomaly/weeklytemp_sd)) %>%
+  ungroup() %>%
+  group_by(Site, julianweek) %>% 
+  mutate(fracSurveys_avg_zscore = mean(fracSurveys_zscore, na.rm = TRUE), #NEW AVG STARTS HERE
+         meanDensity_avg_zscore = mean(meanDensity_zscore, na.rm = TRUE),
+         meanBiomass_avg_zscore = mean(meanBiomass_zscore, na.rm = TRUE),
+         trap_occurrence_percent_avg_zscore = mean(trap_occurrence_percent_zscore, na.rm = TRUE),
+         frass_mass_avg_zscore = mean(frass_mass_zscore, na.rm = TRUE),
+         number_pellets_avg_zscore = mean(number_pellets_zscore, na.rm = TRUE),
+         weeklytemp_avg_zscore = mean(weeklytemp_zscore, na.rm = TRUE)) %>%
+  ungroup()%>%
+  group_by(Site, Year)%>%
+  mutate(
+         fracSurveys_anomaly_new = fracSurveys_zscore - fracSurveys_avg_zscore, #NEW ANAOMALY START HERE
+         meanDensity_anomaly_new = meanDensity_zscore - meanDensity_avg_zscore,
+         meanBiomass_anomaly_new = meanBiomass_zscore - meanBiomass_avg_zscore,
+         trap_occurrence_percent_anomaly_new = trap_occurrence_percent_zscore - trap_occurrence_percent_avg_zscore,
+         frass_mass_anomaly_new = frass_mass_zscore - frass_mass_avg_zscore,
+         number_pellets_anomaly_new = number_pellets_zscore - number_pellets_avg_zscore,
+         weeklytemp_anomaly_new = weeklytemp_zscore - weeklytemp_avg_zscore) 
+
+
 
 #make a function for plotting each variable for all years and where they are all centered at 0
 anomaly_centered_plotting <- function(data, var_choice, site_choice, x_var = julianweek, year_var = Year, site_var = Site) {
@@ -1130,7 +1220,7 @@ anomaly_plotting <- function(data, data2, var_choice, avg_var_choice,
                   y = {{ avg_var_choice }}),
               color = "black", linewidth = 2) +
     labs(x = "Day of Year",
-         y = "% Caterpillars per Survey",
+         y = "Two Week Avg Temp °C",
          color = "Year",
          title = "") +
     theme_classic() +
@@ -1139,7 +1229,7 @@ anomaly_plotting <- function(data, data2, var_choice, avg_var_choice,
 
 #use it
 anomaly_plotting(visualization_data, visualization_data_average,
-                 fracSurveys, fracSurveys_avg, 8892356)
+                 weeklytemp, weeklytemp_avg, 8892356)
 
 #where 2022 year is red
 anomaly_plotting <- function(data, data2, var_choice, avg_var_choice,
@@ -1147,7 +1237,7 @@ anomaly_plotting <- function(data, data2, var_choice, avg_var_choice,
                              x_var = julianweek, year_var = Year,
                              site_var = Site,
                              highlight_year = 2022,
-                             highlight_color = "red3") {
+                             highlight_color = "brown1") {
   
   df1 <- data  %>% filter({{ site_var }} == .env$site_choice)
   df2 <- data2 %>% filter({{ site_var }} == .env$site_choice)
@@ -1171,15 +1261,19 @@ anomaly_plotting <- function(data, data2, var_choice, avg_var_choice,
                   y = {{ avg_var_choice }}),
               color = "black", linewidth = 2) +
     labs(x = "Day of Year",
-         y = "% Caterpillars per Survey",
+         y = "% Traps Frass",
          title = "") +
     theme_classic() +
-    theme(axis.title.x = element_text(margin = margin(t = 40)))
+    theme(axis.title.x = element_text(margin = margin(t = 40)), axis.text.x  = element_blank(),
+          axis.ticks.x = element_line(linewidth = .5, color = "black"),  # thickness
+          axis.ticks.length = unit(0.3, "cm"))
 }
 #use
 anomaly_plotting(visualization_data, visualization_data_average,
                  fracSurveys, fracSurveys_avg, 8892356)
-#---------------------------------------------------
+anomaly_plotting(visualization_data, visualization_data_average,
+                 trap_occurrence_percent, trap_occurrence_percent_avg, 8892356)
+#-------------------------------------------------------------------------------------------------
 #FIGURE 2:
 
 #line plot of one year at NCBG, but plotting all the variables
@@ -1394,7 +1488,7 @@ multi_plotting(all_six_variables_dataframe, "8892356", 2022,
                                  trap_occurrence_percent = "% Traps Frass",
                                  number_pellets          = "Number of Frass Pellets",
                                  frass_mass              = "Frass mass"))
-#------------------------------------------------------
+#------------------------------------------------------------------------------
 #FIGURE 3:
 
 vars_of_interest <- c("fracSurveys", "meanBiomass", "meanDensity", "trap_occurrence_percent", "frass_mass", "number_pellets")
@@ -1532,18 +1626,125 @@ correlation_plotting_allyears <- function(data,
 correlation_plotting_allyears(nested_data_spearman_allyears)
 #SCATTERPLOT OF THINGS WITH ABLINE INCLUDED BY COLOR
 
+#-----------------------------------------------------------------------------------------------
+#FIGURE 4:
+
+#anomlay z score plotting
+anomaly_centered_plotting <- function(data, var_choice, site_choice,
+                                      y_label = NULL,
+                                      x_var = julianweek, year_var = Year, site_var = Site) {
+  
+  anom_col <- paste0(var_choice, "_anomaly_new")
+  avg_col  <- paste0(var_choice, "_avg_zscore")
+  
+  # keep only the chosen site
+  df1 <- data %>% filter({{ site_var }} == .env$site_choice)
+  
+  # the weekly average is identical across years, so keep one row per week
+  df_avg <- df1 %>%
+    ungroup() %>%
+    distinct({{ x_var }}, .data[[avg_col]])
+  
+  ggplot() +
+    # one thin dark grey line per year, no legend
+    geom_line(data = df1,
+              aes(x = {{ x_var }},
+                  y = .data[[anom_col]],
+                  group = {{ year_var }}),
+              color = "grey30", alpha = 0.7, linewidth = 0.6) +
+    # thick dark line for the average across years
+    geom_line(data = df_avg,
+              aes(x = {{ x_var }},
+                  y = .data[[avg_col]]),
+              color = "black", linewidth = 1.6) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "black", linewidth = 0.8) +
+    labs(x = "Day of Year", y = y_label) +
+    theme_classic() +
+    theme(legend.position = "none",
+          axis.title.x = element_text(margin = margin(t = 40)),
+          axis.title.y = element_text(margin = margin(r = 9)))  # push y title away from axis
+}
+
+# this one is wrong
+anomaly_centered_plotting(anomaly_centered_impute, "weeklytemp", 8892356,
+                          y_label = "% Frass Anomaly")
+
+#fixed one??
+anomaly_centered_plotting <- function(data, var_choice, site_choice,
+                                      y_label = NULL,
+                                      x_var = julianweek, year_var = Year, site_var = Site) {
+  
+  z_col   <- paste0(var_choice, "_zscore")
+  avg_col <- paste0(var_choice, "_avg_zscore")
+  
+  df1 <- data %>% filter({{ site_var }} == .env$site_choice)
+  
+  df_avg <- df1 %>%
+    ungroup() %>%
+    distinct({{ x_var }}, .data[[avg_col]])
+  
+  ggplot() +
+    geom_line(data = df1,
+              aes(x = {{ x_var }}, y = .data[[z_col]], group = {{ year_var }}),
+              color = "grey30", alpha = 0.7, linewidth = 0.6) +
+    geom_line(data = df_avg,
+              aes(x = {{ x_var }}, y = .data[[avg_col]]),
+              color = "black", linewidth = 1.6) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "black", linewidth = 0.8) +
+    labs(x = "Day of Year", y = y_label) +
+    theme_classic() +
+    theme(legend.position = "none",
+          axis.title.x = element_text(margin = margin(t = 40)),
+          axis.title.y = element_text(margin = margin(r = 9)), axis.text.x  = element_blank(),
+          axis.ticks.x = element_line(linewidth = .5, color = "black"),  # thickness
+          axis.ticks.length = unit(0.3, "cm"))
+}
+
+anomaly_centered_plotting(anomaly_centered_impute, "weeklytemp", 8892356,
+                          y_label = "Temperature Anomaly")
+#---------------------------------------------------------------------------------------------------------
+#FIGURE 5:
+
+#want to make temp anomaly (x) vs variable anomaly (y) graph with correlation on it 
 
 
+#correlation first
+#fixed correlation with correct variables:
+responses <- c("fracSurveys", "meanDensity", "meanBiomass",
+               "trap_occurrence_percent", "number_pellets", "frass_mass")
 
+# standardize anomalies within site so slopes are comparable across responses
+model_data <- anomaly_centered_impute %>%
+  ungroup() %>%
+  group_by(Site) %>%
+  mutate(across(c(all_of(paste0(responses, "_anomaly")), weeklytemp_anomaly),
+                ~ as.numeric(scale(.x)),
+                .names = "{.col}_s")) %>%
+  ungroup()
 
+models <- lapply(responses, function(v) {
+  lm(as.formula(paste0(v, "_anomaly_s ~ weeklytemp_anomaly_s")), data = model_data)
+})
+names(models) <- responses
 
+lapply(models, summary)
+#---------------------------------------------------------------------------------
+# standardize anomalies within site
+model_data <- anomaly_centered_impute %>%
+  ungroup() %>%
+  group_by(Site) %>%
+  mutate(trap_anom_s = as.numeric(scale(trap_occurrence_percent_anomaly)),
+         temp_anom_s = as.numeric(scale(weeklytemp_anomaly))) %>%
+  ungroup()
 
+fig4model <- lm(trap_anom_s ~ temp_anom_s, data = model_data)
+summary(fig4model)
 
-
-
-
-
-
-
-
-
+plot(trap_anom_s ~ temp_anom_s, data = model_data,
+     xlab = "Temperature Anomaly",
+     ylab = "% Traps Frass Anomaly")
+abline(fig4model, col = "brown1", lwd = 2)
+legend("topleft",
+       legend = expression(R^2 == 0.34),
+       bty = "n",
+       cex = 1.2)
