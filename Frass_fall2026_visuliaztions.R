@@ -1728,7 +1728,7 @@ models <- lapply(responses, function(v) {
 names(models) <- responses
 
 lapply(models, summary)
-#---------------------------------------------------------------------------------
+#--------------------------------------------
 # standardize anomalies within site
 model_data <- anomaly_centered_impute %>%
   ungroup() %>%
@@ -1748,3 +1748,199 @@ legend("topleft",
        legend = expression(R^2 == 0.34),
        bty = "n",
        cex = 1.2)
+
+#----------------------------------------------------------------------------------
+#FIGURE 6:   Correlations with moving temp
+#filter for just variables I want
+anomaly_centered_impute_filtered <- anomaly_centered_impute %>%
+  dplyr::select("Site", "Year", "julianweek", "fracSurveys_anomaly", "meanDensity_anomaly", "meanBiomass_anomaly", "trap_occurrence_percent_anomaly", "frass_mass_anomaly", "number_pellets_anomaly", "weeklytemp_anomaly")
+
+allvars <- c("fracSurveys_anomaly", "meanDensity_anomaly", "meanBiomass_anomaly", "trap_occurrence_percent_anomaly", "frass_mass_anomaly", "number_pellets_anomaly")
+
+temp_metric <- c("weeklytemp_anomaly")
+
+#long format: one row per Site x Year x metric x temp variable
+long_df_2weeks <- anomaly_centered_impute_filtered %>%
+  dplyr::select(Site, Year, all_of(temp_metric), all_of(allvars)) %>%
+  pivot_longer(all_of(c(allvars)),
+               names_to = "metric", values_to = "response") %>%
+  pivot_longer(all_of(temp_metric),
+               names_to = "temp_var", values_to = "temp") %>%
+  mutate(metric_type = if_else(metric %in% allvars, "vars", "temp"))
+
+#safe correlation function (returns NA if too few complete pairs, more than 4 NA)
+safe_cor <- function(x, y, method = "spearman") {
+  ok <- complete.cases(x, y)
+  n  <- sum(ok)
+  if (n < 4 || sd(x[ok]) == 0 || sd(y[ok]) == 0) {
+    return(tibble(r = NA_real_, p = NA_real_, n = n))
+  }
+  ct <- suppressWarnings(cor.test(x[ok], y[ok], method = method))
+  tibble(r = unname(ct$estimate), p = ct$p.value, n = n)
+}
+
+cor_results <- long_df_2weeks %>%
+  group_by(Site, metric_type, metric, temp_var) %>%
+  group_modify(~ safe_cor(.x$temp, .x$response, method = "spearman")) %>%   #change pearson vs spearman here
+  ungroup()
+
+cor_results %>% arrange(Site, temp_var, metric_type, metric)
+
+#heatmaps
+responses <- c(all_vars)
+responses <- as.character(unlist(allvars))   
+temp_vars <- c("weeklytemp_anomaly")  
+
+#correlation matrix for one site: rows = responses, cols = temp variables
+site_cor_matrix <- function(df, site, method = "spearman", min_n = 4) {
+  d <- df[df$Site == site, ]
+  
+  r_mat <- cor(d[, responses], d[, temp_vars],
+               use = "pairwise.complete.obs", method = method)
+  
+  # number of complete pairs behind each correlation
+  n_mat <- sapply(temp_vars, function(tv)
+    sapply(responses, function(rv) sum(complete.cases(d[[tv]], d[[rv]]))))
+  
+  r_mat[n_mat < min_n] <- NA     # blank out cells with too few years
+  list(r = r_mat, n = n_mat)
+}
+
+#sites can be filtered
+plot_site_cor <- function(df, site, method = "spearman") {
+  m <- site_cor_matrix(df, site, method)$r
+  corrplot(m,
+           is.corr   = FALSE,
+           col.lim   = c(-1, 1),
+           method    = "shade",
+           title     = paste("Site", site),
+           mar       = c(0, 0, 2, 0),
+           tl.col    = "black",
+           tl.srt    = 45,
+           cl.align.text = "l",
+           cl.offset = .7,
+           addCoef.col = "black",
+           number.cex  = 0.5,
+           addgrid.col = "black",
+           na.label    = "NA",
+           col = colorRampPalette(c("firebrick2", "white", "dodgerblue3"))(200))
+  invisible(m)
+}
+
+# one panel per site
+plot_site_cor(anomaly_centered_impute_filtered, 8892356)
+plot_site_cor(anomaly_centered_impute_filtered, 117)
+
+
+
+#both sites combined--------------------
+cor_results_pooled <- long_df_2weeks %>%
+  group_by(metric_type, metric, temp_var) %>%
+  group_modify(~ safe_cor(.x$temp, .x$response, method = "spearman")) %>%
+  ungroup()
+
+site_cor_matrix <- function(df, site = NULL, method = "spearman", min_n = 4) {
+  d <- if (is.null(site)) df else df[df$Site %in% site, ]
+  
+  r_mat <- cor(d[, responses], d[, temp_vars],
+               use = "pairwise.complete.obs", method = method)
+  
+  n_mat <- sapply(temp_vars, function(tv)
+    sapply(responses, function(rv) sum(complete.cases(d[[tv]], d[[rv]]))))
+  
+  r_mat[n_mat < min_n] <- NA
+  list(r = r_mat, n = n_mat)
+}
+
+plot_site_cor <- function(df, site = NULL, method = "spearman") {
+  m <- site_cor_matrix(df, site, method)$r
+  ttl <- if (is.null(site)) "Both sites combined" else paste("Site", paste(site, collapse = " + "))
+  corrplot(m,
+           is.corr   = FALSE,
+           col.lim   = c(-1, 1),
+           method    = "shade",
+           title     = ttl,
+           mar       = c(0, 0, 2, 0),
+           tl.col    = "black",
+           tl.srt    = 45,
+           cl.align.text = "l",
+           cl.offset = .7,
+           addCoef.col = "black",
+           number.cex  = 0.5,
+           addgrid.col = "black",
+           na.label    = "NA",
+           col = colorRampPalette(c("firebrick2", "white", "dodgerblue3"))(200))
+  invisible(m)
+}
+
+# all sites pooled
+plot_site_cor(anomaly_centered_impute_filtered)
+# or explicitly pool two sites (replace with your second site ID)
+plot_site_cor(anomaly_centered_impute_filtered, site = c(8892356, 117))
+
+
+#####color labels
+plot_site_cor <- function(df, site = NULL, method = "spearman",
+                          labels = c(
+                            fracSurveys             = "% Surveys Caterpillars",
+                            meanDensity             = "Caterpillar Density",
+                            meanBiomass             = "Caterpillar Biomass",
+                            trap_occurrence_percent = "% Traps Frass",
+                            number_pellets          = "Number of Frass Pellets",
+                            frass_mass              = "Frass Mass"
+                          ),
+                          cat_vars   = c("fracSurveys", "meanDensity", "meanBiomass"),
+                          frass_vars = c("trap_occurrence_percent", "number_pellets", "frass_mass"),
+                          cat_col    = "brown1",
+                          frass_col  = "#018060") {
+  
+  m <- site_cor_matrix(df, site, method)$r
+  
+  # strip "_anomaly" so rownames match the keys in `labels`
+  base_names <- sub("_anomaly$", "", rownames(m))
+  
+  # nice labels (fall back to the raw name if a key is missing)
+  rownames(m) <- ifelse(base_names %in% names(labels), labels[base_names], base_names)
+  
+  # label colors by group, in row order
+  row_cols <- ifelse(base_names %in% cat_vars,   cat_col,
+                     ifelse(base_names %in% frass_vars, frass_col, "black"))
+  
+  corrplot(m,
+           is.corr   = FALSE,
+           col.lim   = c(-1, 1),
+           method    = "shade",
+           mar       = c(0, 0, 3.5, 0),   
+           tl.pos    = "l",            
+           tl.col    = row_cols,
+           cl.align.text = "l",
+           cl.offset = .7,
+           addCoef.col = "black",
+           number.cex  = 0.9,
+           addgrid.col = "black",
+           na.label    = "NA",
+           col = colorRampPalette(c("firebrick2", "white", "dodgerblue3"))(200))
+  
+  
+  invisible(m)
+}
+
+# pooled
+plot_site_cor(anomaly_centered_impute_filtered)
+
+# single site
+plot_site_cor(anomaly_centered_impute_filtered, site = 8892356)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
